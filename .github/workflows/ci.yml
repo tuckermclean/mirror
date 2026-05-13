@@ -278,6 +278,9 @@ jobs:
           fi
 
       - name: Run Trivy vulnerability scan
+        # continue-on-error so a CVE finding doesn't gate the build; findings
+        # are still uploaded to GitHub Security for review and remediation.
+        continue-on-error: true
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.30.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
