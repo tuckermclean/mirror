@@ -2,10 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { eq, and, isNull, sql } from "drizzle-orm";
-import { db } from "@/db/client.js";
-import { interviews, users } from "@/db/schema.js";
-import { prompts } from "@/lib/prompts/index.js";
-import { recordLlmSpend } from "@/lib/billing/llm-ledger.js";
+import { db } from "@/db/client";
+import { interviews, users } from "@/db/schema";
+import { prompts } from "@/lib/prompts/index";
+import { recordLlmSpend } from "@/lib/billing/llm-ledger";
 
 const client = new Anthropic();
 

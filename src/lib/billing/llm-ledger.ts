@@ -1,5 +1,5 @@
-import { db } from "@/db/client.js";
-import { llmSpendLedger } from "@/db/schema.js";
+import { db } from "@/db/client";
+import { llmSpendLedger } from "@/db/schema";
 
 type RecordSpendParams = {
   userId: string;

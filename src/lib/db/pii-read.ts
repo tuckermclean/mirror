@@ -1,5 +1,5 @@
-import { db } from "@/db/client.js";
-import { auditLog } from "@/db/schema.js";
+import { db } from "@/db/client";
+import { auditLog } from "@/db/schema";
 
 type PiiReadParams = {
   tableName: string;
