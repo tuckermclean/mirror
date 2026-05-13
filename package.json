@@ -17,12 +17,19 @@
     "test:a11y": "playwright test tests/a11y",
     "test:perf": "playwright test tests/perf",
     "infra:test": "vitest run tests/infra",
-    "eval:prompts": "promptfoo eval --config evals/prompts"
+    "eval:prompts": "promptfoo eval --config evals/prompts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0",
     "@types/node": "^20.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "axe-core": "^4.10.0",
+    "eslint": "^10.3.0",
+    "eslint-config-next": "^16.2.6",
     "promptfoo": "^0.108.0",
     "typescript": "^5.7.0",
     "vite-tsconfig-paths": "^6.1.1",
@@ -31,5 +38,21 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=10.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
+    "@clerk/nextjs": "^7.3.3",
+    "@clerk/testing": "^2.0.27",
+    "@tailwindcss/postcss": "^4.3.0",
+    "ai": "^6.0.180",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "inngest": "^4.4.0",
+    "next": "^15.5.18",
+    "postcss": "^8.5.14",
+    "postgres": "^3.4.9",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.0"
   }
 }

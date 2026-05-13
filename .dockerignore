@@ -1,0 +1,36 @@
+# Node dependencies — reinstalled inside the image by pnpm
+node_modules
+
+# Next.js build output — produced inside the image by pnpm build
+.next
+
+# Git history — not needed at runtime
+.git
+.gitignore
+
+# Test suites — not shipped in the production image
+tests
+evals
+fixtures
+
+# Markdown docs — exclude all except README.md
+*.md
+!README.md
+
+# Environment files — secrets must never bake into the image
+.env
+.env.*
+!.env.example
+
+# Terraform state and infra tooling — not part of app images
+infra/terraform
+
+# Editor and OS artifacts
+.editorconfig
+.vscode
+.DS_Store
+*.swp
+*.swo
+
+# TypeScript build info
+tsconfig.tsbuildinfo

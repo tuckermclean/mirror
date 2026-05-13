@@ -1,0 +1,200 @@
+name: mirror
+
+# ---------------------------------------------------------------------------
+# Full local stack — bring up everything with: docker compose up -d
+# Profiles:
+#   default  — all services (no --profile flag needed)
+#   lite     — web + postgres + redis only
+#   e2e      — all services + playwright test runner
+#
+# Copy .env.example to .env.local and fill in real values before starting.
+# ---------------------------------------------------------------------------
+
+services:
+
+  # -------------------------------------------------------------------------
+  # postgres — pgvector-enabled Postgres 16
+  # -------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mirror
+      POSTGRES_PASSWORD: mirror
+      POSTGRES_DB: mirror
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mirror -d mirror"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    profiles:
+      - default
+      - lite
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # redis — session store, Inngest event bus, rate-limiting
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    profiles:
+      - default
+      - lite
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # inngest — local dev server (replaces Inngest Cloud in dev)
+  # UI: http://localhost:8288
+  # -------------------------------------------------------------------------
+  inngest:
+    image: inngest/inngest:latest
+    restart: unless-stopped
+    ports:
+      - "8288:8288"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8288 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    profiles:
+      - default
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # mailhog — local SMTP capture for transactional mail
+  # SMTP:  localhost:1025
+  # UI:    http://localhost:8025
+  # -------------------------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8025 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    profiles:
+      - default
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # web — Next.js application
+  # Hot reload is enabled in the dev profile via bind mount on src/
+  # -------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      # Dev profile only: bind-mount src/ for hot reload without rebuild
+      - ${DEV_SRC_MOUNT:-/dev/null}:/app/src:ro
+    profiles:
+      - default
+      - lite
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # worker — Playwright scraper, Inngest function host
+  # -------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      inngest:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"process.exit(0)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    profiles:
+      - default
+      - e2e
+
+  # -------------------------------------------------------------------------
+  # seed — one-shot migration + seed runner; restart: no so it exits cleanly
+  # -------------------------------------------------------------------------
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    restart: "no"
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+    command: ["sh", "-c", "pnpm drizzle-kit push && node scripts/seed.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - default
+      - e2e
+
+# ---------------------------------------------------------------------------
+# Named volumes — state survives `docker compose down`
+# Use `docker compose down -v` to wipe data entirely
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+  redis_data:

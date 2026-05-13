@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
@@ -17,8 +18,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "outDir": ".next"
+    "outDir": ".next",
+    "plugins": [{ "name": "next" }]
   },
-  "include": ["src/**/*", "tests/**/*", "evals/**/*"],
-  "exclude": ["node_modules", ".next"]
+  "include": ["src/**/*", "tests/**/*", "evals/**/*", "worker/**/*", "drizzle.config.ts"],
+  "exclude": ["node_modules", ".next", "extension"]
 }

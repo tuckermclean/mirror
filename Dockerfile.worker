@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# Playwright scraper worker image
+# Base: mcr.microsoft.com/playwright:v1.51.0-jammy
+# arm64 supported from Playwright v1.45+ — v1.51.0 is verified multi-arch.
+# Browsers are pre-installed in the base image at /ms-playwright.
+# Only Chromium is used; Firefox and WebKit are not launched.
+
+FROM mcr.microsoft.com/playwright:v1.51.0-jammy
+
+WORKDIR /app
+
+# Install pnpm via corepack
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Create non-root user before copying any app files
+RUN groupadd -r worker && useradd -r -g worker worker
+
+# Copy manifests first for layer cache efficiency
+COPY package.json pnpm-lock.yaml ./
+
+# Production-only install — no devDeps needed in the worker image
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy worker source
+COPY worker/ ./worker/
+
+# Set ownership so the non-root user can read all app files
+RUN chown -R worker:worker /app
+
+USER worker
+
+# Playwright browsers are pre-installed in the base image at this path
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Chromium flags: no sandbox (required in containers), disable GPU (headless)
+ENV CHROMIUM_FLAGS="--no-sandbox --disable-gpu"
+
+# Disable Playwright telemetry
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+ENTRYPOINT ["node", "worker/index.js"]
