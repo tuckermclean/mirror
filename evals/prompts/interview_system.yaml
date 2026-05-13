@@ -1,8 +1,6 @@
-# promptfoo eval for interview_system.md
-# RED: lib/prompts/interview_system.md does not exist yet — fails until Wk 1
 description: "Interview system prompt eval"
 prompts:
-  - file://../../lib/prompts/interview_system.md
+  - file://../../src/lib/prompts/interview_system.md
 
 providers:
   - id: anthropic:claude-sonnet-4-6
