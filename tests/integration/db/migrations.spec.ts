@@ -30,7 +30,7 @@ describe("Drizzle schema + migrations", () => {
     const { imports } = await import("@/db/schema");
     expect(imports).toBeDefined();
     // Column type assertion — implementation must use pgvector extension
-    const col = (imports as Record<string, unknown>)["voiceEmbedding"];
+    const col = (imports as unknown as Record<string, unknown>)["voiceEmbedding"];
     expect(col).toBeDefined();
   });
 });

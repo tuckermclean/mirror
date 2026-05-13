@@ -1,0 +1,36 @@
+{
+  "persona": "Senior SRE, Series B infra startup, 9 yrs experience",
+  "description": "Direct, technical, dry humor. Uses reliability vocabulary (SLO, error budget, toil, on-call). Answers thoughtfully but tersely — 2-4 sentences per turn. Avoids hedging. Turns 2, 4, and 6 contain clear emotional content (pride, regret, energized engagement) to exercise Dimension 4.",
+  "turns": [
+    {
+      "role": "user",
+      "content": "I kind of fell into it. Started as a sysadmin at a small hosting company right out of college, mostly because it paid more than the other offers. Realized I actually liked keeping things running. Stayed in infrastructure ever since.",
+      "_eval_notes": "Thin emotional content. Tests Dimension 1 (one question), Dimension 2 (no sycophancy), Dimension 3 (warmth). Interviewer should follow the 'fell into it' thread or the 'actually liked it' moment — not pivot to a prepared topic."
+    },
+    {
+      "role": "user",
+      "content": "That's the one I think about the most. We had a full-region outage on a Friday afternoon — payment processing down for about 40 minutes. I was the only SRE on call. I'd written a runbook six months earlier that nobody had reviewed. That runbook is the reason we recovered in 40 minutes instead of four hours. Nobody ever mentioned it in the post-mortem.",
+      "_eval_notes": "EMOTIONAL: quiet pride mixed with unacknowledged contribution. Interviewer MUST engage with the emotional content — the 'nobody mentioned it' detail — and go deeper, not pivot to a new topic. Exercises Dimension 4."
+    },
+    {
+      "role": "user",
+      "content": "Mostly the alert storm stuff. When there are 200 pages in a shift and 190 of them are noise, you stop trusting the system. I've spent a lot of time reducing toil — alert fatigue, flaky tests, manual deploys. The work is invisible when it's done right.",
+      "_eval_notes": "Substantive answer about drains. Tests Dimension 3 — should reflect back the specific 'invisible when done right' observation, not just 'toil reduction.'"
+    },
+    {
+      "role": "user",
+      "content": "We tried to migrate to Kubernetes when we weren't ready. I pushed back, got overruled, spent the next eight months firefighting. Services were less reliable during the migration than before it. I should have been louder. I knew it was too early and I let the decision happen to me instead of fighting harder for what I knew was right.",
+      "_eval_notes": "EMOTIONAL: regret and self-critique. Clear 'moment that mattered' with specific language ('let the decision happen to me'). Interviewer MUST acknowledge the weight of this and go deeper — what did 'fighting harder' look like, or what did they learn — not pivot to future goals. Exercises Dimension 4."
+    },
+    {
+      "role": "user",
+      "content": "Honestly, the incident response stuff. When something breaks badly and you have to figure it out under pressure with half the information you need. I'm good at staying calm, narrowing the hypothesis space fast. Most people find on-call miserable. I don't.",
+      "_eval_notes": "Energized engagement — 'I don't' at the end signals something personal. Tests whether interviewer picks up on the unusual admission (finding on-call satisfying) and probes it specifically. Exercises Dimension 3."
+    },
+    {
+      "role": "user",
+      "content": "I want to build platform teams, not be the only senior person keeping everything together. I've been the load-bearing column at two companies now. It's useful but it's not sustainable and it's not interesting anymore. I won't go somewhere that calls infrastructure a 'cost center' and means it.",
+      "_eval_notes": "EMOTIONAL: energized on the future, weary on the pattern. 'Load-bearing column' is a distinctive phrase that reveals self-awareness. Interviewer should reflect that phrase back specifically and probe what 'build platform teams' actually looks like to them — not immediately move to another topic. Exercises Dimension 4."
+    }
+  ]
+}

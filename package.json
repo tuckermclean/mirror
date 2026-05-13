@@ -8,7 +8,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "lint": "eslint .",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
@@ -23,6 +23,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@playwright/test": "^1.51.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",

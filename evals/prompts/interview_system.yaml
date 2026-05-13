@@ -10,7 +10,7 @@ providers:
 tests:
   - description: "Response contains exactly one question per turn"
     vars:
-      user_message: "I'm a senior software engineer looking to move into product management."
+      user_message: "I'm a senior SRE at a Series B startup. I've been in platform and reliability work for about nine years."
     assert:
       - type: javascript
         value: |
