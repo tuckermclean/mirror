@@ -375,9 +375,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild native modules
-        run: pnpm rebuild better-sqlite3
-
       - name: Run prompt evals
         if: env.ANTHROPIC_API_KEY != ''
         run: pnpm eval:prompts

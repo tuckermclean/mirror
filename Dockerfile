@@ -18,10 +18,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy lockfile and manifest first for layer cache efficiency
 COPY pnpm-lock.yaml package.json ./
 
-# Production-only install: excludes devDeps (and their native modules like
-# better-sqlite3) so node-gyp is never invoked on Alpine's musl libc.
-# next build uses SWC (bundled in next) and does not need typescript devDeps.
-RUN pnpm install --frozen-lockfile --prod
+# --ignore-scripts blocks all lifecycle scripts so node-gyp is never invoked on
+# Alpine's musl libc (better-sqlite3 would fail; esbuild/sharp use prebuilts).
+# Rebuild the three prebuilt-binary packages explicitly after install.
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts && \
+    pnpm rebuild esbuild sharp unrs-resolver
 
 # ---------------------------------------------------------------------------
 # Stage 2: builder — compile the Next.js application
