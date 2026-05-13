@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS llm_spend_ledger (
 CREATE TABLE IF NOT EXISTS audit_log (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
-    accessor_id UUID NOT NULL,
+    accessor_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     table_name  TEXT NOT NULL,
     row_id      UUID NOT NULL,
     field_name  TEXT NOT NULL,

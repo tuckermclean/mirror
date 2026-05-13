@@ -15,7 +15,10 @@ const MODEL_PRICING: Record<string, { inputPerMToken: number; outputPerMToken: n
 };
 
 export async function recordLlmSpend(params: RecordSpendParams): Promise<void> {
-  const pricing = MODEL_PRICING[params.model] ?? { inputPerMToken: 3, outputPerMToken: 15 };
+  const pricing = MODEL_PRICING[params.model];
+  if (!pricing) {
+    throw new Error(`Unknown model "${params.model}" — add it to MODEL_PRICING before recording spend`);
+  }
   const costUsd =
     (params.inputTokens / 1_000_000) * pricing.inputPerMToken +
     (params.outputTokens / 1_000_000) * pricing.outputPerMToken;

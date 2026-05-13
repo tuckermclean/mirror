@@ -19,9 +19,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: mirror
-      POSTGRES_PASSWORD: mirror
-      POSTGRES_DB: mirror
+      POSTGRES_USER: ${POSTGRES_USER:-mirror}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mirror}
+      POSTGRES_DB: ${POSTGRES_DB:-mirror}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
@@ -117,7 +117,7 @@ services:
     env_file:
       - .env.local
     environment:
-      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+      DATABASE_URL: postgres://${POSTGRES_USER:-mirror}:${POSTGRES_PASSWORD:-mirror}@postgres:5432/${POSTGRES_DB:-mirror}
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
@@ -151,7 +151,7 @@ services:
     env_file:
       - .env.local
     environment:
-      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+      DATABASE_URL: postgres://${POSTGRES_USER:-mirror}:${POSTGRES_PASSWORD:-mirror}@postgres:5432/${POSTGRES_DB:-mirror}
       REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
@@ -161,7 +161,7 @@ services:
       inngest:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"process.exit(0)\""]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:2112/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -182,7 +182,7 @@ services:
     env_file:
       - .env.local
     environment:
-      DATABASE_URL: postgres://mirror:mirror@postgres:5432/mirror
+      DATABASE_URL: postgres://${POSTGRES_USER:-mirror}:${POSTGRES_PASSWORD:-mirror}@postgres:5432/${POSTGRES_DB:-mirror}
     command: ["sh", "-c", "pnpm drizzle-kit push && node scripts/seed.js"]
     depends_on:
       postgres:

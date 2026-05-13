@@ -199,8 +199,11 @@ export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   // Nullable: the subject user may be deleted; nullify on delete (GDPR)
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  // The user performing the read — required
-  accessorId: uuid("accessor_id").notNull(),
+  // The user performing the read — FK to users with RESTRICT so audit records
+  // outlive soft-deletes; hard-delete of an accessor must be handled explicitly.
+  accessorId: uuid("accessor_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
   tableName: text("table_name").notNull(),
   rowId: uuid("row_id").notNull(),
   fieldName: text("field_name").notNull(),

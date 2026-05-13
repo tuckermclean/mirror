@@ -13,14 +13,14 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * Call this before returning any value from a PII column
- * (interviews.transcript, imports.raw_path, imports.parsed,
- * linkedin_snapshots.raw_html, etc.).
+ * Scaffold: the function exists but call sites are wired in Wk 2 when the
+ * ESLint rule blocking direct reads outside this wrapper is added. For now,
+ * the table and function are present so the DB migration is complete and
+ * callers can opt in immediately.
  *
- * The userId on the audit row is intentionally left null here because
- * the caller already knows the accessorId; if the subject row belongs
- * to a specific user, pass userId via the optional extension below or
- * derive it from the query that fetches the PII row.
+ * Call before returning any value from a PII column:
+ * interviews.transcript, imports.raw_path, imports.parsed,
+ * linkedin_snapshots.raw_html.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({

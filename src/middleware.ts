@@ -15,11 +15,11 @@ function applySecurityHeaders(response: NextResponse, nonce: string): NextRespon
     "Content-Security-Policy",
     [
       `default-src 'self'`,
-      `script-src 'self' 'nonce-${nonce}' https://clerk.mirror.so`,
+      `script-src 'self' 'nonce-${nonce}' https://clerk.mirror.so https://*.clerk.accounts.dev`,
       `style-src 'self' 'unsafe-inline'`,
       `img-src 'self' data: https:`,
       `font-src 'self'`,
-      `connect-src 'self' https://api.anthropic.com https://clerk.mirror.so`,
+      `connect-src 'self' https://api.anthropic.com https://clerk.mirror.so https://api.clerk.dev https://*.clerk.accounts.dev https://us.i.posthog.com https://app.posthog.com`,
       `frame-ancestors 'none'`,
     ].join("; ")
   );

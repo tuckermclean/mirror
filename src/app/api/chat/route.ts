@@ -1,13 +1,18 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client.js";
 import { interviews, users } from "@/db/schema.js";
 import { prompts } from "@/lib/prompts/index.js";
 import { recordLlmSpend } from "@/lib/billing/llm-ledger.js";
 
 const client = new Anthropic();
+
+const MAX_MESSAGES = 80; // 2 per turn × 40 turns
+const MAX_CONTENT_CHARS = 10_000;
+const COMPLETE_TAG = "<interview_complete>";
+const COMPLETE_TAG_LEN = COMPLETE_TAG.length;
 
 type MessageParam = {
   role: "user" | "assistant";
@@ -40,14 +45,17 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // 2. Parse request body
-  let messages: MessageParam[];
+  // 2. Parse and validate request body
+  let newUserMessage: string;
   try {
-    const body = (await request.json()) as { messages?: unknown; interviewId?: unknown };
+    const body = (await request.json()) as { messages?: unknown };
     if (!Array.isArray(body.messages)) {
       return NextResponse.json({ error: "messages must be an array" }, { status: 400 });
     }
-    messages = (body.messages as unknown[]).filter((m): m is MessageParam => {
+    if (body.messages.length > MAX_MESSAGES) {
+      return NextResponse.json({ error: "too_many_messages" }, { status: 400 });
+    }
+    const msgs = (body.messages as unknown[]).filter((m): m is MessageParam => {
       if (typeof m !== "object" || m === null) return false;
       const obj = m as Record<string, unknown>;
       return (
@@ -55,11 +63,19 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
         typeof obj["content"] === "string"
       );
     });
+    const last = msgs.at(-1);
+    if (!last || last.role !== "user") {
+      return NextResponse.json({ error: "last_message_must_be_user" }, { status: 400 });
+    }
+    if (last.content.length > MAX_CONTENT_CHARS) {
+      return NextResponse.json({ error: "message_too_long" }, { status: 400 });
+    }
+    newUserMessage = last.content;
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  // 3. Resolve the internal user row from Clerk ID
+  // 3. Resolve internal user row from Clerk ID
   const userRows = await db
     .select({ id: users.id })
     .from(users)
@@ -71,46 +87,58 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   }
   const internalUserId = userRows[0]!.id;
 
-  // 4. Load or create an open interview row (upsert: find open, else insert)
-  let interviewRow: {
-    id: string;
-    turnCount: number;
-    transcript: unknown;
-    completedAt: Date | null;
-  };
-
+  // 4. Find or create the open interview row
   const existing = await db
-    .select({
-      id: interviews.id,
-      turnCount: interviews.turnCount,
-      transcript: interviews.transcript,
-      completedAt: interviews.completedAt,
-    })
+    .select({ id: interviews.id })
     .from(interviews)
     .where(and(eq(interviews.userId, internalUserId), isNull(interviews.completedAt)))
     .limit(1);
 
+  let interviewId: string;
   if (existing.length > 0) {
-    interviewRow = existing[0]!;
+    interviewId = existing[0]!.id;
   } else {
     const inserted = await db
       .insert(interviews)
       .values({ userId: internalUserId })
-      .returning({
-        id: interviews.id,
-        turnCount: interviews.turnCount,
-        transcript: interviews.transcript,
-        completedAt: interviews.completedAt,
-      });
-    interviewRow = inserted[0]!;
+      .returning({ id: interviews.id });
+    interviewId = inserted[0]!.id;
   }
 
-  // 5. Enforce 40-turn limit
-  if (interviewRow.turnCount >= 40) {
+  // 5. Atomically claim one turn (prevents concurrent double-billing races).
+  // Increments turn_count in the same statement that enforces the limit; if
+  // the row is already complete or at 40 turns, 0 rows are returned → 400.
+  const claimed = await db
+    .update(interviews)
+    .set({ turnCount: sql`${interviews.turnCount} + 1` })
+    .where(
+      and(
+        eq(interviews.id, interviewId),
+        isNull(interviews.completedAt),
+        sql`${interviews.turnCount} < 40`
+      )
+    )
+    .returning({
+      id: interviews.id,
+      turnCount: interviews.turnCount,
+      transcript: interviews.transcript,
+    });
+
+  if (claimed.length === 0) {
     return NextResponse.json({ error: "interview_complete" }, { status: 400 });
   }
+  const interviewRow = claimed[0]!;
 
-  // 6. Build the SSE stream
+  // 6. Build authoritative message history from the DB transcript.
+  // The client message list is used only to extract the new user message;
+  // history comes from the DB so callers cannot forge prior turns.
+  const dbTranscript = parseTranscript(interviewRow.transcript);
+  const authoritative: MessageParam[] = [
+    ...dbTranscript,
+    { role: "user", content: newUserMessage },
+  ];
+
+  // 7. Build the SSE stream
   const encoder = new TextEncoder();
   let fullText = "";
 
@@ -121,77 +149,76 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
           model: "claude-sonnet-4-6",
           max_tokens: 512,
           system: prompts.interviewSystem.content,
-          messages: messages as Anthropic.MessageParam[],
+          messages: authoritative as Anthropic.MessageParam[],
         });
 
-        // Stream text chunks to client, stripping <interview_complete> as we go
+        // Stream text with a lookahead buffer to prevent a partial tag from
+        // leaking to the client when <interview_complete> spans two chunks.
+        let sendBuffer = "";
         anthropicStream.on("text", (chunk: string) => {
           fullText += chunk;
-          // Strip the tag from the chunk sent to the client; we only need
-          // to check within the accumulated buffer since the tag might span chunks
-          const stripped = chunk.replace(/<interview_complete>/g, "");
-          if (stripped.length > 0) {
-            const sseData = `data: ${JSON.stringify({ text: stripped })}\n\n`;
-            controller.enqueue(encoder.encode(sseData));
+          sendBuffer += chunk;
+
+          const safe =
+            sendBuffer.length > COMPLETE_TAG_LEN - 1
+              ? sendBuffer.length - (COMPLETE_TAG_LEN - 1)
+              : 0;
+
+          if (safe > 0) {
+            const toSend = sendBuffer.slice(0, safe).replace(new RegExp(COMPLETE_TAG, "g"), "");
+            sendBuffer = sendBuffer.slice(safe);
+            if (toSend.length > 0) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: toSend })}\n\n`)
+              );
+            }
           }
         });
 
-        // Wait for stream to complete and get usage
         const finalMessage = await anthropicStream.finalMessage();
-        const usage = finalMessage.usage;
 
-        // Determine completion
-        const isComplete = fullText.includes("<interview_complete>");
+        // Flush remaining buffer after stream ends
+        const remaining = sendBuffer.replace(new RegExp(COMPLETE_TAG, "g"), "");
+        if (remaining.length > 0) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ text: remaining })}\n\n`)
+          );
+        }
 
-        // Send completion event
+        const isComplete = fullText.includes(COMPLETE_TAG);
         const doneEvent = isComplete
           ? `data: ${JSON.stringify({ complete: true })}\n\ndata: [DONE]\n\n`
           : `data: [DONE]\n\n`;
         controller.enqueue(encoder.encode(doneEvent));
         controller.close();
 
-        // 7. Post-stream DB updates — run after closing the stream
-        const newTurnCount = interviewRow.turnCount + 1;
-        const currentTranscript = parseTranscript(interviewRow.transcript);
+        // 8. Post-stream DB update + billing — isolated try/catch so a
+        // persistence failure cannot attempt to enqueue on the closed controller.
+        try {
+          const cleanedText = fullText.replace(new RegExp(COMPLETE_TAG, "g"), "").trim();
+          const updatedTranscript: TranscriptEntry[] = [
+            ...parseTranscript(interviewRow.transcript),
+            { role: "user", content: newUserMessage },
+            { role: "assistant", content: cleanedText },
+          ];
 
-        // Append the last user message and the new assistant message
-        const lastUserMessage = messages[messages.length - 1];
-        const newEntries: TranscriptEntry[] = [];
-        if (lastUserMessage && lastUserMessage.role === "user") {
-          newEntries.push({ role: "user", content: lastUserMessage.content });
-        }
-        // Strip the tag from the persisted transcript text
-        const cleanedText = fullText.replace(/<interview_complete>/g, "").trim();
-        newEntries.push({ role: "assistant", content: cleanedText });
-
-        const updatedTranscript: TranscriptEntry[] = [...currentTranscript, ...newEntries];
-
-        if (isComplete) {
           await db
             .update(interviews)
             .set({
-              turnCount: newTurnCount,
               transcript: updatedTranscript,
-              completedAt: new Date(),
+              ...(isComplete ? { completedAt: new Date() } : {}),
             })
             .where(eq(interviews.id, interviewRow.id));
-        } else {
-          await db
-            .update(interviews)
-            .set({
-              turnCount: newTurnCount,
-              transcript: updatedTranscript,
-            })
-            .where(eq(interviews.id, interviewRow.id));
-        }
 
-        // 8. Record billing
-        await recordLlmSpend({
-          userId: internalUserId,
-          model: "claude-sonnet-4-6",
-          inputTokens: usage.input_tokens,
-          outputTokens: usage.output_tokens,
-        });
+          await recordLlmSpend({
+            userId: internalUserId,
+            model: "claude-sonnet-4-6",
+            inputTokens: finalMessage.usage.input_tokens,
+            outputTokens: finalMessage.usage.output_tokens,
+          });
+        } catch (persistErr) {
+          console.error("[chat] post-stream persist failed:", persistErr);
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "stream_error";
         controller.enqueue(

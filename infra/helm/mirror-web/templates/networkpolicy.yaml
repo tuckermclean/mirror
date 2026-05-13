@@ -31,12 +31,25 @@ spec:
         - protocol: TCP
           port: 53
 
-    # Allow egress to Postgres
-    - ports:
+    # Allow egress to Postgres pod only
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
         - protocol: TCP
           port: 5432
 
-    # Allow egress to Anthropic API (api.anthropic.com)
+    # Allow egress to Redis pod only (required for Clerk session validation)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Allow egress to external APIs (Anthropic, Clerk, PostHog) via HTTPS
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
