@@ -1,0 +1,26 @@
+{{- if .Values.scaledObject.enabled -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "mirror-worker.fullname" . }}
+  labels:
+    {{- include "mirror-worker.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "mirror-worker.fullname" . }}
+  idleReplicaCount: {{ .Values.scaledObject.idleReplicaCount }}
+  minReplicaCount: {{ .Values.scaledObject.minReplicaCount }}
+  maxReplicaCount: {{ .Values.scaledObject.maxReplicaCount }}
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: external
+      metadata:
+        # Inngest queue depth trigger via external scaler or metrics API.
+        # Replace scalerAddress with your Inngest KEDA external scaler endpoint.
+        scalerAddress: "inngest-keda-scaler.inngest.svc.cluster.local:8080"
+        functionName: {{ .Values.scaledObject.inngest.functionName | quote }}
+        queueDepthTarget: {{ .Values.scaledObject.inngest.queueDepthTarget | quote }}
+{{- end }}

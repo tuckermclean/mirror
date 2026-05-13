@@ -1,0 +1,61 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/YOUR_ORG/mirror-web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts: []
+  tls: []
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  customMetric:
+    enabled: false
+    name: generations_in_flight
+    target: 10
+
+pdb:
+  enabled: false
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+# Name of a pre-existing k8s Secret containing all app secrets.
+# The chart reads from this Secret via envFrom; it never creates or generates secrets.
+existingSecret: "mirror-secrets"
+
+# Extra environment variables injected into the container as key-value pairs.
+# Example:
+#   env:
+#     NEXT_PUBLIC_APP_URL: "https://mirror.example.com"
+env: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

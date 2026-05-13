@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mirror-web
+description: Mirror web application (Next.js 15)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

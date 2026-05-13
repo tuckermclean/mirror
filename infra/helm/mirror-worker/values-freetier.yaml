@@ -1,0 +1,32 @@
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+pdb:
+  enabled: true
+  minAvailable: 0
+
+nodeSelector:
+  kubernetes.io/arch: arm64
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+
+serviceMonitor:
+  enabled: false
+
+scaledObject:
+  enabled: true
+  # Scale to zero when queue is empty to conserve free-tier resources
+  idleReplicaCount: 0
+  minReplicaCount: 0
+  maxReplicaCount: 2
+  inngest:
+    queueDepthTarget: "3"
+    functionName: "generate-profile"

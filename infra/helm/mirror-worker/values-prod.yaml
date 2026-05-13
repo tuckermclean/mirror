@@ -1,0 +1,28 @@
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+scaledObject:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  idleReplicaCount: 1
+  inngest:
+    queueDepthTarget: "5"
+    functionName: "generate-profile"
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 1000m

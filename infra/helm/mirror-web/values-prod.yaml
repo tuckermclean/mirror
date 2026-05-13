@@ -1,0 +1,46 @@
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  customMetric:
+    enabled: true
+    name: generations_in_flight
+    target: 10
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: mirror.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mirror-prod-tls
+      hosts:
+        - mirror.example.com
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
