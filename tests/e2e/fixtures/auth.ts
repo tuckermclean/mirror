@@ -8,11 +8,21 @@ type AuthFixtures = {
 export const test = base.extend<AuthFixtures>({
   authedPage: async ({ page }, use) => {
     const clerkKey = process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
-    const hasClerkKey = clerkKey && clerkKey !== "pk_test_placeholder";
+    const secretKey = process.env["CLERK_SECRET_KEY"];
+    const hasClerkKey =
+      clerkKey && clerkKey !== "pk_test_placeholder" && secretKey;
 
     if (hasClerkKey) {
       const { setupClerkTestingToken } = await import("@clerk/testing/playwright");
+      // Register the FAPI route interceptor (adds ?__clerk_testing_token to all
+      // Clerk FAPI requests so Clerk returns a real session).
       await setupClerkTestingToken({ page });
+      // Navigate to a public page so ClerkJS initialises in the browser and
+      // fires the /v1/client FAPI request. Playwright intercepts it, Clerk
+      // returns a session, and the session cookie is set before the test's own
+      // page.goto. Without this, auth.protect() redirects before ClerkJS loads.
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
     }
 
     await use(page);
