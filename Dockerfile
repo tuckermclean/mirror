@@ -18,8 +18,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy lockfile and manifest first for layer cache efficiency
 COPY pnpm-lock.yaml package.json ./
 
-# Frozen install ensures reproducibility; includes devDeps needed by builder
-RUN pnpm install --frozen-lockfile
+# Production-only install: excludes devDeps (and their native modules like
+# better-sqlite3) so node-gyp is never invoked on Alpine's musl libc.
+# next build uses SWC (bundled in next) and does not need typescript devDeps.
+RUN pnpm install --frozen-lockfile --prod
 
 # ---------------------------------------------------------------------------
 # Stage 2: builder — compile the Next.js application

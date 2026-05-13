@@ -1,6 +1,11 @@
 description: "Interview system prompt eval"
+
+# interview_chat.json: system prompt + one prior turn of context so each test
+# is evaluated as turn 2 (not turn 1). Without prior context the model always
+# responds with the scripted opening question, making the warm-tone test
+# impossible to pass.
 prompts:
-  - file://../../src/lib/prompts/interview_system.md
+  - file://interview_chat.json
 
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
