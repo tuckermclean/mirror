@@ -6,26 +6,7 @@ ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 
 # ---------------------------------------------------------------------------
-# Stage 1: deps — install production + dev dependencies
-# ---------------------------------------------------------------------------
-FROM --platform=${BUILDPLATFORM:-linux/amd64} node:20-alpine AS deps
-
-WORKDIR /app
-
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Copy lockfile and manifest first for layer cache efficiency
-COPY pnpm-lock.yaml package.json ./
-
-# --ignore-scripts blocks all lifecycle scripts so node-gyp is never invoked on
-# Alpine's musl libc (better-sqlite3 would fail; esbuild/sharp use prebuilts).
-# Rebuild the three prebuilt-binary packages explicitly after install.
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts && \
-    pnpm rebuild esbuild sharp unrs-resolver
-
-# ---------------------------------------------------------------------------
-# Stage 2: builder — compile the Next.js application
+# Stage 1: builder — install all deps and compile the Next.js application
 # ---------------------------------------------------------------------------
 FROM --platform=${BUILDPLATFORM:-linux/amd64} node:20-alpine AS builder
 
@@ -38,23 +19,27 @@ ARG NEXT_PUBLIC_POSTHOG_KEY
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Pull installed node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy lockfile and manifest first for layer cache efficiency
+COPY pnpm-lock.yaml package.json ./
 
-# Copy all source (lockfile already cached above via deps stage)
-COPY package.json pnpm-lock.yaml ./
+# Full install (devDeps required: TypeScript for next.config.ts compilation).
+# --ignore-scripts prevents node-gyp on Alpine's musl libc; rebuild only
+# the three packages that ship prebuilt Alpine binaries.
+# NODE_ENV is NOT set here so pnpm includes devDependencies.
+RUN pnpm install --frozen-lockfile --ignore-scripts && \
+    pnpm rebuild esbuild sharp unrs-resolver
+
 COPY . .
 
-# next.config.ts must have output: 'standalone' for this to produce
-# .next/standalone — without it the runner stage will fail to find server.js
+# Set NODE_ENV after install so Next.js builds in production mode
+ENV NODE_ENV=production
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
-# Stage 3: runner — distroless production image
+# Stage 2: runner — distroless production image
 # Target size budget: < 250 MB compressed
 # ---------------------------------------------------------------------------
 FROM gcr.io/distroless/nodejs20-debian12 AS runner
