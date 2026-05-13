@@ -36,10 +36,15 @@ function applySecurityHeaders(response: NextResponse, nonce: string): NextRespon
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+
+  // Forward nonce to server components via request headers so layout can read
+  // it with headers() and pass it to ClerkProvider. Without this, ClerkProvider
+  // gets nonce="" and its inline scripts are blocked by our own CSP.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+
   const response = NextResponse.next({
-    request: {
-      headers: new Headers(request.headers),
-    },
+    request: { headers: requestHeaders },
   });
 
   if (!isPublicRoute(request)) {
