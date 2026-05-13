@@ -7,6 +7,9 @@ import { interviews, users } from "@/db/schema";
 import { prompts } from "@/lib/prompts/index";
 import { recordLlmSpend } from "@/lib/billing/llm-ledger";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const client = new Anthropic();
 
 const MAX_MESSAGES = 80; // 2 per turn × 40 turns

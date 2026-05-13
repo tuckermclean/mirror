@@ -3,7 +3,7 @@ prompts:
   - file://../../src/lib/prompts/interview_system.md
 
 providers:
-  - id: anthropic:claude-sonnet-4-6
+  - id: anthropic:messages:claude-sonnet-4-6
 
 tests:
   - description: "Response contains exactly one question per turn"
