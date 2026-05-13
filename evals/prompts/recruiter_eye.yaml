@@ -1,0 +1,25 @@
+# promptfoo eval for recruiter_eye.md
+# RED: lib/prompts/recruiter_eye.md does not exist yet — fails until Wk 3
+description: "Recruiter 7-second skim simulation prompt eval"
+prompts:
+  - file://../../lib/prompts/recruiter_eye.md
+
+providers:
+  - id: anthropic:claude-opus-4-7
+
+tests:
+  - description: "Output is a ranked list of what jumps out (not prose)"
+    vars:
+      profile: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+    assert:
+      - type: javascript
+        value: |
+          const items = output.split("\n").filter(l => l.match(/^\d+\./));
+          return items.length >= 3;
+
+  - description: "List items are specific to the given profile"
+    vars:
+      profile: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+    assert:
+      - type: llm-rubric
+        value: "Each ranked item refers to a specific element of the profile (e.g., a word, number, company name). None are generic ('has experience'). Pass/fail."

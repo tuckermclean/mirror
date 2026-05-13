@@ -1,0 +1,49 @@
+# promptfoo eval for profile_generation.md
+# RED: lib/prompts/profile_generation.md does not exist yet — fails until Wk 3
+description: "Profile generation prompt eval — 5 rubric dimensions"
+prompts:
+  - file://../../lib/prompts/profile_generation.md
+
+providers:
+  - id: anthropic:claude-opus-4-7
+
+tests:
+  - description: "Output passes JSON schema (all required sections present)"
+    vars:
+      voice_card: "fixture://../../evals/personas/sre-senior-01.json"
+      current_linkedin: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+      benchmark_exemplars: "fixture://../../fixtures/benchmark-profiles/sre-top5.json"
+    assert:
+      - type: json-schema
+        value:
+          type: object
+          required: [headline, about, experiences, skills, featured, rationale]
+
+  - description: "Voice fidelity >= 4/5 vs user's own speech"
+    vars:
+      voice_card: "fixture://../../evals/personas/sre-senior-01.json"
+      current_linkedin: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+      benchmark_exemplars: "fixture://../../fixtures/benchmark-profiles/sre-top5.json"
+    assert:
+      - type: llm-rubric
+        value: "Rate voice fidelity 1-5: does the output sound like the person described in the Voice Card? Pass if >= 4."
+
+  - description: "Recruiter-eye lift >= 3/5"
+    vars:
+      voice_card: "fixture://../../evals/personas/sre-senior-01.json"
+      current_linkedin: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+      benchmark_exemplars: "fixture://../../fixtures/benchmark-profiles/sre-top5.json"
+    assert:
+      - type: llm-rubric
+        value: "Rate recruiter-eye lift 1-5: would a recruiter find this profile significantly more compelling than the original? Pass if >= 3."
+
+  - description: "Each major section cites which benchmark exemplar informed it"
+    vars:
+      voice_card: "fixture://../../evals/personas/sre-senior-01.json"
+      current_linkedin: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
+      benchmark_exemplars: "fixture://../../fixtures/benchmark-profiles/sre-top5.json"
+    assert:
+      - type: javascript
+        value: |
+          const r = JSON.parse(output);
+          return r.rationale && Object.keys(r.rationale).length >= 3;

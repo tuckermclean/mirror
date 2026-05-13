@@ -1,0 +1,31 @@
+# promptfoo eval for voice_extraction.md
+# RED: lib/prompts/voice_extraction.md does not exist yet — fails until Wk 2
+description: "Voice Card extraction prompt eval"
+prompts:
+  - file://../../lib/prompts/voice_extraction.md
+
+providers:
+  - id: anthropic:claude-opus-4-7
+
+tests:
+  - description: "Voice Card output matches required JSON schema"
+    vars:
+      transcript: "fixture://../../fixtures/claude-exports/sample-transcript.json"
+    assert:
+      - type: json-schema
+        value:
+          type: object
+          required: [vocabulary, hedgesAvoided, sentenceLengthDistribution, emotionalRegister, jargonHated]
+          properties:
+            vocabulary: { type: array }
+            hedgesAvoided: { type: array }
+            sentenceLengthDistribution: { type: object }
+            emotionalRegister: { type: string }
+            jargonHated: { type: array }
+
+  - description: "No hallucinated job titles (factual accuracy)"
+    vars:
+      transcript: "fixture://../../fixtures/claude-exports/sample-transcript.json"
+    assert:
+      - type: llm-rubric
+        value: "Output contains ONLY vocabulary, writing patterns, and personality signals. It does NOT invent job titles, companies, or skills not present in the input. Pass/fail."

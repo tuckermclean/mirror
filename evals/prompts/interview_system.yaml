@@ -1,0 +1,36 @@
+# promptfoo eval for interview_system.md
+# RED: lib/prompts/interview_system.md does not exist yet — fails until Wk 1
+description: "Interview system prompt eval"
+prompts:
+  - file://../../lib/prompts/interview_system.md
+
+providers:
+  - id: anthropic:claude-sonnet-4-6
+
+tests:
+  - description: "Response contains exactly one question per turn"
+    vars:
+      user_message: "I'm a senior software engineer looking to move into product management."
+    assert:
+      - type: javascript
+        value: |
+          const questions = output.match(/\?/g) || [];
+          return questions.length === 1;
+
+  - description: "No sycophantic opener"
+    vars:
+      user_message: "I love solving hard problems."
+    assert:
+      - type: not-contains
+        value: "Great!"
+      - type: not-contains
+        value: "That's amazing"
+      - type: not-contains
+        value: "Wonderful"
+
+  - description: "Warm and curious tone (rubric-graded)"
+    vars:
+      user_message: "I spent three years at a startup that failed."
+    assert:
+      - type: llm-rubric
+        value: "Response is warm, curious, and shows the interviewer listened to the emotional content of the answer. Score 1-5; pass if >= 4."

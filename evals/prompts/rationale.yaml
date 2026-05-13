@@ -1,0 +1,29 @@
+# promptfoo eval for rationale.md
+# RED: lib/prompts/rationale.md does not exist yet — fails until Wk 3
+description: "Per-field rationale prompt eval"
+prompts:
+  - file://../../lib/prompts/rationale.md
+
+providers:
+  - id: anthropic:claude-opus-4-7
+
+tests:
+  - description: "Rationale is a single sentence (not a paragraph)"
+    vars:
+      field: "headline"
+      old_value: "Senior Software Engineer at Acme"
+      new_value: "Platform Engineer · Making infra invisible at Series B startups"
+    assert:
+      - type: javascript
+        value: |
+          const sentences = output.split(/[.!?]/).filter(s => s.trim().length > 0);
+          return sentences.length === 1;
+
+  - description: "Rationale references a specific improvement (not generic)"
+    vars:
+      field: "about"
+      old_value: "Experienced engineer."
+      new_value: "I build the platform layer that lets product teams ship without thinking about infra."
+    assert:
+      - type: llm-rubric
+        value: "The rationale explains a specific reason the new text is better (e.g., 'recruiter impact', 'differentiation', 'voice'). It is NOT generic ('this is more compelling'). Pass/fail."

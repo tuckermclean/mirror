@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "cluster": "Senior SRE / Platform Engineer",
+    "seniority": "senior",
+    "industry": "Series B-D infra-heavy startup",
+    "region": "US/EU",
+    "yoe": 9,
+    "status": "placeholder — replace with real fixture in Wk 4"
+  },
+  "voiceCard": {
+    "vocabulary": ["reliability", "toil", "SLO", "error budget", "on-call", "platform", "invisible infra"],
+    "hedgesAvoided": ["I think", "sort of", "maybe", "just"],
+    "sentenceLengthDistribution": { "short": 0.4, "medium": 0.45, "long": 0.15 },
+    "emotionalRegister": "direct, technical, dry humor",
+    "jargonHated": ["synergy", "leverage", "move the needle", "rockstar"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Site Reliability Engineer at Synthwave Systems",
+    "about": "I keep the lights on.",
+    "experience": [
+      {
+        "title": "Senior SRE",
+        "company": "Synthwave Systems",
+        "bullets": ["Reduced MTTR", "Implemented observability"]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["platform", "reliability", "infra"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}
