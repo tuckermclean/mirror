@@ -196,7 +196,7 @@ jobs:
       # Wk 1 scope: auth + interview. Wk 2+ specs (import, linkedin, walkthrough,
       # commit) are RED by design and excluded from this job.
       - name: Run E2E tests (Wk 1 scope)
-        run: pnpm test:e2e tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
+        run: pnpm exec playwright test tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
 
       - name: Upload Playwright report
         if: always()
