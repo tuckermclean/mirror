@@ -148,4 +148,3 @@ Strict red-green-refactor TDD throughout. Every feature starts with a failing te
 | [EVALS.md](EVALS.md) | Prompt eval scores (Wk 3+) |
 | [TDD.md](TDD.md) | TDD discipline + how to add a layer (Wk 6) |
 
-✨
