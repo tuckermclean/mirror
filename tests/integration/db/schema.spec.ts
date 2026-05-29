@@ -225,7 +225,7 @@ describe("foreign key constraints enforce referential integrity", () => {
 // 5. HNSW index on benchmark_profiles.embedding
 // ---------------------------------------------------------------------------
 describe("HNSW index on benchmark_profiles.embedding", () => {
-  it("index exists and uses HNSW with cosine ops", async () => {
+  it("index exists and uses HNSW with cosine distance ops", async () => {
     const rows = await sql`
       SELECT indexname, indexdef
       FROM   pg_indexes
@@ -234,7 +234,9 @@ describe("HNSW index on benchmark_profiles.embedding", () => {
         AND  indexdef   ILIKE '%hnsw%'
     `;
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.indexdef).toContain("vector_cosine_ops");
+    // pgvector 0.8.x: vector(3072) HNSW uses a halfvec cast expression
+    // to bypass the 2000-dimension limit; ops class is halfvec_cosine_ops.
+    expect(rows[0]?.indexdef).toContain("cosine_ops");
   });
 
   it("HNSW index has m=16 and ef_construction=64", async () => {

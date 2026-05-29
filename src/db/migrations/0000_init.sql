@@ -158,10 +158,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ---------------------------------------------------------------------------
 
 -- HNSW on benchmark_profiles.embedding for sub-200ms cosine k-NN retrieval.
+-- pgvector 0.8.x limits HNSW to 2000 dims for the plain vector type.
+-- Cast to halfvec(3072) in the index expression to lift that limit while
+-- keeping the stored column as full-precision vector(3072).
+-- Query with: ORDER BY embedding::halfvec(3072) <=> $query::halfvec(3072)
 -- ef_search can be tuned at query time: SET hnsw.ef_search = 100;
 CREATE INDEX IF NOT EXISTS benchmark_profiles_embedding_hnsw_idx
     ON benchmark_profiles
-    USING hnsw (embedding vector_cosine_ops)
+    USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
 -- btree on imports.user_id (filter-first before cosine scan per ADR-005)
