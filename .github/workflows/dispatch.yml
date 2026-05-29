@@ -42,7 +42,8 @@ jobs:
             Classify this and write .dispatch.json:
             EVENT: ${{ github.event_name }}
             TITLE: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
-            BODY: ${{ github.event.issue.body || github.event.comment.body || '' }}
+            ISSUE BODY: ${{ github.event.issue.body || '' }}
+            COMMENT: ${{ github.event.comment.body || '' }}
 
             Output ONLY valid JSON to .dispatch.json.
 
@@ -138,7 +139,12 @@ jobs:
             ISSUE NUMBER: ${{ github.event.issue.number }}
             EXISTING BRANCH: ${{ steps.existing_pr.outputs.branch }}
             TITLE: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
-            BODY: ${{ github.event.issue.body || github.event.comment.body || '' }}
+            ISSUE BODY: ${{ github.event.issue.body || '' }}
+            COMMENT: ${{ github.event.comment.body || '' }}
+
+            If COMMENT is non-empty, that is the specific request to fulfill — use ISSUE BODY as background only.
+            After completing your work, post a summary comment on the issue using the GitHub CLI:
+              gh issue comment <ISSUE NUMBER> --body "..."
 
             For implement/fix/design tasks:
             - If EXISTING BRANCH is set: check out that branch and push additional work there — do NOT open a new PR

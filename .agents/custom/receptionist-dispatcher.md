@@ -78,6 +78,14 @@ opus    — architecture decisions, security audits, complex multi-file refactor
     → product-sprint-prioritizer.md + haiku
 17. Default: engineering-senior-developer.md + sonnet
 
+## Input
+Fields passed by the workflow:
+- ISSUE BODY: original issue description (always present for issue events)
+- COMMENT: the specific comment that triggered this run (non-empty for issue_comment events)
+
+When COMMENT is non-empty, classify based on COMMENT first — it is the actual request.
+Use ISSUE BODY for context only.
+
 ## Output
 Write ONLY this JSON to .dispatch.json. No prose, no fences.
 {
