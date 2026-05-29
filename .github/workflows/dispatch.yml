@@ -102,6 +102,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--model ${{ needs.dispatch.outputs.model }} --max-turns ${{ needs.dispatch.outputs.max_turns }}"
+          show_full_output: "true"
           prompt: |
             Load the agent at: ${{ needs.dispatch.outputs.agent }}
             Task type: ${{ needs.dispatch.outputs.task_type }}
