@@ -4,6 +4,71 @@ Rewrite your LinkedIn profile in your authentic voice with measurably better pos
 
 Mirror learns who you actually are — through a life-story interview, your AI chat history, and your current LinkedIn — then rewrites your profile with per-section rationale, a recruiter-eye heatmap simulation, and inline accept/reject controls.
 
+## Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js** 18+ ([install](https://nodejs.org/))
+- **pnpm** 8+ (install with `npm install -g pnpm`)
+- **Docker** and **Docker Compose** ([install Docker Desktop](https://www.docker.com/products/docker-desktop))
+- **Git**
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd mirror
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local and fill in required API keys (see Environment variables section below)
+   ```
+
+### Local Development
+
+Start the full local development stack with one command:
+
+```bash
+docker compose up -d --wait
+pnpm dev
+```
+
+This starts:
+- **Next.js app**: http://localhost:3000
+- **Inngest dev server**: http://localhost:8288
+- **Mailhog** (email testing): http://localhost:8025
+
+The app hot-reloads as you edit files.
+
+### Running Tests
+
+```bash
+# Unit tests
+pnpm test:unit
+
+# Integration tests (requires DATABASE_URL)
+pnpm test:integration
+
+# E2E tests (requires running app)
+pnpm test:e2e
+
+# All checks (type checking, linting, tests)
+pnpm typecheck
+pnpm lint
+```
+
+For additional commands, see the [Development](#development) section below.
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full domain model, ADRs, and deployment topology.
@@ -82,3 +147,4 @@ Strict red-green-refactor TDD throughout. Every feature starts with a failing te
 | [MOAT.md](MOAT.md) | 9 moat layers + metrics (Wk 6) |
 | [EVALS.md](EVALS.md) | Prompt eval scores (Wk 3+) |
 | [TDD.md](TDD.md) | TDD discipline + how to add a layer (Wk 6) |
+
