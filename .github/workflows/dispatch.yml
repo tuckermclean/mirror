@@ -58,7 +58,7 @@ jobs:
           else
             echo "agent=.agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
             echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
-            echo "max_turns=25" >> $GITHUB_OUTPUT
+            echo "max_turns=50" >> $GITHUB_OUTPUT
             echo "task_type=implement" >> $GITHUB_OUTPUT
           fi
 
