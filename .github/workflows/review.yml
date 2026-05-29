@@ -21,26 +21,31 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
+      - name: Setup agents
+        run: |
+          git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
+          find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--model claude-sonnet-4-6 --max-turns 12"
           prompt: |
             Review this PR using:
-            ~/.claude/agents/engineering-code-reviewer.md
+            .agents/engineering-code-reviewer.md
 
             Check changed file paths and ALSO consult:
             - auth/ login/ session/ crypto/ permission/ rbac/
-              → Security Engineer (~/.claude/agents/engineering-security-engineer.md)
+              → Security Engineer (.agents/engineering-security-engineer.md)
             - migrations/ *.sql schema/
-              → Database Optimizer (~/.claude/agents/engineering-database-optimizer.md)
+              → Database Optimizer (.agents/engineering-database-optimizer.md)
             - components/ *.css *.scss *.tsx frontend/ ui/
-              → UI Designer (~/.claude/agents/design-ui-designer.md)
-              AND Accessibility Auditor (~/.claude/agents/testing-accessibility-auditor.md)
+              → UI Designer (.agents/design-ui-designer.md)
+              AND Accessibility Auditor (.agents/testing-accessibility-auditor.md)
             - api/ routes/ handlers/ endpoints/
-              → API Tester (~/.claude/agents/testing-api-tester.md)
+              → API Tester (.agents/testing-api-tester.md)
             - .github/ workflows/ Dockerfile
-              → DevOps Automator (~/.claude/agents/engineering-devops-automator.md)
+              → DevOps Automator (.agents/engineering-devops-automator.md)
 
             Check:
             1. AGENTS.md compliance

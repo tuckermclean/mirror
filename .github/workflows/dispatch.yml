@@ -26,12 +26,14 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
+      # Dispatcher is committed in .agents/custom/ — no clone needed for this job.
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--model claude-haiku-4-5-20251001 --max-turns 3"
           prompt: |
-            Load ~/.claude/agents/custom/receptionist-dispatcher.md
+            Load .agents/custom/receptionist-dispatcher.md
 
             Classify this and write .dispatch.json:
             EVENT: ${{ github.event_name }}
@@ -49,7 +51,7 @@ jobs:
             echo "max_turns=$(jq -r '.max_turns' .dispatch.json)" >> $GITHUB_OUTPUT
             echo "task_type=$(jq -r '.task_type' .dispatch.json)" >> $GITHUB_OUTPUT
           else
-            echo "agent=~/.claude/agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
+            echo "agent=.agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
             echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
             echo "max_turns=25" >> $GITHUB_OUTPUT
             echo "task_type=implement" >> $GITHUB_OUTPUT
@@ -85,6 +87,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+
+      - name: Setup agents
+        run: |
+          git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
+          find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
       - uses: anthropics/claude-code-action@v1
         with:
