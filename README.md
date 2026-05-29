@@ -4,6 +4,62 @@ Rewrite your LinkedIn profile in your authentic voice with measurably better pos
 
 Mirror learns who you actually are — through a life-story interview, your AI chat history, and your current LinkedIn — then rewrites your profile with per-section rationale, a recruiter-eye heatmap simulation, and inline accept/reject controls.
 
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** 18+ and **pnpm** 9+ ([install pnpm](https://pnpm.io/installation))
+- **PostgreSQL** 14+ (local or via Docker)
+- **Redis** (local or via Docker)
+- Required API keys: Anthropic, Stripe, Clerk, Inngest, Cloudflare R2
+
+### Installation
+
+```bash
+git clone <repository-url>
+cd mirror
+pnpm install
+cp .env.example .env.local
+# Edit .env.local and fill in your API keys
+```
+
+### Local Development
+
+Start the dev server with hot reload:
+
+```bash
+pnpm dev
+# App runs at http://localhost:3000
+```
+
+For a complete local environment with all services (app, database, Redis, Inngest, email):
+
+```bash
+docker compose up -d --wait
+pnpm dev
+# App: http://localhost:3000
+# Inngest dashboard: http://localhost:8288
+# Mailhog (dev email): http://localhost:8025
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+pnpm test:unit
+
+# Integration tests (requires DATABASE_URL)
+pnpm test:integration
+
+# Type checking
+pnpm typecheck
+
+# Linting
+pnpm lint
+```
+
+For more testing options, see [Development](#development) below.
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full domain model, ADRs, and deployment topology.
