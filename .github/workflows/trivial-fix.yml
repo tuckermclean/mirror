@@ -25,6 +25,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-haiku-4-5-20251001 --max-turns 5"
+          allowed_bots: "claude"
           prompt: |
             Fix TRIVIAL issues only in this PR:
             - Run the project formatter (see AGENTS.md for the command)
