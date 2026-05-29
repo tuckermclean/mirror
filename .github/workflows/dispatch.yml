@@ -35,7 +35,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--model claude-haiku-4-5-20251001 --max-turns 3"
+          claude_args: "--dangerously-skip-permissions --model claude-haiku-4-5-20251001 --max-turns 3"
           prompt: |
             Load .agents/custom/receptionist-dispatcher.md
 
@@ -101,7 +101,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--model ${{ needs.dispatch.outputs.model }} --max-turns ${{ needs.dispatch.outputs.max_turns }}"
+          claude_args: "--dangerously-skip-permissions --model ${{ needs.dispatch.outputs.model }} --max-turns ${{ needs.dispatch.outputs.max_turns }}"
           show_full_output: "true"
           prompt: |
             Load the agent at: ${{ needs.dispatch.outputs.agent }}
