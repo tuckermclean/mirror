@@ -98,6 +98,32 @@ jobs:
           git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
+      - name: Find existing PR for issue
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          BRANCH=""
+          if [ -n "$ISSUE_NUM" ]; then
+            # Check open PRs whose body contains a closing keyword for this issue
+            BRANCH=$(gh pr list --state open --json headRefName,body \
+              --jq ".[] | select(.body | test(\"(Closes|closes|Fixes|fixes|Resolves|resolves) #${ISSUE_NUM}\")) | .headRefName" \
+              2>/dev/null | head -1)
+            # Fallback: check the issue timeline for cross-referenced PRs
+            if [ -z "$BRANCH" ]; then
+              PR_NUM=$(gh api "repos/${{ github.repository }}/issues/${ISSUE_NUM}/timeline" \
+                --jq '[.[] | select(.event == "cross-referenced") | select(.source.issue.pull_request != null) | .source.issue.number] | last' \
+                2>/dev/null || echo "")
+              if [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ]; then
+                BRANCH=$(gh pr view "$PR_NUM" --json headRefName,state \
+                  --jq 'select(.state == "OPEN") | .headRefName' 2>/dev/null || echo "")
+              fi
+            fi
+          fi
+          echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
+          [ -n "$BRANCH" ] && echo "Existing PR branch: $BRANCH" || echo "No existing open PR found"
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -109,13 +135,16 @@ jobs:
             Follow ALL rules in AGENTS.md.
 
             EVENT: ${{ github.event_name }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            EXISTING BRANCH: ${{ steps.existing_pr.outputs.branch }}
             TITLE: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
             BODY: ${{ github.event.issue.body || github.event.comment.body || '' }}
 
             For implement/fix/design tasks:
-            - Create branch feat/<slug> or design/<slug> from master
-            - Do the work, write tests where applicable
-            - Open a PR that closes this issue
+            - If EXISTING BRANCH is set: check out that branch and push additional work there — do NOT open a new PR
+            - If no existing branch: create a new branch (feat/<slug> or design/<slug> from master)
+            - The PR description MUST include "Closes #<ISSUE NUMBER>"
+            - Open a PR only if no existing PR was found
 
             For review/explain/plan tasks:
             - Post your response as a comment on the issue/PR
