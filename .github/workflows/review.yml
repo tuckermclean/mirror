@@ -1,0 +1,55 @@
+name: "Agent: Review PR"
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'CHANGELOG*'
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model claude-sonnet-4-6 --max-turns 12"
+          prompt: |
+            Review this PR using:
+            ~/.claude/agents/engineering-code-reviewer.md
+
+            Check changed file paths and ALSO consult:
+            - auth/ login/ session/ crypto/ permission/ rbac/
+              → Security Engineer (~/.claude/agents/engineering-security-engineer.md)
+            - migrations/ *.sql schema/
+              → Database Optimizer (~/.claude/agents/engineering-database-optimizer.md)
+            - components/ *.css *.scss *.tsx frontend/ ui/
+              → UI Designer (~/.claude/agents/design-ui-designer.md)
+              AND Accessibility Auditor (~/.claude/agents/testing-accessibility-auditor.md)
+            - api/ routes/ handlers/ endpoints/
+              → API Tester (~/.claude/agents/testing-api-tester.md)
+            - .github/ workflows/ Dockerfile
+              → DevOps Automator (~/.claude/agents/engineering-devops-automator.md)
+
+            Check:
+            1. AGENTS.md compliance
+            2. Test coverage on new public functions
+            3. Error handling and edge cases
+            4. Security issues (always, not just flagged files)
+            5. Idiomatic style for the language
+            6. Accessibility on any UI changes
+
+            Be specific. Cite line numbers.
+            Approve when genuinely good. Request changes when warranted.
+            Do NOT nitpick style the formatter handles.

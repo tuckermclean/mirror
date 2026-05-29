@@ -1,0 +1,27 @@
+name: Design Task
+description: UI/UX design work
+labels: ["agent-design", "ux"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: What needs designing?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: User context
+      placeholder: "Who uses this, what are they trying to do"
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      placeholder: "Mobile-friendly, accessible, fits existing design system"
+  - type: dropdown
+    id: type
+    attributes:
+      label: Design type
+      options: [New UI component, User flow, Information architecture, Design system, Accessibility audit, Copy/microcopy]

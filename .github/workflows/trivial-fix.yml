@@ -1,0 +1,38 @@
+name: "Agent: Trivial Fixes"
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  trivial:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 6
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model claude-haiku-4-5-20251001 --max-turns 5"
+          prompt: |
+            Fix TRIVIAL issues only in this PR:
+            - Run the project formatter (see AGENTS.md for the command)
+            - Fix any lint warnings the project linter flags
+            - Fix typos in comments, strings, and doc comments
+            - Add missing trailing newlines
+
+            If you make fixes, commit them to this branch with:
+            "chore: trivial fixes (auto)"
+
+            Do NOT change logic.
+            Do NOT refactor.
+            Do NOT add or remove features.
+            If nothing to fix, do nothing and exit.
