@@ -147,5 +147,3 @@ Strict red-green-refactor TDD throughout. Every feature starts with a failing te
 | [MOAT.md](MOAT.md) | 9 moat layers + metrics (Wk 6) |
 | [EVALS.md](EVALS.md) | Prompt eval scores (Wk 3+) |
 | [TDD.md](TDD.md) | TDD discipline + how to add a layer (Wk 6) |
-
-✨
