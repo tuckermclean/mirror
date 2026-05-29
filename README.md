@@ -4,6 +4,46 @@ Rewrite your LinkedIn profile in your authentic voice with measurably better pos
 
 Mirror learns who you actually are — through a life-story interview, your AI chat history, and your current LinkedIn — then rewrites your profile with per-section rationale, a recruiter-eye heatmap simulation, and inline accept/reject controls.
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and `pnpm`
+- Docker and Docker Compose (for local database, Redis, Inngest, Mailhog)
+- A `.env.local` file with required API keys (see `.env.example`)
+
+### Install
+
+```bash
+pnpm install
+```
+
+### Local Development
+
+```bash
+cp .env.example .env.local
+# Fill in ANTHROPIC_API_KEY and other required vars in .env.local
+
+docker compose up -d --wait
+# App runs on http://localhost:3000
+# Inngest dev UI: http://localhost:8288
+# Email preview: http://localhost:8025
+
+pnpm dev
+```
+
+The app will hot-reload as you edit files.
+
+### Running Tests
+
+```bash
+pnpm test:unit        # Unit tests (Vitest)
+pnpm test:integration # Integration tests with DB (Vitest)
+pnpm test:e2e         # End-to-end tests (Playwright)
+```
+
+See [TDD.md](TDD.md) for our testing philosophy.
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full domain model, ADRs, and deployment topology.
