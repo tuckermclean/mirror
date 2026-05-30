@@ -23,7 +23,7 @@ on:
 
 concurrency:
   group: "converge-pr-${{ github.event.pull_request.number || inputs.pr_number }}"
-  cancel-in-progress: false  # let the running loop finish; don't stomp it
+  cancel-in-progress: false
 
 jobs:
   converge:
@@ -72,16 +72,15 @@ jobs:
 
       - name: Setup — init state files
         run: |
-          # Sentinel verdict: 1 blocker so a missing verdict escalates rather than auto-approves
-          SENTINEL='{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}'
-          echo "$SENTINEL" > .converge-verdict.json
+          echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
+            > .converge-verdict.json
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
-          rm -f .converge-final-action
+          rm -f .converge-final-action .converge-nits-raw
 
       # ── Round 1 ─────────────────────────────────────────────────────────────
 
       - name: "R1 — Review"
-        id: r1-review
+        id: r1_review
         timeout-minutes: 20
         uses: anthropics/claude-code-action@v1
         with:
@@ -90,8 +89,8 @@ jobs:
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-code-reviewer.md
-            Also load: .agents/custom/converge-orchestrator.md — this is the convergence
-            contract; your output MUST satisfy it (verdict schema, comment format).
+            Also load: .agents/custom/converge-orchestrator.md (the convergence contract —
+            your output MUST satisfy it: verdict schema, comment format).
 
             This is ROUND 1 of 3.
 
@@ -121,9 +120,8 @@ jobs:
               > .converge-verdict-r1.json
 
       - name: "R1 — Check CI"
-        id: r1-ci
+        id: r1_ci
         run: |
-          # Wait for CI to settle (max 8 min, poll every 30s)
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
@@ -133,7 +131,6 @@ jobs:
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
-
           CHECKS=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
@@ -147,15 +144,12 @@ jobs:
           echo "ci_green=$CI_GREEN" >> $GITHUB_OUTPUT
 
       - name: "R1 — Decide"
-        id: r1-decide
+        id: r1_decide
         run: |
           BLOCKERS=$(jq '.blockers // 1' .converge-verdict-r1.json 2>/dev/null || echo "1")
           NITS=$(jq -c '.nits // []' .converge-verdict-r1.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r1-ci.outputs.ci_green }}"
-
-          # Accumulate deferred nits
+          CI_GREEN="${{ steps.r1_ci.outputs.ci_green }}"
           echo "$NITS" >> .converge-nits-raw
-
           if [ "$BLOCKERS" -eq 0 ] && [ "$CI_GREEN" = "true" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
             echo "approve" > .converge-final-action
@@ -166,7 +160,7 @@ jobs:
           fi
 
       - name: "R1 — Fix (🔴 blockers + 🟡 suggestions)"
-        if: steps.r1-decide.outputs.done != 'true'
+        if: steps.r1_decide.outputs.done != 'true'
         timeout-minutes: 35
         uses: anthropics/claude-code-action@v1
         with:
@@ -182,22 +176,20 @@ jobs:
             PR: #${{ env.PR_NUMBER }}
 
             Read .converge-verdict-r1.json for the findings.
-            Fix ALL 🔴 blockers AND ALL 🟡 suggestions.
-            Do NOT touch 💭 nits.
+            Fix ALL 🔴 blockers AND ALL 🟡 suggestions. Do NOT touch 💭 nits.
 
             Follow AGENTS.md TDD (Red → Green → Refactor). One commit per fix.
             Commit and push after each logical change:
               git push origin ${{ steps.branch.outputs.name }}
 
-            Before pushing, verify:
-              pnpm typecheck && pnpm lint && pnpm test:unit
+            Before pushing, verify: pnpm typecheck && pnpm lint && pnpm test:unit
             Report results honestly. Do not claim green if any check is red.
 
       # ── Round 2 ─────────────────────────────────────────────────────────────
 
       - name: "R2 — Review"
-        id: r2-review
-        if: steps.r1-decide.outputs.done != 'true'
+        id: r2_review
+        if: steps.r1_decide.outputs.done != 'true'
         timeout-minutes: 20
         uses: anthropics/claude-code-action@v1
         with:
@@ -216,19 +208,18 @@ jobs:
             DELIVERABLE ORDER:
             1. Edit previous review comment:
                  gh pr comment ${{ env.PR_NUMBER }} --edit-last --body "🔄 Round 2 of 3 — review in progress…"
-            2. Rewrite as findings come in:
-                 gh pr comment ${{ env.PR_NUMBER }} --edit-last --body "🔄 Round 2 of 3\n\n<findings>"
+            2. Rewrite as findings come in.
             3. LAST: write fresh .converge-verdict.json reflecting the CURRENT PR state.
 
       - name: "R2 — Save verdict"
-        if: steps.r1-decide.outputs.done != 'true'
+        if: steps.r1_decide.outputs.done != 'true'
         run: |
           cp .converge-verdict.json .converge-verdict-r2.json 2>/dev/null || \
             cp .converge-verdict-r1.json .converge-verdict-r2.json
 
       - name: "R2 — Check CI"
-        id: r2-ci
-        if: steps.r1-decide.outputs.done != 'true'
+        id: r2_ci
+        if: steps.r1_decide.outputs.done != 'true'
         run: |
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
@@ -239,7 +230,6 @@ jobs:
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
-
           CHECKS=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
@@ -253,19 +243,15 @@ jobs:
           echo "ci_green=$CI_GREEN" >> $GITHUB_OUTPUT
 
       - name: "R2 — Decide"
-        id: r2-decide
-        if: steps.r1-decide.outputs.done != 'true'
+        id: r2_decide
+        if: steps.r1_decide.outputs.done != 'true'
         run: |
           BLOCKERS=$(jq '.blockers // 1' .converge-verdict-r2.json 2>/dev/null || echo "1")
           NITS=$(jq -c '.nits // []' .converge-verdict-r2.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r2-ci.outputs.ci_green }}"
-
+          CI_GREEN="${{ steps.r2_ci.outputs.ci_green }}"
           echo "$NITS" >> .converge-nits-raw
-
-          # No-progress detection: compare sorted blocker signatures
           R1_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
           R2_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
-
           if [ "$BLOCKERS" -eq 0 ] && [ "$CI_GREEN" = "true" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
             echo "approve" > .converge-final-action
@@ -280,7 +266,7 @@ jobs:
           fi
 
       - name: "R2 — Fix (🔴 blockers only)"
-        if: steps.r1-decide.outputs.done != 'true' && steps.r2-decide.outputs.done != 'true'
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         timeout-minutes: 35
         uses: anthropics/claude-code-action@v1
         with:
@@ -306,8 +292,8 @@ jobs:
       # ── Round 3 ─────────────────────────────────────────────────────────────
 
       - name: "R3 — Review"
-        id: r3-review
-        if: steps.r1-decide.outputs.done != 'true' && steps.r2-decide.outputs.done != 'true'
+        id: r3_review
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         timeout-minutes: 20
         uses: anthropics/claude-code-action@v1
         with:
@@ -330,14 +316,14 @@ jobs:
             3. LAST: write fresh .converge-verdict.json.
 
       - name: "R3 — Save verdict"
-        if: steps.r1-decide.outputs.done != 'true' && steps.r2-decide.outputs.done != 'true'
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         run: |
           cp .converge-verdict.json .converge-verdict-r3.json 2>/dev/null || \
             cp .converge-verdict-r2.json .converge-verdict-r3.json
 
       - name: "R3 — Check CI"
-        id: r3-ci
-        if: steps.r1-decide.outputs.done != 'true' && steps.r2-decide.outputs.done != 'true'
+        id: r3_ci
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         run: |
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
@@ -348,7 +334,6 @@ jobs:
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
-
           CHECKS=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
@@ -362,19 +347,15 @@ jobs:
           echo "ci_green=$CI_GREEN" >> $GITHUB_OUTPUT
 
       - name: "R3 — Decide (final round, no fix step)"
-        id: r3-decide
-        if: steps.r1-decide.outputs.done != 'true' && steps.r2-decide.outputs.done != 'true'
+        id: r3_decide
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         run: |
           BLOCKERS=$(jq '.blockers // 1' .converge-verdict-r3.json 2>/dev/null || echo "1")
           NITS=$(jq -c '.nits // []' .converge-verdict-r3.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r3-ci.outputs.ci_green }}"
-
+          CI_GREEN="${{ steps.r3_ci.outputs.ci_green }}"
           echo "$NITS" >> .converge-nits-raw
-
-          # No-progress vs. cap
           R2_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
           R3_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r3.json 2>/dev/null || echo "[]")
-
           if [ "$BLOCKERS" -eq 0 ] && [ "$CI_GREEN" = "true" ]; then
             echo "approve" > .converge-final-action
             echo "Converged after round 3."
@@ -401,17 +382,15 @@ jobs:
               2>/dev/null | sed 's/^/- /' || true)
           fi
 
-          # Count rounds completed
           ROUNDS=0
           [ -f .converge-verdict-r1.json ] && ROUNDS=1
           [ -f .converge-verdict-r2.json ] && ROUNDS=2
           [ -f .converge-verdict-r3.json ] && ROUNDS=3
 
-          # Take action
           if [ "$FINAL_ACTION" = "approve" ]; then
             gh pr review "$PR_NUMBER" --approve \
-              --body "✅ Converged in $ROUNDS round(s) — all 🔴 blockers resolved and CI green."
-            SUMMARY="✅ **Converged** — approved after $ROUNDS round(s). Ready for human merge."
+              --body "Converged in $ROUNDS round(s) — all blockers resolved and CI green."
+            SUMMARY="Converged — approved after $ROUNDS round(s). Ready for human merge."
           else
             REASON="${FINAL_ACTION#escalate:}"
             if [ "$REASON" = "no-progress" ]; then
@@ -420,33 +399,26 @@ jobs:
               MSG="3-round cap reached with blockers remaining."
             fi
             gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
-            SUMMARY="🛑 **Escalated to human** — $MSG Reviewed $ROUNDS round(s)."
+            SUMMARY="Escalated to human — $MSG Reviewed $ROUNDS round(s)."
           fi
 
-          # Open deferred-nits issue if there's anything to defer
+          # Open deferred-nits issue if there is anything to defer
           ISSUE_LINK=""
           if [ -n "$DEFERRED_NITS" ]; then
-            ISSUE_BODY="## Deferred from PR #${PR_NUMBER}
-
-These items were identified during the PR convergence loop but deferred
-because they are 💭 nits or 🟡 suggestions after round 1.
-They do not block the merge but should be addressed.
-
-${DEFERRED_NITS}
-
----
-_Automatically opened by the convergence loop from PR #${PR_NUMBER}._"
-
+            printf '## Deferred from PR #%s\n\n' "$PR_NUMBER" > /tmp/deferred-issue-body.md
+            printf 'These items were identified during the PR convergence loop but deferred\n' >> /tmp/deferred-issue-body.md
+            printf 'because they are nits or suggestions after round 1.\n' >> /tmp/deferred-issue-body.md
+            printf 'They do not block the merge but should be addressed.\n\n' >> /tmp/deferred-issue-body.md
+            printf '%s\n\n---\n' "$DEFERRED_NITS" >> /tmp/deferred-issue-body.md
+            printf '_Automatically opened by the convergence loop from PR #%s._\n' "$PR_NUMBER" >> /tmp/deferred-issue-body.md
             ISSUE_URL=$(gh issue create \
               --title "Deferred polish from PR #${PR_NUMBER}" \
-              --body "$ISSUE_BODY" \
+              --body-file /tmp/deferred-issue-body.md \
               --label "agent-work" 2>/dev/null | tail -1 || echo "")
-            [ -n "$ISSUE_URL" ] && ISSUE_LINK="
-📋 **Deferred items tracked:** $ISSUE_URL"
+            [ -n "$ISSUE_URL" ] && ISSUE_LINK=" Deferred items: $ISSUE_URL"
           fi
 
-          # Final PR comment (new, separate from the rolling review comment)
-          gh pr comment "$PR_NUMBER" --body "${SUMMARY}${ISSUE_LINK}
-
-> Convergence loop complete — $ROUNDS round(s) run.
-> Blocking CI checks inspected: Type Check, Lint, Integration Tests, Docker Build & Scan, Helm Lint, Helm Kubeconform."
+          printf '%s%s\n\n> Convergence loop complete — %s round(s) run.\n' \
+            "$SUMMARY" "$ISSUE_LINK" "$ROUNDS" \
+            > /tmp/final-comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/final-comment.md
