@@ -22,6 +22,7 @@ vi.mock("@/db/client", () => ({
 describe("GET /api/health/live", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.resetModules();
   });
 
   it("always returns 200 with status ok and an ISO timestamp", async () => {
@@ -37,14 +38,12 @@ describe("GET /api/health/live", () => {
   });
 
   it("does not call the database", async () => {
-    vi.resetModules();
     const { GET } = await import("@/app/api/health/live/route");
     await GET();
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
   it("sets Cache-Control: no-store header", async () => {
-    vi.resetModules();
     const { GET } = await import("@/app/api/health/live/route");
     const response = await GET();
     expect(response.headers.get("Cache-Control")).toBe("no-store");
