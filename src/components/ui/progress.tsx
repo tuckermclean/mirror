@@ -4,6 +4,7 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/lib/utils"
 
+// children should be <ProgressLabel> and/or <ProgressValue>; track/indicator are rendered internally.
 function Progress({
   className,
   children,
