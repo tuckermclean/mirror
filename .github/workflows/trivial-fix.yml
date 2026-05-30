@@ -6,6 +6,8 @@ on:
 
 jobs:
   trivial:
+    # Skip PRs managed by the convergence loop to avoid push races.
+    if: "!contains(github.event.pull_request.labels.*.name, 'converge')"
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:

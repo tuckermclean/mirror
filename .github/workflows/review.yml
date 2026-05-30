@@ -10,7 +10,8 @@ on:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    # Skip PRs managed by the convergence loop — it runs the reviewer itself.
+    if: github.event.pull_request.draft == false && !contains(github.event.pull_request.labels.*.name, 'converge')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
