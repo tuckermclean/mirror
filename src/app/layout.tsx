@@ -9,6 +9,12 @@ import { Toaster } from "@/components/ui/sonner";
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
+// TODO(security): When initializing PostHog, require: no_capture_hashed_urls: true,
+// explicit PII scrubbing (see THREAT_MODEL.md), and a CSP connect-src entry.
+// When wiring Stripe, never expose the secret key in client-side code — only the
+// publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) may reach the browser.
+// Both integrations need a focused security review before going to production.
+
 export const metadata: Metadata = {
   title: "Mirror — Rewrite Your LinkedIn in Your Voice",
   description: "Mirror learns who you actually are, then rewrites your LinkedIn profile with measurably better positioning.",

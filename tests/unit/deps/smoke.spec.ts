@@ -21,6 +21,11 @@ describe("runtime dependency smoke tests", () => {
     expect(mod.default).toBeDefined();
   });
 
+  // @types/libsodium-wrappers is intentionally absent from devDependencies:
+  // libsodium-wrappers@0.8.4 ships its own TypeScript declarations via the
+  // "types" field in its package.json ("dist/modules/libsodium-wrappers.d.ts").
+  // The @types/ stub is deprecated and redundant — adding it would print a
+  // deprecation warning on every `pnpm install`.
   it("libsodium-wrappers exports ready promise", async () => {
     const sodium = await import("libsodium-wrappers");
     expect(sodium.default).toBeDefined();

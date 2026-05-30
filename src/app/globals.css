@@ -1,3 +1,9 @@
+/* components.json uses style: "base-nova" — this is an experimental shadcn
+   style backed by @base-ui/react (as opposed to "new-york" which uses Radix).
+   Before running `pnpm shadcn add <component>`, verify the component is
+   available in the base-nova registry; some components (e.g. dialog,
+   dropdown-menu) may not yet exist there and the CLI will error or fall back
+   to a mismatched style. */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
