@@ -202,7 +202,11 @@ jobs:
       - name: Start app and wait for readiness
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: |
-          pnpm start &
+          # next.config.ts uses output:"standalone" — must use standalone server,
+          # not `next start` (which warns and may not handle middleware correctly).
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          node .next/standalone/server.js &
           APP_PID=$!
           echo "APP_PID=$APP_PID" >> "$GITHUB_ENV"
           # Wait up to 60 seconds for the server to be ready
