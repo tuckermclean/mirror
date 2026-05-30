@@ -1,6 +1,6 @@
 {
-  "id": "ac45abbb-854c-4d93-a664-d371af6077bc",
-  "prevId": "8aa767f5-f55a-4847-8015-3cd6199dd62c",
+  "id": "8aa767f5-f55a-4847-8015-3cd6199dd62c",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -77,21 +77,6 @@
             },
             {
               "expression": "accessed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "audit_log_accessor_id_idx": {
-          "name": "audit_log_accessor_id_idx",
-          "columns": [
-            {
-              "expression": "accessor_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -196,9 +181,9 @@
           "name": "benchmark_profiles_embedding_hnsw_idx",
           "columns": [
             {
-              "expression": "(embedding::halfvec(3072)) halfvec_cosine_ops",
+              "expression": "embedding",
+              "isExpression": false,
               "asc": true,
-              "isExpression": true,
               "nulls": "last"
             }
           ],
@@ -900,8 +885,8 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "users_voice_profile_id_imports_id_fk": {
-          "name": "users_voice_profile_id_imports_id_fk",
+        "fk_users_voice_profile": {
+          "name": "fk_users_voice_profile",
           "tableFrom": "users",
           "tableTo": "imports",
           "columnsFrom": [

@@ -1,6 +1,9 @@
 -- Mirror — migration 0001
 -- Applies to any environment that already has 0000_init.sql applied.
--- Safe to run idempotently via drizzle-kit migrate.
+-- Safe to re-run via drizzle-kit migrate (tracked in the migrations table).
+-- DIRECT SQL REPLAY NOTE: DROP INDEX IF EXISTS and CREATE INDEX IF NOT EXISTS
+-- are idempotent. The RENAME CONSTRAINT below is wrapped in a DO block to
+-- guard against "constraint does not exist" on a second direct execution.
 
 -- ---------------------------------------------------------------------------
 -- Fix HNSW index for pgvector 0.8.x 2000-dimension limit
@@ -35,5 +38,15 @@ CREATE INDEX IF NOT EXISTS audit_log_accessor_id_idx
 -- schema.ts now declares the FK via .references(), so drizzle-kit generate
 -- expects the name users_voice_profile_id_imports_id_fk. Renaming here means
 -- db:generate sees the constraint and does not emit a duplicate ADD CONSTRAINT.
-ALTER TABLE users
-    RENAME CONSTRAINT fk_users_voice_profile TO users_voice_profile_id_imports_id_fk;
+-- Wrapped in DO block so direct SQL replay does not fail if already renamed.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_users_voice_profile'
+      AND conrelid = 'users'::regclass
+  ) THEN
+    ALTER TABLE users
+      RENAME CONSTRAINT fk_users_voice_profile TO users_voice_profile_id_imports_id_fk;
+  END IF;
+END $$;
