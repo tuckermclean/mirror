@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+// auth handled by middleware — public health endpoint
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

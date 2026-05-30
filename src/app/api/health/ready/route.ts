@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 
+// auth handled by middleware — public health endpoint
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,11 @@ interface ReadyChecks {
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("timeout")), ms)
-  );
-  return Promise.race([promise, timeout]);
+  let timerId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timerId = setTimeout(() => reject(new Error("timeout")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId!));
 }
 
 async function checkDb(): Promise<CheckStatus> {
@@ -43,11 +45,11 @@ async function checkPgvector(): Promise<CheckStatus> {
 }
 
 export async function GET(): Promise<NextResponse> {
-  const dbStatus = await checkDb();
-
-  // Skip pgvector check if DB itself is down — avoids a second failing query.
-  const pgvectorStatus: CheckStatus =
-    dbStatus === "ok" ? await checkPgvector() : "error";
+  // Run both checks in parallel; they share the same connection pool so
+  // pgvector also fails when the DB is down — no separate short-circuit needed.
+  // Keep Kubernetes probe timeoutSeconds ≥ 4 s to accommodate DB_TIMEOUT_MS
+  // (3 s) plus network overhead.
+  const [dbStatus, pgvectorStatus] = await Promise.all([checkDb(), checkPgvector()]);
 
   const checks: ReadyChecks = { db: dbStatus, pgvector: pgvectorStatus };
   const allOk = checks.db === "ok" && checks.pgvector === "ok";
