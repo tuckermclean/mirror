@@ -20,6 +20,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   const timeout = new Promise<never>((_, reject) => {
     timerId = setTimeout(() => reject(new Error("timeout")), ms);
   });
+  promise.catch(() => {}); // prevent unhandled rejection if timeout wins the race
   return Promise.race([promise, timeout]).finally(() => {
     if (timerId !== undefined) clearTimeout(timerId);
   });
