@@ -31,11 +31,11 @@ export const test = base.extend<AuthFixtures>({
           page,
           signInParams: { strategy: "password", identifier: email, password },
         });
-        // Active page.goto cancels any in-flight Clerk post-sign-in redirect and
-        // gives Playwright full navigation control before yielding to the test.
-        // Passive waitForURL('/') resolves too early on webkit, leaving a pending
-        // Clerk navigation that races with the test's own page.goto.
-        await page.goto("/", { waitUntil: "networkidle" });
+        // Don't navigate after signIn — clerk.signIn() already triggers a redirect
+        // to '/'. Calling page.goto('/') races with that redirect on webkit and
+        // throws "interrupted by another navigation". Just wait for the in-flight
+        // redirect to fully settle without starting a competing navigation.
+        await page.waitForLoadState("networkidle");
       }
     }
 
