@@ -158,14 +158,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ---------------------------------------------------------------------------
 
 -- HNSW on benchmark_profiles.embedding for sub-200ms cosine k-NN retrieval.
--- pgvector 0.8.x limits HNSW to 2000 dims for the plain vector type.
--- Cast to halfvec(3072) in the index expression to lift that limit while
--- keeping the stored column as full-precision vector(3072).
--- Query with: ORDER BY embedding::halfvec(3072) <=> $query::halfvec(3072)
 -- ef_search can be tuned at query time: SET hnsw.ef_search = 100;
 CREATE INDEX IF NOT EXISTS benchmark_profiles_embedding_hnsw_idx
     ON benchmark_profiles
-    USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops)
+    USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
 -- btree on imports.user_id (filter-first before cosine scan per ADR-005)
@@ -181,9 +177,3 @@ CREATE INDEX IF NOT EXISTS llm_spend_ledger_user_recorded_at_idx
 -- btree on audit_log(user_id, accessed_at) for the per-user audit trail query
 CREATE INDEX IF NOT EXISTS audit_log_user_accessed_at_idx
     ON audit_log (user_id, accessed_at);
-
--- btree on audit_log(accessor_id) required for the RESTRICT FK enforcement.
--- PostgreSQL must verify no referencing rows exist before DELETE/UPDATE on users;
--- without this index, that check is a full sequential scan of audit_log as it grows.
-CREATE INDEX IF NOT EXISTS audit_log_accessor_id_idx
-    ON audit_log (accessor_id);
