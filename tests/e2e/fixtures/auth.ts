@@ -31,10 +31,14 @@ export const test = base.extend<AuthFixtures>({
           page,
           signInParams: { strategy: "password", identifier: email, password },
         });
-        // Don't navigate after signIn — clerk.signIn() already triggers a redirect
-        // to '/'. Calling page.goto('/') races with that redirect on webkit and
-        // throws "interrupted by another navigation". Just wait for the in-flight
-        // redirect to fully settle without starting a competing navigation.
+        // clerk.signIn() returns before the post-sign-in redirect completes on
+        // webkit. waitForLoadState('networkidle') resolves while still on /sign-in,
+        // so the redirect fires later and interrupts the test's own page.goto.
+        // Wait for the URL to actually leave /sign-in first (the redirect has fired),
+        // then wait for the landing page to fully settle.
+        await page.waitForURL((url) => !url.pathname.includes("sign-in"), {
+          timeout: 10000,
+        });
         await page.waitForLoadState("networkidle");
       }
     }
