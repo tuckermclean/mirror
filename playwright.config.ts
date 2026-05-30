@@ -11,6 +11,14 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      // Clerk's setupClerkTestingToken route interceptor returns HTML instead of
+      // JSON for webkit's /v1/client/handshake FAPI request in CI, causing the
+      // Clerk client to redirect mid-navigation. Auth-gated tests are excluded
+      // from webkit until @clerk/testing has webkit-compatible FAPI proxying.
+      testIgnore: ["**/interview.spec.ts"],
+    },
   ],
 });
