@@ -13,7 +13,7 @@ export const test = base.extend<AuthFixtures>({
       clerkKey && clerkKey !== "pk_test_placeholder" && secretKey;
 
     if (hasClerkKey) {
-      const { setupClerkTestingToken } = await import("@clerk/testing/playwright");
+      const { clerk, setupClerkTestingToken } = await import("@clerk/testing/playwright");
       // Register the FAPI route interceptor (adds ?__clerk_testing_token to all
       // Clerk FAPI requests so Clerk returns a real session).
       await setupClerkTestingToken({ page });
@@ -23,6 +23,15 @@ export const test = base.extend<AuthFixtures>({
       // page.goto. Without this, auth.protect() redirects before ClerkJS loads.
       await page.goto("/");
       await page.waitForLoadState("networkidle");
+
+      const email = process.env["CLERK_TEST_USER_EMAIL"];
+      const password = process.env["CLERK_TEST_USER_PASSWORD"];
+      if (email && password) {
+        await clerk.signIn({
+          page,
+          signInParams: { strategy: "password", identifier: email, password },
+        });
+      }
     }
 
     await use(page);
