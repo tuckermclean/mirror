@@ -31,6 +31,10 @@ export const test = base.extend<AuthFixtures>({
           page,
           signInParams: { strategy: "password", identifier: email, password },
         });
+        // clerk.signIn returns before Clerk's post-sign-in redirect to "/" settles.
+        // Wait for it to land so the test's own page.goto doesn't race with it.
+        await page.waitForURL("/");
+        await page.waitForLoadState("networkidle");
       }
     }
 
