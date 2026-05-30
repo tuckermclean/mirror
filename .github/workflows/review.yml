@@ -28,26 +28,33 @@ jobs:
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
       - uses: anthropics/claude-code-action@v1
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 12"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 20"
           allowed_bots: "claude"
           prompt: |
-            Review this PR using:
+            Review this PR (number ${{ github.event.pull_request.number }}) using:
             .agents/engineering-code-reviewer.md
 
-            Check changed file paths and ALSO consult:
-            - auth/ login/ session/ crypto/ permission/ rbac/
-              → Security Engineer (.agents/engineering-security-engineer.md)
-            - migrations/ *.sql schema/
-              → Database Optimizer (.agents/engineering-database-optimizer.md)
-            - components/ *.css *.scss *.tsx frontend/ ui/
-              → UI Designer (.agents/design-ui-designer.md)
-              AND Accessibility Auditor (.agents/testing-accessibility-auditor.md)
-            - api/ routes/ handlers/ endpoints/
-              → API Tester (.agents/testing-api-tester.md)
-            - .github/ workflows/ Dockerfile
-              → DevOps Automator (.agents/engineering-devops-automator.md)
+            DELIVERABLE — DO THIS FIRST, BEFORE deep analysis:
+            Post an initial review comment so your work is never lost if you run
+            out of turns:
+              gh pr comment ${{ github.event.pull_request.number }} --body "🤖 Review in progress…"
+            Then, as you find issues, rewrite that same comment with your findings
+            using:
+              gh pr comment ${{ github.event.pull_request.number }} --edit-last --body "..."
+            Keep it current so a partial review is still useful. Your FINAL action
+            MUST be the complete review posted via gh pr comment — never rely on
+            your closing chat text, which is discarded if you run out of turns.
+
+            Consult a specialist ONLY if the diff actually touches that area, and
+            read at most ONE specialist file (skip entirely for small diffs):
+            - auth/session/crypto/permission/rbac → .agents/engineering-security-engineer.md
+            - migrations/*.sql/schema → .agents/engineering-database-optimizer.md
+            - *.tsx/*.css/components/ui → .agents/testing-accessibility-auditor.md
+            - api/routes/handlers → .agents/testing-api-tester.md
 
             Check:
             1. AGENTS.md compliance
