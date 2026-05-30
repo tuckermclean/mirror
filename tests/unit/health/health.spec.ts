@@ -152,6 +152,7 @@ describe("GET /api/health/ready", () => {
 
   it("sets Cache-Control: no-store header on error response", async () => {
     mockExecute.mockRejectedValueOnce(new Error("connection refused"));
+    mockExecute.mockRejectedValueOnce(new Error("connection refused"));
 
     const { GET } = await import("@/app/api/health/ready/route");
     const response = await GET();
