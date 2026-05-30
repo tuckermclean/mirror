@@ -35,6 +35,15 @@ export const test = base.extend<AuthFixtures>({
           signInParams: { strategy: "password", identifier: email, password },
         });
         console.log(`[authedPage] clerk.signIn returned, url: ${page.url()}`);
+        const clerkState = await page.evaluate(() => {
+          const c = (window as unknown as { Clerk?: { user?: { id?: string }; session?: { status?: string }; loaded?: boolean } }).Clerk;
+          return {
+            loaded: c?.loaded,
+            userId: c?.user?.id ?? null,
+            sessionStatus: c?.session?.status ?? null,
+          };
+        }).catch(() => ({ loaded: false, userId: null, sessionStatus: null }));
+        console.log(`[authedPage] Clerk state after signIn: ${JSON.stringify(clerkState)}`);
         // clerk.signIn() returns before the post-sign-in redirect completes on
         // webkit. waitForLoadState('networkidle') resolves while still on /sign-in,
         // so the redirect fires later and interrupts the test's own page.goto.
