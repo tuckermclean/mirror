@@ -13,7 +13,7 @@ export const test = base.extend<AuthFixtures>({
       clerkKey && clerkKey !== "pk_test_placeholder" && secretKey;
 
     if (hasClerkKey) {
-      const { setupClerkTestingToken } = await import("@clerk/testing/playwright");
+      const { clerk, setupClerkTestingToken } = await import("@clerk/testing/playwright");
       // Register the FAPI route interceptor (adds ?__clerk_testing_token to all
       // Clerk FAPI requests so Clerk returns a real session).
       await setupClerkTestingToken({ page });
@@ -23,6 +23,43 @@ export const test = base.extend<AuthFixtures>({
       // page.goto. Without this, auth.protect() redirects before ClerkJS loads.
       await page.goto("/");
       await page.waitForLoadState("networkidle");
+
+      const email = process.env["CLERK_TEST_USER_EMAIL"];
+      if (email) {
+        // Use the emailAddress path: clerk.signIn looks up the user via Backend API,
+        // creates a sign-in ticket, and signs in via ticket strategy — bypassing
+        // Clerk.client initialization race and CAPTCHA. The signInParams path
+        // silently exits early when Clerk.client is null (Next.js App Router timing).
+        await clerk.signIn({
+          page,
+          emailAddress: email,
+        });
+        // clerk.signIn() returns before the post-sign-in redirect completes on
+        // webkit. waitForLoadState('networkidle') resolves while still on /sign-in,
+        // so the redirect fires later and interrupts the test's own page.goto.
+        // Wait for the URL to actually leave /sign-in first (the redirect has fired),
+        // then wait for the landing page to fully settle.
+        await page.waitForURL((url) => !url.pathname.includes("sign-in"), {
+          timeout: 10000,
+        });
+        await page.waitForLoadState("networkidle");
+        // Wait for ClerkJS to finish establishing the session client-side.
+        // Without this, ClerkJS fires another navigation to '/' while the test
+        // is navigating away, causing "interrupted by another navigation" on webkit.
+        await page
+          .waitForFunction(
+            () =>
+              !!(
+                window as unknown as {
+                  Clerk?: { user?: { id?: string } };
+                }
+              ).Clerk?.user?.id,
+            { timeout: 10000 }
+          )
+          .catch(() => {
+            // Clerk global may not be available in all environments — continue anyway.
+          });
+      }
     }
 
     await use(page);
