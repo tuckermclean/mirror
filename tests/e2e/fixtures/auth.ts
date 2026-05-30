@@ -25,25 +25,15 @@ export const test = base.extend<AuthFixtures>({
       await page.waitForLoadState("networkidle");
 
       const email = process.env["CLERK_TEST_USER_EMAIL"];
-      const password = process.env["CLERK_TEST_USER_PASSWORD"];
-      const pkPrefix = clerkKey?.slice(0, 30);
-      console.log(`[authedPage] FAPI key prefix: ${pkPrefix}, email: ${email}, password set: ${!!password}`);
-      if (email && password) {
-        console.log("[authedPage] calling clerk.signIn...");
+      if (email) {
+        // Use the emailAddress path: clerk.signIn looks up the user via Backend API,
+        // creates a sign-in ticket, and signs in via ticket strategy — bypassing
+        // Clerk.client initialization race and CAPTCHA. The signInParams path
+        // silently exits early when Clerk.client is null (Next.js App Router timing).
         await clerk.signIn({
           page,
-          signInParams: { strategy: "password", identifier: email, password },
+          emailAddress: email,
         });
-        console.log(`[authedPage] clerk.signIn returned, url: ${page.url()}`);
-        const clerkState = await page.evaluate(() => {
-          const c = (window as unknown as { Clerk?: { user?: { id?: string }; session?: { status?: string }; loaded?: boolean } }).Clerk;
-          return {
-            loaded: c?.loaded,
-            userId: c?.user?.id ?? null,
-            sessionStatus: c?.session?.status ?? null,
-          };
-        }).catch(() => ({ loaded: false, userId: null, sessionStatus: null }));
-        console.log(`[authedPage] Clerk state after signIn: ${JSON.stringify(clerkState)}`);
         // clerk.signIn() returns before the post-sign-in redirect completes on
         // webkit. waitForLoadState('networkidle') resolves while still on /sign-in,
         // so the redirect fires later and interrupts the test's own page.goto.
