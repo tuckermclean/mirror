@@ -20,7 +20,8 @@
     "eval:prompts": "promptfoo eval --config evals/prompts/interview_system.yaml",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "setup:clerk": "bash scripts/setup-clerk.sh"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",

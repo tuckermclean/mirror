@@ -55,6 +55,30 @@ pnpm db:push           # Push schema to DB (dev only — never in prod)
 pnpm db:migrate        # Run migrations (prod path)
 ```
 
+### One-time Clerk setup (new repo / new Clerk app)
+
+The Clerk dev instance requires specific configuration for E2E tests to work.
+Run this **once** after creating or linking the Clerk app:
+
+```bash
+clerk auth login       # Authenticate the Clerk CLI
+clerk link             # Link this repo to the Mirror Clerk app
+pnpm setup:clerk       # Enable email+password sign-in, create E2E test user,
+                       # write CLERK_TEST_USER_* GitHub secrets
+```
+
+Then manually set the API keys from https://dashboard.clerk.com → API Keys:
+
+```bash
+gh secret set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY  # pk_test_...
+gh secret set CLERK_SECRET_KEY                   # sk_test_...
+```
+
+**Why this is needed:** Clerk's default dev instance only enables `email_code`
+(OTP) sign-in. `pnpm setup:clerk` adds `email_password` via the BAPI so that
+`clerk.signIn({ strategy: "password", ... })` works in Playwright E2E tests.
+Skipping this step causes all `interview.spec.ts` tests to silently fail.
+
 ## TDD — The Inviolable Rule
 
 **No production code without a failing test that demands it.**
