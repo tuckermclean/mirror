@@ -40,12 +40,13 @@ describe("Inngest client", () => {
   });
 });
 
-describe("Inngest functions array", () => {
-  it("is importable and is an array", async () => {
+describe("Inngest client module", () => {
+  it("exports the inngest client object", async () => {
     vi.resetModules();
     const mod = await import("@/lib/inngest/client");
-    // The module exports the client; the route's serve call uses functions: [].
-    // Verify the module can be imported without throwing.
+    // Verify the module can be imported without throwing and that it exports
+    // the inngest client as an object.  The route handler's functions array
+    // is tested separately (see #20).
     expect(mod).toBeDefined();
     expect(typeof mod.inngest).toBe("object");
   });

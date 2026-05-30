@@ -18,6 +18,9 @@ base.describe("Auth flow (Clerk)", () => {
     await expect(page).toHaveURL(/sign-in/);
   });
 
+});
+
+base.describe("Inngest public route access", () => {
   base.test("/api/inngest responds to GET without 401/403 (Inngest introspection is public)", async ({
     request,
   }) => {
