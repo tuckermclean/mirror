@@ -8,7 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/health/(.*)",
   "/api/webhooks/(.*)",
-  "/api/inngest",
+  "/api/inngest(.*)",
 ]);
 
 function applySecurityHeaders(response: NextResponse, nonce: string): NextResponse {

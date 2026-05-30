@@ -15,9 +15,11 @@ vi.mock("inngest", () => {
   class MockInngest {
     public readonly id: string;
     public readonly eventKey: string | undefined;
-    constructor(opts: { id: string; eventKey?: string }) {
+    public readonly signingKey: string | undefined;
+    constructor(opts: { id: string; eventKey?: string; signingKey?: string }) {
       this.id = opts.id;
       this.eventKey = opts.eventKey;
+      this.signingKey = opts.signingKey;
     }
   }
   return { Inngest: MockInngest };
@@ -37,6 +39,16 @@ describe("Inngest client", () => {
       "test-event-key"
     );
     delete process.env["INNGEST_EVENT_KEY"];
+  });
+
+  it("picks up INNGEST_SIGNING_KEY from the environment", async () => {
+    vi.resetModules();
+    process.env["INNGEST_SIGNING_KEY"] = "test-signing-key";
+    const { inngest } = await import("@/lib/inngest/client");
+    expect((inngest as unknown as { signingKey: string }).signingKey).toBe(
+      "test-signing-key"
+    );
+    delete process.env["INNGEST_SIGNING_KEY"];
   });
 });
 
