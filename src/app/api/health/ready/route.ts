@@ -16,11 +16,13 @@ interface ReadyChecks {
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timerId: ReturnType<typeof setTimeout>;
+  let timerId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timerId = setTimeout(() => reject(new Error("timeout")), ms);
   });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId!));
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timerId !== undefined) clearTimeout(timerId);
+  });
 }
 
 async function checkDb(): Promise<CheckStatus> {
