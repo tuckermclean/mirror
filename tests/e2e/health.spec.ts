@@ -17,6 +17,11 @@ test.describe("/api/health/live", () => {
     expect(typeof body.ts).toBe("string");
     expect(() => new Date(body.ts).toISOString()).not.toThrow();
   });
+
+  test("sets Cache-Control: no-store header", async ({ request }) => {
+    const response = await request.get("/api/health/live");
+    expect(response.headers()["cache-control"]).toBe("no-store");
+  });
 });
 
 test.describe("/api/health/ready", () => {
@@ -38,18 +43,15 @@ test.describe("/api/health/ready", () => {
   test("returns 200 with all checks ok when database is healthy", async ({ request }) => {
     const response = await request.get("/api/health/ready");
 
-    // Only assert 200 when the environment has a DB; skip otherwise.
-    if (response.status() === 200) {
-      const body = (await response.json()) as {
-        status: string;
-        checks: { db: string; pgvector: string };
-      };
-      expect(body.status).toBe("ok");
-      expect(body.checks.db).toBe("ok");
-      expect(body.checks.pgvector).toBe("ok");
-    } else {
-      // 503 in a no-DB environment is also a valid, well-formed response
-      expect(response.status()).toBe(503);
-    }
+    // Skip visible in test output when DB is absent (e.g. CI without a DB service).
+    test.skip(response.status() !== 200, "DB not available in this environment");
+
+    const body = (await response.json()) as {
+      status: string;
+      checks: { db: string; pgvector: string };
+    };
+    expect(body.status).toBe("ok");
+    expect(body.checks.db).toBe("ok");
+    expect(body.checks.pgvector).toBe("ok");
   });
 });

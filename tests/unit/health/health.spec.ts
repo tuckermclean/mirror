@@ -42,6 +42,13 @@ describe("GET /api/health/live", () => {
     await GET();
     expect(mockExecute).not.toHaveBeenCalled();
   });
+
+  it("sets Cache-Control: no-store header", async () => {
+    vi.resetModules();
+    const { GET } = await import("@/app/api/health/live/route");
+    const response = await GET();
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -123,5 +130,45 @@ describe("GET /api/health/ready", () => {
     expect(body.status).toBe("error");
     expect(body.checks.db).toBe("ok");
     expect(body.checks.pgvector).toBe("error");
+  });
+
+  it("sets Cache-Control: no-store header on healthy response", async () => {
+    mockExecute
+      .mockResolvedValueOnce([{ "?column?": 1 }])
+      .mockResolvedValueOnce([{ extname: "vector" }]);
+
+    const { GET } = await import("@/app/api/health/ready/route");
+    const response = await GET();
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("sets Cache-Control: no-store header on error response", async () => {
+    mockExecute.mockRejectedValueOnce(new Error("connection refused"));
+
+    const { GET } = await import("@/app/api/health/ready/route");
+    const response = await GET();
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("returns 503 with db error when DB query hangs past 3 s timeout", async () => {
+    vi.useFakeTimers();
+    // A promise that never resolves — simulates a stalled DB connection.
+    mockExecute.mockReturnValueOnce(new Promise(() => {}));
+
+    const { GET } = await import("@/app/api/health/ready/route");
+    const getPromise = GET();
+
+    await vi.advanceTimersByTimeAsync(3001);
+    const response = await getPromise;
+
+    expect(response.status).toBe(503);
+    const body = (await response.json()) as {
+      status: string;
+      checks: { db: string; pgvector: string };
+    };
+    expect(body.status).toBe("error");
+    expect(body.checks.db).toBe("error");
+
+    vi.useRealTimers();
   });
 });
