@@ -86,6 +86,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "audit_log_accessor_id_idx": {
+          "name": "audit_log_accessor_id_idx",
+          "columns": [
+            {
+              "expression": "accessor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -181,9 +196,9 @@
           "name": "benchmark_profiles_embedding_hnsw_idx",
           "columns": [
             {
-              "expression": "embedding",
-              "isExpression": false,
+              "expression": "(embedding::halfvec(3072)) halfvec_cosine_ops",
               "asc": true,
+              "isExpression": true,
               "nulls": "last"
             }
           ],

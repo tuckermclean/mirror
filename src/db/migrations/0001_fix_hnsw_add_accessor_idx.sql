@@ -1,20 +1,20 @@
 -- Mirror — migration 0001
 -- Applies to any environment that already has 0000_init.sql applied.
 -- Safe to re-run via drizzle-kit migrate (tracked in the migrations table).
--- DIRECT SQL REPLAY NOTE: DROP INDEX IF EXISTS and CREATE INDEX IF NOT EXISTS
--- are idempotent. The RENAME CONSTRAINT below is wrapped in a DO block to
--- guard against "constraint does not exist" on a second direct execution.
+-- DIRECT SQL REPLAY NOTE: CREATE INDEX IF NOT EXISTS is idempotent. The
+-- RENAME CONSTRAINT below is wrapped in a DO block to guard against
+-- "constraint does not exist" on a second direct execution.
 
 -- ---------------------------------------------------------------------------
--- Fix HNSW index for pgvector 0.8.x 2000-dimension limit
+-- HNSW index for benchmark_profiles.embedding (no-op on fresh installs)
 -- ---------------------------------------------------------------------------
--- pgvector 0.8.x limits HNSW to 2000 dims for the plain vector type.
--- Cast to halfvec(3072) in the index expression to lift that limit while
--- keeping the stored column as full-precision vector(3072).
+-- 0000_init.sql now creates this index in its correct halfvec form, so on
+-- fresh installs this CREATE is a no-op (IF NOT EXISTS skips it). The
+-- statement is retained so this migration is self-describing: anyone reading
+-- the 0001 file sees the canonical index definition next to the rename.
 -- Query with: ORDER BY embedding::halfvec(3072) <=> $query::halfvec(3072)
 -- ef_search can be tuned at query time: SET hnsw.ef_search = 100;
-DROP INDEX IF EXISTS benchmark_profiles_embedding_hnsw_idx;
-CREATE INDEX benchmark_profiles_embedding_hnsw_idx
+CREATE INDEX IF NOT EXISTS benchmark_profiles_embedding_hnsw_idx
     ON benchmark_profiles
     USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops)
     WITH (m = 16, ef_construction = 64);
