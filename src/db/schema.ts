@@ -8,7 +8,10 @@ import {
   timestamp,
   date,
   customType,
+  index,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // pgvector custom type
@@ -34,8 +37,13 @@ export const users = pgTable("users", {
   clerkId: text("clerk_id").unique().notNull(),
   email: text("email").notNull(),
   plan: text("plan").notNull().default("free"),
-  // Nullable self-referential FK to imports — set null on import delete (no cascade)
-  voiceProfileId: uuid("voice_profile_id"),
+  // Nullable FK to imports — set null on import delete (no cascade).
+  // Uses AnyPgColumn return type to resolve the forward reference to imports
+  // without a TypeScript "used before declaration" error.
+  voiceProfileId: uuid("voice_profile_id").references(
+    (): AnyPgColumn => imports.id,
+    { onDelete: "set null" }
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -55,21 +63,20 @@ export const interviews = pgTable("interviews", {
 // ---------------------------------------------------------------------------
 // imports
 // ---------------------------------------------------------------------------
-export const imports = pgTable("imports", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  source: text("source").notNull(),
-  rawPath: text("raw_path"),
-  parsed: jsonb("parsed"),
-  voiceEmbedding: vectorColumn("voice_embedding", 3072),
-});
-
-// Now that imports is defined, declare the voiceProfileId FK on users.
-// Drizzle does not support circular FKs in the table definition itself,
-// so we expose a typed relation reference used by application code.
-// The actual FK constraint is expressed in the migration SQL below.
+export const imports = pgTable(
+  "imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    rawPath: text("raw_path"),
+    parsed: jsonb("parsed"),
+    voiceEmbedding: vectorColumn("voice_embedding", 3072),
+  },
+  (table) => [index("imports_user_id_idx").on(table.userId)]
+);
 
 // ---------------------------------------------------------------------------
 // linkedinSnapshots
@@ -144,16 +151,24 @@ export const outcomes = pgTable("outcomes", {
 // ---------------------------------------------------------------------------
 // benchmarkProfiles
 // ---------------------------------------------------------------------------
-export const benchmarkProfiles = pgTable("benchmark_profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  industry: text("industry").notNull(),
-  role: text("role").notNull(),
-  seniority: text("seniority").notNull(),
-  publicUrl: text("public_url").notNull(),
-  parsed: jsonb("parsed"),
-  embedding: vectorColumn("embedding", 3072),
-  performanceSignals: jsonb("performance_signals"),
-});
+export const benchmarkProfiles = pgTable(
+  "benchmark_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    industry: text("industry").notNull(),
+    role: text("role").notNull(),
+    seniority: text("seniority").notNull(),
+    publicUrl: text("public_url").notNull(),
+    parsed: jsonb("parsed"),
+    embedding: vectorColumn("embedding", 3072),
+    performanceSignals: jsonb("performance_signals"),
+  },
+  (table) => [
+    index("benchmark_profiles_embedding_hnsw_idx")
+      .using("hnsw", sql`(${table.embedding}::halfvec(3072)) halfvec_cosine_ops`)
+      .with({ m: 16, ef_construction: 64 }),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // outcomeDeltas
