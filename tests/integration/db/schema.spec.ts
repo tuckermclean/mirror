@@ -213,6 +213,13 @@ describe("foreign key constraints enforce referential integrity", () => {
     expect(rows[0]?.delete_rule).toBe("SET NULL");
   });
 
+  it("audit_log.accessor_id → users.id (RESTRICT — prevents deleting users with audit entries)", async () => {
+    const rows = await getFkTarget("audit_log", "accessor_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("RESTRICT");
+  });
+
   it("users.voice_profile_id → imports.id (SET NULL)", async () => {
     const rows = await getFkTarget("users", "voice_profile_id");
     expect(rows).toHaveLength(1);
@@ -236,7 +243,9 @@ describe("HNSW index on benchmark_profiles.embedding", () => {
     expect(rows).toHaveLength(1);
     // pgvector 0.8.x: vector(3072) HNSW uses a halfvec cast expression
     // to bypass the 2000-dimension limit; ops class is halfvec_cosine_ops.
-    expect(rows[0]?.indexdef).toContain("cosine_ops");
+    // Assert both to guard against regression to the pre-fix vector_cosine_ops form.
+    expect(rows[0]?.indexdef).toContain("halfvec_cosine_ops");
+    expect(rows[0]?.indexdef).toContain("halfvec(3072)");
   });
 
   it("HNSW index has m=16 and ef_construction=64", async () => {
@@ -279,5 +288,61 @@ describe("btree index on imports.user_id", () => {
         AND  indexname  = 'imports_user_id_idx'
     `;
     expect(rows).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. btree index on llm_spend_ledger(user_id, recorded_at)
+// ---------------------------------------------------------------------------
+describe("btree index on llm_spend_ledger(user_id, recorded_at)", () => {
+  it("llm_spend_ledger_user_recorded_at_idx exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'llm_spend_ledger'
+        AND  indexname  = 'llm_spend_ledger_user_recorded_at_idx'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("index covers (user_id, recorded_at) for the MTD cost query", async () => {
+    const rows = await sql`
+      SELECT indexdef
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  indexname  = 'llm_spend_ledger_user_recorded_at_idx'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indexdef).toContain("user_id");
+    expect(rows[0]?.indexdef).toContain("recorded_at");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. btree index on audit_log(user_id, accessed_at)
+// ---------------------------------------------------------------------------
+describe("btree index on audit_log(user_id, accessed_at)", () => {
+  it("audit_log_user_accessed_at_idx exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'audit_log'
+        AND  indexname  = 'audit_log_user_accessed_at_idx'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("index covers (user_id, accessed_at) for per-user audit trail queries", async () => {
+    const rows = await sql`
+      SELECT indexdef
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  indexname  = 'audit_log_user_accessed_at_idx'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indexdef).toContain("user_id");
+    expect(rows[0]?.indexdef).toContain("accessed_at");
   });
 });
