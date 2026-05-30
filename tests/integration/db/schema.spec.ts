@@ -12,7 +12,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await sql.end();
+  await sql?.end();
 });
 
 // ---------------------------------------------------------------------------
@@ -223,10 +223,6 @@ describe("foreign key constraints enforce referential integrity", () => {
     expect(rows[0]?.delete_rule).toBe("SET NULL");
   });
 
-  // Drizzle's db:generate names this FK users_voice_profile_id_imports_id_fk.
-  // If the DB holds fk_users_voice_profile (the hand-written name from 0000_init.sql),
-  // db:generate will try to ADD the Drizzle-named constraint and get a duplicate-FK error.
-  // 0001_fix_hnsw_add_accessor_idx.sql renames it to align with Drizzle's convention.
   it("users.voice_profile_id FK is named users_voice_profile_id_imports_id_fk", async () => {
     const rows = await sql`
       SELECT tc.constraint_name
@@ -283,9 +279,6 @@ describe("HNSW index on benchmark_profiles.embedding", () => {
 // 6. btree index on imports.user_id
 // ---------------------------------------------------------------------------
 describe("btree index on imports.user_id", () => {
-  // Note: this first assertion is redundant with the exact-name check below (btree is the
-  // default index method and the name pins the index unambiguously), but kept as a belt-and-
-  // suspenders guard for the access method in case the index is ever re-created differently.
   it("index exists", async () => {
     const rows = await sql`
       SELECT indexname, indexdef
