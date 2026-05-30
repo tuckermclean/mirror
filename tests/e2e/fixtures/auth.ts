@@ -40,6 +40,22 @@ export const test = base.extend<AuthFixtures>({
           timeout: 10000,
         });
         await page.waitForLoadState("networkidle");
+        // Wait for ClerkJS to finish establishing the session client-side.
+        // Without this, ClerkJS fires another navigation to '/' while the test
+        // is navigating away, causing "interrupted by another navigation" on webkit.
+        await page
+          .waitForFunction(
+            () =>
+              !!(
+                window as unknown as {
+                  Clerk?: { user?: { id?: string } };
+                }
+              ).Clerk?.user?.id,
+            { timeout: 10000 }
+          )
+          .catch(() => {
+            // Clerk global may not be available in all environments — continue anyway.
+          });
       }
     }
 
