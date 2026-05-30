@@ -4,5 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export function GET(): NextResponse {
-  return NextResponse.json({ status: "ok", ts: new Date().toISOString() });
+  const response = NextResponse.json({ status: "ok", ts: new Date().toISOString() });
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

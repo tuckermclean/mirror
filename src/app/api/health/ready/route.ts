@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const DB_TIMEOUT_MS = 3000;
+
 type CheckStatus = "ok" | "error";
 
 interface ReadyChecks {
@@ -12,9 +14,16 @@ interface ReadyChecks {
   pgvector: CheckStatus;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 async function checkDb(): Promise<CheckStatus> {
   try {
-    await db.execute(sql`SELECT 1`);
+    await withTimeout(db.execute(sql`SELECT 1`), DB_TIMEOUT_MS);
     return "ok";
   } catch {
     return "error";
@@ -23,8 +32,9 @@ async function checkDb(): Promise<CheckStatus> {
 
 async function checkPgvector(): Promise<CheckStatus> {
   try {
-    const rows = await db.execute(
-      sql`SELECT extname FROM pg_extension WHERE extname = 'vector'`
+    const rows = await withTimeout(
+      db.execute(sql`SELECT extname FROM pg_extension WHERE extname = 'vector'`),
+      DB_TIMEOUT_MS
     );
     return rows.length > 0 ? "ok" : "error";
   } catch {
@@ -42,8 +52,10 @@ export async function GET(): Promise<NextResponse> {
   const checks: ReadyChecks = { db: dbStatus, pgvector: pgvectorStatus };
   const allOk = checks.db === "ok" && checks.pgvector === "ok";
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     { status: allOk ? "ok" : "error", checks },
     { status: allOk ? 200 : 503 }
   );
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }
