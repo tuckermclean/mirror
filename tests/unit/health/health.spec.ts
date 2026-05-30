@@ -206,4 +206,38 @@ describe("GET /api/health/ready", () => {
     expect(body.checks.db).toBe("ok");
     expect(body.checks.pgvector).toBe("error");
   });
+
+  it("does not produce an unhandled rejection when the original promise rejects after timeout", async () => {
+    vi.useFakeTimers();
+
+    // A deferred promise we can reject manually after the route has settled.
+    let rejectDeferred!: (err: Error) => void;
+    const deferred = new Promise<never>((_, reject) => {
+      rejectDeferred = reject;
+    });
+    mockExecute.mockReturnValueOnce(deferred); // checkDb — stalls then rejects late
+    mockExecute.mockResolvedValueOnce([{ extname: "vector" }]); // checkPgvector — ok
+
+    const { GET } = await import("@/app/api/health/ready/route");
+    const getPromise = GET();
+
+    await vi.advanceTimersByTimeAsync(3001);
+    const response = await getPromise;
+    expect(response.status).toBe(503);
+
+    vi.useRealTimers();
+
+    // Reject the original deferred after withTimeout already settled via
+    // timeout — must NOT fire an unhandledRejection event.
+    const leaked: unknown[] = [];
+    const handler = (reason: unknown) => leaked.push(reason);
+    process.on("unhandledRejection", handler);
+    try {
+      rejectDeferred(new Error("late DB error"));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    } finally {
+      process.off("unhandledRejection", handler);
+    }
+    expect(leaked).toHaveLength(0);
+  });
 });
