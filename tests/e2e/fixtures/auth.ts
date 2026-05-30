@@ -26,11 +26,15 @@ export const test = base.extend<AuthFixtures>({
 
       const email = process.env["CLERK_TEST_USER_EMAIL"];
       const password = process.env["CLERK_TEST_USER_PASSWORD"];
+      const pkPrefix = clerkKey?.slice(0, 30);
+      console.log(`[authedPage] FAPI key prefix: ${pkPrefix}, email: ${email}, password set: ${!!password}`);
       if (email && password) {
+        console.log("[authedPage] calling clerk.signIn...");
         await clerk.signIn({
           page,
           signInParams: { strategy: "password", identifier: email, password },
         });
+        console.log(`[authedPage] clerk.signIn returned, url: ${page.url()}`);
         // clerk.signIn() returns before the post-sign-in redirect completes on
         // webkit. waitForLoadState('networkidle') resolves while still on /sign-in,
         // so the redirect fires later and interrupts the test's own page.goto.
