@@ -452,11 +452,12 @@ describe("every foreign key column has a supporting btree index", () => {
   // Returns the names of indexes whose first column equals `column` on `table`.
   // Compound indexes count as long as the FK column is the leading column.
   async function fkBackingIndexes(table: string, column: string) {
-    return sql<{ indexname: string }[]>`
+    return sql`
       SELECT i.relname AS indexname
       FROM   pg_class    t
       JOIN   pg_index    ix ON ix.indrelid    = t.oid
       JOIN   pg_class    i  ON i.oid          = ix.indexrelid
+      JOIN   pg_am       am ON am.oid         = i.relam AND am.amname = 'btree'
       JOIN   pg_attribute a ON a.attrelid     = t.oid
                             AND a.attnum      = ix.indkey[0]
       WHERE  t.relname  = ${table}
