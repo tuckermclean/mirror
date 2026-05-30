@@ -222,6 +222,26 @@ describe("foreign key constraints enforce referential integrity", () => {
     expect(rows[0]?.referenced_table).toBe("imports");
     expect(rows[0]?.delete_rule).toBe("SET NULL");
   });
+
+  // Drizzle's db:generate names this FK users_voice_profile_id_imports_id_fk.
+  // If the DB holds fk_users_voice_profile (the hand-written name from 0000_init.sql),
+  // db:generate will try to ADD the Drizzle-named constraint and get a duplicate-FK error.
+  // 0001_fix_hnsw_add_accessor_idx.sql renames it to align with Drizzle's convention.
+  it("users.voice_profile_id FK is named users_voice_profile_id_imports_id_fk", async () => {
+    const rows = await sql`
+      SELECT tc.constraint_name
+      FROM   information_schema.table_constraints       tc
+      JOIN   information_schema.key_column_usage        kcu
+               ON  kcu.constraint_name = tc.constraint_name
+               AND kcu.table_schema    = tc.table_schema
+      WHERE  tc.constraint_type = 'FOREIGN KEY'
+        AND  tc.table_schema    = 'public'
+        AND  tc.table_name      = 'users'
+        AND  kcu.column_name    = 'voice_profile_id'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.constraint_name).toBe("users_voice_profile_id_imports_id_fk");
+  });
 });
 
 // ---------------------------------------------------------------------------
