@@ -15,6 +15,13 @@
       "when": 1748649600000,
       "tag": "0001_fix_hnsw_add_accessor_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780126939789,
+      "tag": "0002_fk_indexes",
+      "breakpoints": true
     }
   ]
 }

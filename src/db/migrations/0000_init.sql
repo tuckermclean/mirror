@@ -173,17 +173,20 @@ CREATE INDEX IF NOT EXISTS benchmark_profiles_embedding_hnsw_idx
     USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
--- btree on imports.user_id (filter-first before cosine scan per ADR-005)
+-- btree on imports.user_id (filter-first before cosine scan per ADR-005;
+-- also backs the cascade fired when a user is deleted)
 CREATE INDEX IF NOT EXISTS imports_user_id_idx
     ON imports (user_id);
 
 -- btree on llm_spend_ledger(user_id, recorded_at) for the MTD cost query:
 --   SELECT SUM(cost_usd) FROM llm_spend_ledger
 --   WHERE user_id = $1 AND recorded_at >= date_trunc('month', NOW())
+-- Leading column user_id also satisfies the FK check on users delete.
 CREATE INDEX IF NOT EXISTS llm_spend_ledger_user_recorded_at_idx
     ON llm_spend_ledger (user_id, recorded_at);
 
--- btree on audit_log(user_id, accessed_at) for the per-user audit trail query
+-- btree on audit_log(user_id, accessed_at) for the per-user audit trail query.
+-- Leading column user_id also satisfies the SET NULL FK on users delete.
 CREATE INDEX IF NOT EXISTS audit_log_user_accessed_at_idx
     ON audit_log (user_id, accessed_at);
 
@@ -192,3 +195,46 @@ CREATE INDEX IF NOT EXISTS audit_log_user_accessed_at_idx
 -- to verify no referencing accessor_id rows exist (ON DELETE RESTRICT).
 CREATE INDEX IF NOT EXISTS audit_log_accessor_id_idx
     ON audit_log (accessor_id);
+
+-- ---------------------------------------------------------------------------
+-- FK supporting indexes (parity with 0002_fk_indexes.sql for fresh deploys)
+-- ---------------------------------------------------------------------------
+-- Every FK column needs a btree where the FK is the leading column. Without
+-- one, PostgreSQL falls back to a sequential scan of the child table on every
+-- parent UPDATE/DELETE (cascade, set null, restrict). The bootstrap path runs
+-- this file standalone (docker-compose init, k8s init container) so the same
+-- indexes are repeated here. The 0002 migration is a no-op on a fresh DB via
+-- CREATE INDEX IF NOT EXISTS, and applies on environments that bootstrapped
+-- from an earlier snapshot.
+CREATE INDEX IF NOT EXISTS interviews_user_id_idx
+    ON interviews (user_id);
+
+CREATE INDEX IF NOT EXISTS linkedin_snapshots_user_id_idx
+    ON linkedin_snapshots (user_id);
+
+CREATE INDEX IF NOT EXISTS generations_user_id_idx
+    ON generations (user_id);
+
+CREATE INDEX IF NOT EXISTS generations_input_snapshot_id_idx
+    ON generations (input_snapshot_id);
+
+CREATE INDEX IF NOT EXISTS commits_user_id_idx
+    ON commits (user_id);
+
+CREATE INDEX IF NOT EXISTS commits_generation_id_idx
+    ON commits (generation_id);
+
+CREATE INDEX IF NOT EXISTS outcomes_user_id_idx
+    ON outcomes (user_id);
+
+CREATE INDEX IF NOT EXISTS outcome_deltas_user_id_idx
+    ON outcome_deltas (user_id);
+
+CREATE INDEX IF NOT EXISTS outcome_deltas_generation_id_idx
+    ON outcome_deltas (generation_id);
+
+CREATE INDEX IF NOT EXISTS llm_spend_ledger_generation_id_idx
+    ON llm_spend_ledger (generation_id);
+
+CREATE INDEX IF NOT EXISTS users_voice_profile_id_idx
+    ON users (voice_profile_id);

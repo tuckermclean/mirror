@@ -32,33 +32,42 @@ const vectorColumn = (name: string, dimensions: number) =>
 // ---------------------------------------------------------------------------
 // users
 // ---------------------------------------------------------------------------
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  clerkId: text("clerk_id").unique().notNull(),
-  email: text("email").notNull(),
-  plan: text("plan").notNull().default("free"),
-  // Nullable FK to imports — set null on import delete (no cascade).
-  // Uses AnyPgColumn return type to resolve the forward reference to imports
-  // without a TypeScript "used before declaration" error.
-  voiceProfileId: uuid("voice_profile_id").references(
-    (): AnyPgColumn => imports.id,
-    { onDelete: "set null" }
-  ),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clerkId: text("clerk_id").unique().notNull(),
+    email: text("email").notNull(),
+    plan: text("plan").notNull().default("free"),
+    // Nullable FK to imports — set null on import delete (no cascade).
+    // Uses AnyPgColumn return type to resolve the forward reference to imports
+    // without a TypeScript "used before declaration" error.
+    voiceProfileId: uuid("voice_profile_id").references(
+      (): AnyPgColumn => imports.id,
+      { onDelete: "set null" }
+    ),
+  },
+  // Backs the ON DELETE SET NULL cascade fired when an import is removed
+  (table) => [index("users_voice_profile_id_idx").on(table.voiceProfileId)]
+);
 
 // ---------------------------------------------------------------------------
 // interviews
 // ---------------------------------------------------------------------------
-export const interviews = pgTable("interviews", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  transcript: jsonb("transcript").notNull().default([]),
-  summary: text("summary"),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  turnCount: integer("turn_count").notNull().default(0),
-});
+export const interviews = pgTable(
+  "interviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    transcript: jsonb("transcript").notNull().default([]),
+    summary: text("summary"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    turnCount: integer("turn_count").notNull().default(0),
+  },
+  (table) => [index("interviews_user_id_idx").on(table.userId)]
+);
 
 // ---------------------------------------------------------------------------
 // imports
@@ -81,72 +90,94 @@ export const imports = pgTable(
 // ---------------------------------------------------------------------------
 // linkedinSnapshots
 // ---------------------------------------------------------------------------
-export const linkedinSnapshots = pgTable("linkedin_snapshots", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  rawHtml: text("raw_html"),
-  parsed: jsonb("parsed"),
-  capturedAt: timestamp("captured_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const linkedinSnapshots = pgTable(
+  "linkedin_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rawHtml: text("raw_html"),
+    parsed: jsonb("parsed"),
+    capturedAt: timestamp("captured_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("linkedin_snapshots_user_id_idx").on(table.userId)]
+);
 
 // ---------------------------------------------------------------------------
 // generations
 // ---------------------------------------------------------------------------
-export const generations = pgTable("generations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  inputSnapshotId: uuid("input_snapshot_id").references(
-    () => linkedinSnapshots.id,
-    { onDelete: "set null" }
-  ),
-  output: jsonb("output"),
-  rationale: jsonb("rationale"),
-  model: text("model").notNull(),
-  promptHash: text("prompt_hash").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const generations = pgTable(
+  "generations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    inputSnapshotId: uuid("input_snapshot_id").references(
+      () => linkedinSnapshots.id,
+      { onDelete: "set null" }
+    ),
+    output: jsonb("output"),
+    rationale: jsonb("rationale"),
+    model: text("model").notNull(),
+    promptHash: text("prompt_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("generations_user_id_idx").on(table.userId),
+    index("generations_input_snapshot_id_idx").on(table.inputSnapshotId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // commits
 // ---------------------------------------------------------------------------
-export const commits = pgTable("commits", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  generationId: uuid("generation_id")
-    .notNull()
-    .references(() => generations.id, { onDelete: "cascade" }),
-  fieldsAccepted: jsonb("fields_accepted").notNull().default({}),
-  committedAt: timestamp("committed_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  method: text("method").notNull(),
-});
+export const commits = pgTable(
+  "commits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    generationId: uuid("generation_id")
+      .notNull()
+      .references(() => generations.id, { onDelete: "cascade" }),
+    fieldsAccepted: jsonb("fields_accepted").notNull().default({}),
+    committedAt: timestamp("committed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    method: text("method").notNull(),
+  },
+  (table) => [
+    index("commits_user_id_idx").on(table.userId),
+    index("commits_generation_id_idx").on(table.generationId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // outcomes
 // ---------------------------------------------------------------------------
-export const outcomes = pgTable("outcomes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  weekOf: date("week_of").notNull(),
-  profileViews: integer("profile_views").notNull().default(0),
-  searchAppearances: integer("search_appearances").notNull().default(0),
-  recruiterMsgs: integer("recruiter_msgs").notNull().default(0),
-  postImpressions: integer("post_impressions").notNull().default(0),
-  source: text("source").notNull(),
-});
+export const outcomes = pgTable(
+  "outcomes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekOf: date("week_of").notNull(),
+    profileViews: integer("profile_views").notNull().default(0),
+    searchAppearances: integer("search_appearances").notNull().default(0),
+    recruiterMsgs: integer("recruiter_msgs").notNull().default(0),
+    postImpressions: integer("post_impressions").notNull().default(0),
+    source: text("source").notNull(),
+  },
+  (table) => [index("outcomes_user_id_idx").on(table.userId)]
+);
 
 // ---------------------------------------------------------------------------
 // benchmarkProfiles
@@ -184,18 +215,25 @@ export const benchmarkProfiles = pgTable(
 // ---------------------------------------------------------------------------
 // outcomeDeltas
 // ---------------------------------------------------------------------------
-export const outcomeDeltas = pgTable("outcome_deltas", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  generationId: uuid("generation_id")
-    .notNull()
-    .references(() => generations.id, { onDelete: "cascade" }),
-  baseline30d: jsonb("baseline_30d"),
-  after30d: jsonb("after_30d"),
-  liftPct: numeric("lift_pct", { precision: 5, scale: 2 }),
-});
+export const outcomeDeltas = pgTable(
+  "outcome_deltas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    generationId: uuid("generation_id")
+      .notNull()
+      .references(() => generations.id, { onDelete: "cascade" }),
+    baseline30d: jsonb("baseline_30d"),
+    after30d: jsonb("after_30d"),
+    liftPct: numeric("lift_pct", { precision: 5, scale: 2 }),
+  },
+  (table) => [
+    index("outcome_deltas_user_id_idx").on(table.userId),
+    index("outcome_deltas_generation_id_idx").on(table.generationId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // llmSpendLedger
@@ -220,8 +258,11 @@ export const llmSpendLedger = pgTable(
       .defaultNow(),
   },
   (table) => [
-    // Backs the MTD cost query called before every LLM generation (AGENTS.md architecture rule)
+    // Backs the MTD cost query called before every LLM generation (AGENTS.md architecture rule).
+    // Leading column user_id also satisfies the FK check on users → llm_spend_ledger cascade.
     index("llm_spend_ledger_user_recorded_at_idx").on(table.userId, table.recordedAt),
+    // Backs the SET NULL cascade fired when a generation is deleted
+    index("llm_spend_ledger_generation_id_idx").on(table.generationId),
   ]
 );
 
