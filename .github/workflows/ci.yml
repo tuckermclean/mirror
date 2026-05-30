@@ -128,6 +128,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Enable pgvector extension
+        run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+
       - name: Run migrations
         run: pnpm drizzle-kit push --force
 
@@ -185,6 +188,14 @@ jobs:
 
       - name: Build app
         run: pnpm build
+
+      - name: Enable pgvector extension
+        if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
+        run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+
+      - name: Run migrations
+        if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
+        run: pnpm drizzle-kit push --force
 
       - name: Start app and wait for readiness
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''

@@ -7,6 +7,7 @@ on:
 jobs:
   trivial:
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       id-token: write
       contents: write
@@ -32,7 +33,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-haiku-4-5-20251001 --max-turns 12"
+          claude_args: "--dangerously-skip-permissions --model claude-haiku-4-5-20251001 --max-turns 20"
           allowed_bots: "claude"
           prompt: |
             Fix TRIVIAL issues only in this PR:
