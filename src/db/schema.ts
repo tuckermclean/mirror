@@ -163,7 +163,7 @@ export const benchmarkProfiles = pgTable(
     embedding: vectorColumn("embedding", 3072),
     performanceSignals: jsonb("performance_signals"),
   },
-  (table) => [
+  (_table) => [
     // halfvec_cosine_ops is embedded in the sql template rather than via .op()
     // because Drizzle cannot yet position an operator class on an expression index
     // (only on plain column indexes). The template is passed verbatim to CREATE INDEX,
