@@ -151,8 +151,13 @@ describe("GET /api/health/ready", () => {
 
   it("returns 503 with db error when DB query hangs past 3 s timeout", async () => {
     vi.useFakeTimers();
-    // A promise that never resolves — simulates a stalled DB connection.
-    mockExecute.mockReturnValueOnce(new Promise(() => {}));
+    // Stub both calls: checkDb hangs, checkPgvector succeeds fast.
+    // Without the second stub, mockExecute returns undefined, causing a
+    // TypeError in checkPgvector that gets silently caught — masking the
+    // fact that this test was only exercising undefined behavior, not a
+    // real timeout scenario.
+    mockExecute.mockReturnValueOnce(new Promise(() => {})); // checkDb — hangs
+    mockExecute.mockResolvedValueOnce([{ extname: "vector" }]); // checkPgvector — ok
 
     const { GET } = await import("@/app/api/health/ready/route");
     const getPromise = GET();
@@ -167,6 +172,31 @@ describe("GET /api/health/ready", () => {
     };
     expect(body.status).toBe("error");
     expect(body.checks.db).toBe("error");
+    expect(body.checks.pgvector).toBe("ok");
+
+    vi.useRealTimers();
+  });
+
+  it("returns 503 with pgvector error when pgvector query hangs past 3 s timeout", async () => {
+    vi.useFakeTimers();
+    // Symmetric case: DB is healthy, pgvector check stalls.
+    mockExecute.mockResolvedValueOnce([{ "?column?": 1 }]); // checkDb — ok
+    mockExecute.mockReturnValueOnce(new Promise(() => {})); // checkPgvector — hangs
+
+    const { GET } = await import("@/app/api/health/ready/route");
+    const getPromise = GET();
+
+    await vi.advanceTimersByTimeAsync(3001);
+    const response = await getPromise;
+
+    expect(response.status).toBe(503);
+    const body = (await response.json()) as {
+      status: string;
+      checks: { db: string; pgvector: string };
+    };
+    expect(body.status).toBe("error");
+    expect(body.checks.db).toBe("ok");
+    expect(body.checks.pgvector).toBe("error");
 
     vi.useRealTimers();
   });
