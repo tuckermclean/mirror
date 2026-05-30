@@ -4,10 +4,6 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/lib/utils"
 
-/**
- * Children should be <ProgressLabel> and/or <ProgressValue>.
- * The track and indicator are rendered internally; do not pass them as children.
- */
 function Progress({
   className,
   children,
@@ -78,14 +74,7 @@ function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
   )
 }
 
-// NOTE: ProgressTrack and ProgressIndicator are NOT exported — they are already
-// rendered internally by <Progress>. Exporting them would invite callers to pass
-// them as children, silently rendering two tracks. Use <ProgressLabel> and
-// <ProgressValue> as siblings inside <Progress> for labelling/display.
-//
-// NOTE: @base-ui/react is the shadcn base-nova primitive layer (analogous to Radix UI
-// for the New York style). v1.x is relatively new; if CI surfaces type errors from
-// upstream, check the @base-ui/react changelog before assuming a local breakage.
+// ProgressTrack/ProgressIndicator intentionally unexported — exporting them would let callers pass them as children, silently rendering two tracks.
 export {
   Progress,
   ProgressLabel,

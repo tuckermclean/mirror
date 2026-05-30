@@ -33,11 +33,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// WCAG AA (SC 1.3.1): CardTitle renders as <div> by default — no heading semantics.
-// When this is the primary heading for a section, pass `as="h2"` (or h1/h3/etc.) so
-// screen readers can navigate by heading level. Example:
-//   <CardTitle as="h2">Profile Summary</CardTitle>
-// The default <div> is correct for decorative or non-landmark uses.
+// Pass as="h2" (or h1/h3/h4/etc.) when this is a landmark heading — the default <div> carries no heading semantics (WCAG SC 1.3.1).
 function CardTitle({
   className,
   as: Tag = "div",

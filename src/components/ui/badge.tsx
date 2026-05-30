@@ -1,9 +1,6 @@
 "use client"
 
-// "use client" is required: Badge calls useRender(), a React hook from
-// @base-ui/react/use-render. Next.js does NOT back-propagate "use client"
-// from imported primitives to their callers — each file that calls a hook
-// must carry its own directive.
+// "use client" required: useRender() is a React hook; Next.js does not back-propagate the boundary from imported primitives.
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -43,7 +40,7 @@ function Badge({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({ variant, className })),
       },
       props
     ),

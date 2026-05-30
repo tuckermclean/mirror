@@ -1,9 +1,5 @@
 "use client"
 
-// "use client" added for defensive clarity: Button wraps ButtonPrimitive from
-// @base-ui/react/button which ships its own boundary in the ESM build. The
-// directive is explicit here so any future hook additions (useState, useCallback)
-// don't break silently, and to match shadcn's own convention for client components.
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
