@@ -8,7 +8,10 @@ import {
   timestamp,
   date,
   customType,
+  index,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // pgvector custom type
@@ -34,8 +37,13 @@ export const users = pgTable("users", {
   clerkId: text("clerk_id").unique().notNull(),
   email: text("email").notNull(),
   plan: text("plan").notNull().default("free"),
-  // Nullable self-referential FK to imports — set null on import delete (no cascade)
-  voiceProfileId: uuid("voice_profile_id"),
+  // Nullable FK to imports — set null on import delete (no cascade).
+  // Uses AnyPgColumn return type to resolve the forward reference to imports
+  // without a TypeScript "used before declaration" error.
+  voiceProfileId: uuid("voice_profile_id").references(
+    (): AnyPgColumn => imports.id,
+    { onDelete: "set null" }
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -55,21 +63,20 @@ export const interviews = pgTable("interviews", {
 // ---------------------------------------------------------------------------
 // imports
 // ---------------------------------------------------------------------------
-export const imports = pgTable("imports", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  source: text("source").notNull(),
-  rawPath: text("raw_path"),
-  parsed: jsonb("parsed"),
-  voiceEmbedding: vectorColumn("voice_embedding", 3072),
-});
-
-// Now that imports is defined, declare the voiceProfileId FK on users.
-// Drizzle does not support circular FKs in the table definition itself,
-// so we expose a typed relation reference used by application code.
-// The actual FK constraint is expressed in the migration SQL below.
+export const imports = pgTable(
+  "imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    rawPath: text("raw_path"),
+    parsed: jsonb("parsed"),
+    voiceEmbedding: vectorColumn("voice_embedding", 3072),
+  },
+  (table) => [index("imports_user_id_idx").on(table.userId)]
+);
 
 // ---------------------------------------------------------------------------
 // linkedinSnapshots
@@ -144,16 +151,35 @@ export const outcomes = pgTable("outcomes", {
 // ---------------------------------------------------------------------------
 // benchmarkProfiles
 // ---------------------------------------------------------------------------
-export const benchmarkProfiles = pgTable("benchmark_profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  industry: text("industry").notNull(),
-  role: text("role").notNull(),
-  seniority: text("seniority").notNull(),
-  publicUrl: text("public_url").notNull(),
-  parsed: jsonb("parsed"),
-  embedding: vectorColumn("embedding", 3072),
-  performanceSignals: jsonb("performance_signals"),
-});
+export const benchmarkProfiles = pgTable(
+  "benchmark_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    industry: text("industry").notNull(),
+    role: text("role").notNull(),
+    seniority: text("seniority").notNull(),
+    publicUrl: text("public_url").notNull(),
+    parsed: jsonb("parsed"),
+    embedding: vectorColumn("embedding", 3072),
+    performanceSignals: jsonb("performance_signals"),
+  },
+  (_table) => [
+    // halfvec_cosine_ops is embedded in the sql template rather than via .op()
+    // because Drizzle cannot yet position an operator class on an expression index
+    // (only on plain column indexes). The template is passed verbatim to CREATE INDEX,
+    // so it works today — but if Drizzle adds expression-index .op() support, migrate
+    // to that API to avoid placement issues if Drizzle ever parses the expression list.
+    // Track: https://github.com/drizzle-team/drizzle-orm/issues/1006 (expression-index ops)
+    //
+    // Uses the literal column name "embedding" rather than ${table.embedding} to avoid
+    // Drizzle's serializer emitting a double-quoted identifier ("embedding"::halfvec(3072))
+    // vs the unquoted form (embedding::halfvec(3072)) in the migration SQL, which would
+    // cause schema drift between db:push and db:migrate environments.
+    index("benchmark_profiles_embedding_hnsw_idx")
+      .using("hnsw", sql`(embedding::halfvec(3072)) halfvec_cosine_ops`)
+      .with({ m: 16, ef_construction: 64 }),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // outcomeDeltas
@@ -174,42 +200,58 @@ export const outcomeDeltas = pgTable("outcome_deltas", {
 // ---------------------------------------------------------------------------
 // llmSpendLedger
 // ---------------------------------------------------------------------------
-export const llmSpendLedger = pgTable("llm_spend_ledger", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  // Nullable: chat calls don't have a generation; set null when generation deleted
-  generationId: uuid("generation_id").references(() => generations.id, {
-    onDelete: "set null",
-  }),
-  model: text("model").notNull(),
-  inputTokens: integer("input_tokens").notNull(),
-  outputTokens: integer("output_tokens").notNull(),
-  costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull(),
-  recordedAt: timestamp("recorded_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const llmSpendLedger = pgTable(
+  "llm_spend_ledger",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Nullable: chat calls don't have a generation; set null when generation deleted
+    generationId: uuid("generation_id").references(() => generations.id, {
+      onDelete: "set null",
+    }),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // Backs the MTD cost query called before every LLM generation (AGENTS.md architecture rule)
+    index("llm_spend_ledger_user_recorded_at_idx").on(table.userId, table.recordedAt),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // auditLog
 // ---------------------------------------------------------------------------
-export const auditLog = pgTable("audit_log", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  // Nullable: the subject user may be deleted; nullify on delete (GDPR)
-  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  // The user performing the read — FK to users with RESTRICT so audit records
-  // outlive soft-deletes; hard-delete of an accessor must be handled explicitly.
-  accessorId: uuid("accessor_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "restrict" }),
-  tableName: text("table_name").notNull(),
-  rowId: uuid("row_id").notNull(),
-  fieldName: text("field_name").notNull(),
-  accessedAt: timestamp("accessed_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  reason: text("reason"),
-  ipAddress: text("ip_address"),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Nullable: the subject user may be deleted; nullify on delete (GDPR)
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    // The user performing the read — FK to users with RESTRICT so audit records
+    // outlive soft-deletes; hard-delete of an accessor must be handled explicitly.
+    accessorId: uuid("accessor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    tableName: text("table_name").notNull(),
+    rowId: uuid("row_id").notNull(),
+    fieldName: text("field_name").notNull(),
+    accessedAt: timestamp("accessed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reason: text("reason"),
+    ipAddress: text("ip_address"),
+  },
+  (table) => [
+    index("audit_log_user_accessed_at_idx").on(table.userId, table.accessedAt),
+    // Required for the RESTRICT FK on accessor_id: without this, a DELETE from users
+    // triggers a full sequential scan of audit_log to verify no referencing rows exist.
+    index("audit_log_accessor_id_idx").on(table.accessorId),
+  ]
+);
