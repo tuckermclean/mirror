@@ -437,3 +437,56 @@ describe("btree index on audit_log(accessor_id)", () => {
     expect(rows[0]?.indexdef).toContain("accessor_id");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 10. btree indexes on every FK column
+// ---------------------------------------------------------------------------
+// Without a supporting btree on the referencing column, PostgreSQL falls back
+// to a sequential scan of the child table on every parent UPDATE/DELETE that
+// touches the referenced row (cascade, set null, restrict). This is the
+// single most common cause of "DELETE got slow as the table grew" — keep an
+// index on every FK column. Compound indexes whose LEADING column is the FK
+// (e.g. llm_spend_ledger(user_id, recorded_at)) also satisfy this — Postgres
+// can use them for the FK check.
+describe("every foreign key column has a supporting btree index", () => {
+  // Returns the names of indexes whose first column equals `column` on `table`.
+  // Compound indexes count as long as the FK column is the leading column.
+  async function fkBackingIndexes(table: string, column: string) {
+    return sql`
+      SELECT i.relname AS indexname
+      FROM   pg_class    t
+      JOIN   pg_index    ix ON ix.indrelid    = t.oid
+      JOIN   pg_class    i  ON i.oid          = ix.indexrelid
+      JOIN   pg_am       am ON am.oid         = i.relam AND am.amname = 'btree'
+      JOIN   pg_attribute a ON a.attrelid     = t.oid
+                            AND a.attnum      = ix.indkey[0]
+      WHERE  t.relname  = ${table}
+        AND  a.attname  = ${column}
+    `;
+  }
+
+  const FK_COLUMNS: { table: string; column: string }[] = [
+    { table: "interviews",         column: "user_id" },
+    { table: "imports",            column: "user_id" },
+    { table: "linkedin_snapshots", column: "user_id" },
+    { table: "generations",        column: "user_id" },
+    { table: "generations",        column: "input_snapshot_id" },
+    { table: "commits",            column: "user_id" },
+    { table: "commits",            column: "generation_id" },
+    { table: "outcomes",           column: "user_id" },
+    { table: "outcome_deltas",     column: "user_id" },
+    { table: "outcome_deltas",     column: "generation_id" },
+    { table: "llm_spend_ledger",   column: "user_id" },
+    { table: "llm_spend_ledger",   column: "generation_id" },
+    { table: "audit_log",          column: "user_id" },
+    { table: "audit_log",          column: "accessor_id" },
+    { table: "users",              column: "voice_profile_id" },
+  ];
+
+  for (const { table, column } of FK_COLUMNS) {
+    it(`${table}.${column} has a backing index (leading column)`, async () => {
+      const rows = await fkBackingIndexes(table, column);
+      expect(rows.length).toBeGreaterThan(0);
+    });
+  }
+});
