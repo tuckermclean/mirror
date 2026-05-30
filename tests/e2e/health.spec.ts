@@ -1,0 +1,62 @@
+/**
+ * E2E tests for /api/health/live and /api/health/ready.
+ *
+ * These tests hit the real running app.  The readiness probe may return 503 in
+ * environments where the DB / pgvector extension is absent, so we validate both
+ * branches.
+ */
+import { test, expect } from "@playwright/test";
+
+test.describe("/api/health/live", () => {
+  test("returns 200 with status ok and an ISO timestamp", async ({ request }) => {
+    const response = await request.get("/api/health/live");
+
+    expect(response.status()).toBe(200);
+    const body = (await response.json()) as { status: string; ts: string };
+    expect(body.status).toBe("ok");
+    expect(typeof body.ts).toBe("string");
+    expect(() => new Date(body.ts).toISOString()).not.toThrow();
+  });
+
+  test("sets Cache-Control: no-store header", async ({ request }) => {
+    const response = await request.get("/api/health/live");
+    expect(response.headers()["cache-control"]).toBe("no-store");
+  });
+});
+
+test.describe("/api/health/ready", () => {
+  test("sets Cache-Control: no-store header", async ({ request }) => {
+    const response = await request.get("/api/health/ready");
+    expect(response.headers()["cache-control"]).toBe("no-store");
+  });
+
+  test("returns JSON with status and checks fields", async ({ request }) => {
+    const response = await request.get("/api/health/ready");
+
+    // Accept either 200 (healthy env) or 503 (DB unavailable in test env)
+    expect([200, 503]).toContain(response.status());
+    const body = (await response.json()) as {
+      status: string;
+      checks: { db: string; pgvector: string };
+    };
+    expect(["ok", "error"]).toContain(body.status);
+    expect(body.checks).toBeDefined();
+    expect(["ok", "error"]).toContain(body.checks.db);
+    expect(["ok", "error"]).toContain(body.checks.pgvector);
+  });
+
+  test("returns 200 with all checks ok when database is healthy", async ({ request }) => {
+    const response = await request.get("/api/health/ready");
+
+    // Skip visible in test output when DB is absent (e.g. CI without a DB service).
+    test.skip(response.status() !== 200, "DB not available in this environment");
+
+    const body = (await response.json()) as {
+      status: string;
+      checks: { db: string; pgvector: string };
+    };
+    expect(body.status).toBe("ok");
+    expect(body.checks.db).toBe("ok");
+    expect(body.checks.pgvector).toBe("ok");
+  });
+});
