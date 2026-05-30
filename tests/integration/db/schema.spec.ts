@@ -149,7 +149,8 @@ describe("llm_spend_ledger column types", () => {
 // 4. Foreign key constraints
 // ---------------------------------------------------------------------------
 describe("foreign key constraints enforce referential integrity", () => {
-  /** Returns rows from the information-schema FK query for a given child table and column */
+  // Assumes single-column FKs — all current schema FKs are single-column. If a composite
+  // FK is ever added, this helper will return multiple rows and toHaveLength(1) will fail.
   async function getFkTarget(childTable: string, childColumn: string) {
     return sql`
       SELECT ccu.table_name  AS referenced_table,
@@ -267,6 +268,9 @@ describe("HNSW index on benchmark_profiles.embedding", () => {
 // 6. btree index on imports.user_id
 // ---------------------------------------------------------------------------
 describe("btree index on imports.user_id", () => {
+  // Note: this first assertion is redundant with the exact-name check below (btree is the
+  // default index method and the name pins the index unambiguously), but kept as a belt-and-
+  // suspenders guard for the access method in case the index is ever re-created differently.
   it("index exists", async () => {
     const rows = await sql`
       SELECT indexname, indexdef

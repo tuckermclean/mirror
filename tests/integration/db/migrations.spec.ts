@@ -20,6 +20,8 @@ describe("Drizzle schema + migrations", () => {
       "outcomes",
       "benchmarkProfiles",
       "outcomeDeltas",
+      "llmSpendLedger",
+      "auditLog",
     ];
     for (const table of requiredTables) {
       expect(schema).toHaveProperty(table);

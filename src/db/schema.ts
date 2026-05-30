@@ -169,6 +169,7 @@ export const benchmarkProfiles = pgTable(
     // (only on plain column indexes). The template is passed verbatim to CREATE INDEX,
     // so it works today — but if Drizzle adds expression-index .op() support, migrate
     // to that API to avoid placement issues if Drizzle ever parses the expression list.
+    // Track: https://github.com/drizzle-team/drizzle-orm/issues/1006 (expression-index ops)
     index("benchmark_profiles_embedding_hnsw_idx")
       .using("hnsw", sql`(${table.embedding}::halfvec(3072)) halfvec_cosine_ops`)
       .with({ m: 16, ef_construction: 64 }),
