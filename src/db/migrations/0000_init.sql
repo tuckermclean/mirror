@@ -181,3 +181,9 @@ CREATE INDEX IF NOT EXISTS llm_spend_ledger_user_recorded_at_idx
 -- btree on audit_log(user_id, accessed_at) for the per-user audit trail query
 CREATE INDEX IF NOT EXISTS audit_log_user_accessed_at_idx
     ON audit_log (user_id, accessed_at);
+
+-- btree on audit_log(accessor_id) required for the RESTRICT FK enforcement.
+-- PostgreSQL must verify no referencing rows exist before DELETE/UPDATE on users;
+-- without this index, that check is a full sequential scan of audit_log as it grows.
+CREATE INDEX IF NOT EXISTS audit_log_accessor_id_idx
+    ON audit_log (accessor_id);

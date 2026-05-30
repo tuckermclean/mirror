@@ -170,8 +170,13 @@ export const benchmarkProfiles = pgTable(
     // so it works today — but if Drizzle adds expression-index .op() support, migrate
     // to that API to avoid placement issues if Drizzle ever parses the expression list.
     // Track: https://github.com/drizzle-team/drizzle-orm/issues/1006 (expression-index ops)
+    //
+    // Uses the literal column name "embedding" rather than ${table.embedding} to avoid
+    // Drizzle's serializer emitting a double-quoted identifier ("embedding"::halfvec(3072))
+    // vs the unquoted form (embedding::halfvec(3072)) in the migration SQL, which would
+    // cause schema drift between db:push and db:migrate environments.
     index("benchmark_profiles_embedding_hnsw_idx")
-      .using("hnsw", sql`(${table.embedding}::halfvec(3072)) halfvec_cosine_ops`)
+      .using("hnsw", sql`(embedding::halfvec(3072)) halfvec_cosine_ops`)
       .with({ m: 16, ef_construction: 64 }),
   ]
 );
@@ -245,5 +250,8 @@ export const auditLog = pgTable(
   },
   (table) => [
     index("audit_log_user_accessed_at_idx").on(table.userId, table.accessedAt),
+    // Required for the RESTRICT FK on accessor_id: without this, a DELETE from users
+    // triggers a full sequential scan of audit_log to verify no referencing rows exist.
+    index("audit_log_accessor_id_idx").on(table.accessorId),
   ]
 );

@@ -1,19 +1,14 @@
-/**
- * Integration tests for the Drizzle schema and migration.
- * Requires DATABASE_URL pointing at a postgres instance with pgvector
- * and the 0000_init.sql migration already applied.
- *
- * Run: DATABASE_URL=... pnpm test:integration tests/integration/db/schema.spec.ts
- */
+// Integration tests — requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import postgres from "postgres";
 
 let sql: ReturnType<typeof postgres>;
 
-beforeAll(() => {
+beforeAll(async () => {
   const url = process.env["DATABASE_URL"];
   if (!url) throw new Error("DATABASE_URL is required for schema integration tests");
   sql = postgres(url);
+  await sql`SELECT 1`; // fast connectivity check — single clear failure vs 29 ECONNREFUSED errors
 });
 
 afterAll(async () => {
@@ -348,5 +343,35 @@ describe("btree index on audit_log(user_id, accessed_at)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.indexdef).toContain("user_id");
     expect(rows[0]?.indexdef).toContain("accessed_at");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. btree index on audit_log(accessor_id) for RESTRICT FK enforcement
+// ---------------------------------------------------------------------------
+describe("btree index on audit_log(accessor_id)", () => {
+  // PostgreSQL must verify no referencing rows exist before DELETE/UPDATE on users
+  // when the RESTRICT FK is in effect. Without this index, that check is a full
+  // sequential scan of audit_log — which grows with every PII read.
+  it("audit_log_accessor_id_idx exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'audit_log'
+        AND  indexname  = 'audit_log_accessor_id_idx'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("index covers accessor_id for fast RESTRICT FK check on user delete", async () => {
+    const rows = await sql`
+      SELECT indexdef
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  indexname  = 'audit_log_accessor_id_idx'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indexdef).toContain("accessor_id");
   });
 });
