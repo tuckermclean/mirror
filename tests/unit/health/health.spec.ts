@@ -3,7 +3,7 @@
  *
  * DB is mocked so these tests run without a real database connection.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock the Drizzle db client before importing route handlers that use it.
@@ -59,6 +59,12 @@ describe("GET /api/health/ready", () => {
     vi.resetModules();
   });
 
+  // Centralised guard: if a timeout-test assertion throws before vi.useRealTimers(),
+  // fake timers would otherwise leak into subsequent describe blocks.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns 200 with all checks ok when DB and pgvector are healthy", async () => {
     // First call: SELECT 1 succeeds; second call: pgvector row found
     mockExecute
@@ -79,6 +85,9 @@ describe("GET /api/health/ready", () => {
   });
 
   it("returns 503 with db error when DB query throws", async () => {
+    // Both checkDb and checkPgvector run in parallel via Promise.all.
+    // They share a connection pool, so both fail when the DB is down.
+    mockExecute.mockRejectedValueOnce(new Error("connection refused"));
     mockExecute.mockRejectedValueOnce(new Error("connection refused"));
 
     const { GET } = await import("@/app/api/health/ready/route");
@@ -173,8 +182,6 @@ describe("GET /api/health/ready", () => {
     expect(body.status).toBe("error");
     expect(body.checks.db).toBe("error");
     expect(body.checks.pgvector).toBe("ok");
-
-    vi.useRealTimers();
   });
 
   it("returns 503 with pgvector error when pgvector query hangs past 3 s timeout", async () => {
@@ -197,7 +204,5 @@ describe("GET /api/health/ready", () => {
     expect(body.status).toBe("error");
     expect(body.checks.db).toBe("ok");
     expect(body.checks.pgvector).toBe("error");
-
-    vi.useRealTimers();
   });
 });

@@ -25,6 +25,11 @@ test.describe("/api/health/live", () => {
 });
 
 test.describe("/api/health/ready", () => {
+  test("sets Cache-Control: no-store header", async ({ request }) => {
+    const response = await request.get("/api/health/ready");
+    expect(response.headers()["cache-control"]).toBe("no-store");
+  });
+
   test("returns JSON with status and checks fields", async ({ request }) => {
     const response = await request.get("/api/health/ready");
 
