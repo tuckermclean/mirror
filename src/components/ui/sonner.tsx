@@ -13,21 +13,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as NonNullable<ToasterProps["theme"]>}
       className="toaster group"
       icons={{
-        success: (
-          <CircleCheckIcon className="size-4" />
-        ),
-        info: (
-          <InfoIcon className="size-4" />
-        ),
-        warning: (
-          <TriangleAlertIcon className="size-4" />
-        ),
-        error: (
-          <OctagonXIcon className="size-4" />
-        ),
-        loading: (
-          <Loader2Icon className="size-4 animate-spin" />
-        ),
+        // Icons are decorative — aria-live region on the toast announces the
+        // message text; aria-hidden prevents screen readers from reading the
+        // SVG title alongside it (WCAG 1.1.1).
+        success: <CircleCheckIcon className="size-4" aria-hidden="true" />,
+        info:    <InfoIcon className="size-4" aria-hidden="true" />,
+        warning: <TriangleAlertIcon className="size-4" aria-hidden="true" />,
+        error:   <OctagonXIcon className="size-4" aria-hidden="true" />,
+        loading: <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />,
       }}
       style={
         {

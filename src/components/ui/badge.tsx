@@ -1,7 +1,9 @@
-// No "use client" directive needed: @base-ui/react ships its own "use client"
-// boundary in every ESM component file. Next.js App Router resolves the ESM
-// variant via the package exports map, so the client boundary propagates from
-// the imported primitive — confirmed with the @base-ui/react v1.x source.
+"use client"
+
+// "use client" is required: Badge calls useRender(), a React hook from
+// @base-ui/react/use-render. Next.js does NOT back-propagate "use client"
+// from imported primitives to their callers — each file that calls a hook
+// must carry its own directive.
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
