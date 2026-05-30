@@ -156,6 +156,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ---------------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------------
+-- Known limitation: indexes below are built WITHOUT CONCURRENTLY because this
+-- migration targets an empty database on first boot. CREATE INDEX CONCURRENTLY
+-- cannot run inside a transaction block (psql \i, Drizzle migrate, or pg_dump
+-- restore all wrap statements in a transaction). On a live populated database
+-- you would instead use CONCURRENTLY to avoid an exclusive table lock; future
+-- migrations adding indexes to existing data should use that form.
 
 -- HNSW on benchmark_profiles.embedding for sub-200ms cosine k-NN retrieval.
 -- ef_search can be tuned at query time: SET hnsw.ef_search = 100;

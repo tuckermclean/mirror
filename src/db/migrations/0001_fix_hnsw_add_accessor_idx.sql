@@ -22,6 +22,9 @@ CREATE INDEX benchmark_profiles_embedding_hnsw_idx
 -- PostgreSQL must verify no referencing rows exist before DELETE/UPDATE on users
 -- when the RESTRICT FK is in effect. Without this index, that check is a full
 -- sequential scan of audit_log — which grows with every PII read.
+-- Known limitation: not CONCURRENTLY — this migration may run while the app is
+-- live but audit_log is expected to be small at this stage (<10k rows). Future
+-- migrations adding indexes to high-traffic tables should use CONCURRENTLY.
 CREATE INDEX IF NOT EXISTS audit_log_accessor_id_idx
     ON audit_log (accessor_id);
 

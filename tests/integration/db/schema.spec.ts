@@ -223,6 +223,55 @@ describe("foreign key constraints enforce referential integrity", () => {
     expect(rows[0]?.delete_rule).toBe("SET NULL");
   });
 
+  it("linkedin_snapshots.user_id → users.id (CASCADE)", async () => {
+    const rows = await getFkTarget("linkedin_snapshots", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("generations.user_id → users.id (CASCADE)", async () => {
+    const rows = await getFkTarget("generations", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("commits.user_id → users.id (CASCADE)", async () => {
+    const rows = await getFkTarget("commits", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("outcomes.user_id → users.id (CASCADE)", async () => {
+    const rows = await getFkTarget("outcomes", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("outcome_deltas.user_id → users.id (CASCADE)", async () => {
+    const rows = await getFkTarget("outcome_deltas", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("outcome_deltas.generation_id → generations.id (CASCADE)", async () => {
+    const rows = await getFkTarget("outcome_deltas", "generation_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("generations");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
+  it("llm_spend_ledger.user_id → users.id (CASCADE — GDPR: spend records deleted with user)", async () => {
+    const rows = await getFkTarget("llm_spend_ledger", "user_id");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.referenced_table).toBe("users");
+    expect(rows[0]?.delete_rule).toBe("CASCADE");
+  });
+
   it("users.voice_profile_id FK is named users_voice_profile_id_imports_id_fk", async () => {
     const rows = await sql`
       SELECT tc.constraint_name
