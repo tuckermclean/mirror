@@ -18,7 +18,7 @@ export default defineConfig({
       // JSON for webkit's /v1/client/handshake FAPI request in CI, causing the
       // Clerk client to redirect mid-navigation. Auth-gated tests are excluded
       // from webkit until @clerk/testing has webkit-compatible FAPI proxying.
-      testIgnore: ["**/interview.spec.ts"],
+      testIgnore: ["**/interview.spec.ts", "**/auth.spec.ts"],
     },
   ],
 });
