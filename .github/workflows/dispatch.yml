@@ -162,3 +162,15 @@ jobs:
             For review/explain/plan tasks:
             - Post your response as a comment on the issue/PR FIRST (gh issue comment), then refine it.
             - Do NOT create branches or PRs for these.
+
+            HONEST REPORTING — before posting any success/summary comment:
+            - Run the project's own checks locally where possible (see AGENTS.md):
+              `pnpm typecheck`, `pnpm lint`, `pnpm test:unit` (and `pnpm test:integration`
+              if DATABASE_URL is set). Report each result factually.
+            - Then run `gh pr checks <PR NUMBER>` to see the PR's REAL CI status.
+            - Only mark a check ✅ if you actually verified it. If CI is still running,
+              say so. If a check is failing, report it and state whether YOUR change
+              caused it or it is a known pre-existing / non-blocking failure (e.g. the
+              E2E job is non-blocking and red until Clerk/Anthropic secrets are set).
+            - NEVER claim "all acceptance criteria verified" or post an all-green
+              summary while any check you did not personally verify is red.

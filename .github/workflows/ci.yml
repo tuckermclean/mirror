@@ -161,6 +161,7 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -186,6 +187,7 @@ jobs:
         run: pnpm build
 
       - name: Start app and wait for readiness
+        if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: |
           pnpm start &
           APP_PID=$!
@@ -196,10 +198,11 @@ jobs:
       # Wk 1 scope: auth + interview. Wk 2+ specs (import, linkedin, walkthrough,
       # commit) are RED by design and excluded from this job.
       - name: Run E2E tests (Wk 1 scope)
+        if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: pnpm exec playwright test tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: playwright-report
