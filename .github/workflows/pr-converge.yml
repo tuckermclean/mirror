@@ -90,11 +90,12 @@ jobs:
 
       - name: "R1 — Review"
         id: r1_review
-        timeout-minutes: 20
+        continue-on-error: true
+        timeout-minutes: 25
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 20"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-code-reviewer.md
@@ -170,11 +171,12 @@ jobs:
 
       - name: "R1 — Fix (🔴 blockers + 🟡 suggestions)"
         if: steps.r1_decide.outputs.done != 'true'
-        timeout-minutes: 35
+        continue-on-error: true
+        timeout-minutes: 55
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 80"
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-senior-developer.md
@@ -205,11 +207,12 @@ jobs:
       - name: "R2 — Review"
         id: r2_review
         if: steps.r1_decide.outputs.done != 'true'
-        timeout-minutes: 20
+        continue-on-error: true
+        timeout-minutes: 25
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 20"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-code-reviewer.md
@@ -282,11 +285,12 @@ jobs:
 
       - name: "R2 — Fix (🔴 blockers only)"
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
-        timeout-minutes: 35
+        continue-on-error: true
+        timeout-minutes: 55
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 80"
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-senior-developer.md
@@ -315,11 +319,12 @@ jobs:
       - name: "R3 — Review"
         id: r3_review
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
-        timeout-minutes: 20
+        continue-on-error: true
+        timeout-minutes: 25
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 20"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
           allowed_bots: "claude"
           prompt: |
             Load: .agents/engineering-code-reviewer.md
