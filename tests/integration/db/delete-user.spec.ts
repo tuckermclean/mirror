@@ -24,7 +24,7 @@ import {
   auditLog,
 } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
-import { deleteUser } from "@/lib/db/delete-user";
+import { deleteUser, DELETED_PLAN } from "@/lib/db/delete-user";
 
 const itWithDb = process.env["DATABASE_URL"] ? it : it.skip;
 const describeWithDb = process.env["DATABASE_URL"] ? describe : describe.skip;
@@ -82,7 +82,7 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
     expect(row?.email).not.toBe(subject.email);
     expect(row?.email).not.toContain("@example.test");
     expect(row?.clerkId).not.toBe(subject.clerkId);
-    expect(row?.plan).toBe("deleted");
+    expect(row?.plan).toBe(DELETED_PLAN);
     expect(row?.voiceProfileId).toBeNull();
   });
 
@@ -95,7 +95,7 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
 
     expect(afterSecond?.email).toBe(afterFirst?.email);
     expect(afterSecond?.clerkId).toBe(afterFirst?.clerkId);
-    expect(afterSecond?.plan).toBe("deleted");
+    expect(afterSecond?.plan).toBe(DELETED_PLAN);
   });
 
   itWithDb("deletes all PII-bearing child rows in interviews/imports/snapshots", async () => {
@@ -203,7 +203,7 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
 
       const [row] = await db.select().from(users).where(eq(users.id, subject.id));
       expect(row?.id).toBe(subject.id);
-      expect(row?.plan).toBe("deleted");
+      expect(row?.plan).toBe(DELETED_PLAN);
     }
   );
 
@@ -244,5 +244,41 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
     await db.delete(users).where(eq(users.id, subject.id));
     const after = await db.select().from(users).where(eq(users.id, subject.id));
     expect(after).toHaveLength(0);
+  });
+
+  itWithDb("is a no-op when userId does not exist in the DB", async () => {
+    // Documents the contract: zero rows updated/deleted → silent success.
+    // A caller checking only Promise<void> resolution cannot distinguish
+    // "redacted" from "never existed" — both are valid outcomes.
+    await expect(
+      deleteUser("00000000-0000-0000-0000-000000000000")
+    ).resolves.not.toThrow();
+  });
+
+  itWithDb("nulls voiceProfileId when the referenced import is deleted mid-transaction", async () => {
+    // Tests the interesting FK path: users.voiceProfileId → imports.id ON DELETE SET NULL.
+    // When the import is deleted inside the transaction, the cascade fires and sets
+    // voiceProfileId to null; the subsequent explicit .set({ voiceProfileId: null })
+    // in the UPDATE is then a no-op write-of-same — both succeed without constraint violation.
+    const [imp] = await db
+      .insert(imports)
+      .values({ userId: subject.id, source: "chatgpt" })
+      .returning();
+    if (!imp) throw new Error("failed to insert import");
+
+    await db
+      .update(users)
+      .set({ voiceProfileId: imp.id })
+      .where(eq(users.id, subject.id));
+
+    await deleteUser(subject.id);
+
+    const [row] = await db.select().from(users).where(eq(users.id, subject.id));
+    expect(row?.voiceProfileId).toBeNull();
+    const remainingImports = await db
+      .select()
+      .from(imports)
+      .where(eq(imports.userId, subject.id));
+    expect(remainingImports).toHaveLength(0);
   });
 });
