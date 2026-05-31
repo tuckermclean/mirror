@@ -24,7 +24,7 @@ describe("Inngest client", () => {
   afterEach(() => {
     delete process.env["INNGEST_EVENT_KEY"];
     delete process.env["INNGEST_SIGNING_KEY"];
-    process.env["NODE_ENV"] = "test";
+    Object.assign(process.env, { NODE_ENV: "test" });
   });
 
   it("is configured with app id 'mirror'", async () => {
@@ -49,7 +49,7 @@ describe("Inngest client", () => {
   });
 
   it("throws ConfigurationError at module load in production when INNGEST_SIGNING_KEY is absent", async () => {
-    process.env["NODE_ENV"] = "production";
+    Object.assign(process.env, { NODE_ENV: "production" });
     delete process.env["INNGEST_SIGNING_KEY"];
     await expect(import("@/lib/inngest/client")).rejects.toThrow(
       "INNGEST_SIGNING_KEY must be set in production"
