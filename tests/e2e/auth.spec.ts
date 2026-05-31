@@ -30,6 +30,8 @@ base.describe("Inngest public route access", () => {
     // from Clerk middleware — i.e., it must not redirect to /sign-in.
     expect(response.status()).not.toBe(307);
     expect(response.status()).not.toBe(308);
+    // Guard against a broken Inngest setup masking as a non-redirect (e.g. 500 + JSON).
+    expect(response.status()).toBeLessThan(500);
     // Inngest responds with JSON (either introspection payload or an error).
     const contentType = response.headers()["content-type"] ?? "";
     expect(contentType).toMatch(/json/);
