@@ -44,7 +44,9 @@ describe("checkMonthlyCap", () => {
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
-    expect(result.resets_at).toBeDefined();
+    if (!result.allowed) {
+      expect(result.resets_at).toBeDefined();
+    }
   });
 
   it("returns allowed=false when MTD spend exceeds the cap", async () => {
