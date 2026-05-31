@@ -13,6 +13,12 @@ import {
 import { eq } from "drizzle-orm";
 
 /**
+ * Sentinel written to `users.plan` after redaction. Callers that query active
+ * users must filter `ne(users.plan, DELETED_PLAN)` to exclude tombstones.
+ */
+export const DELETED_PLAN = "deleted" as const;
+
+/**
  * GDPR Article 17 erasure — redaction-in-place ("soft delete"). See ADR-009.
  *
  * A true `DELETE FROM users` is impossible once the user has ever performed a
@@ -24,6 +30,12 @@ import { eq } from "drizzle-orm";
  *
  * Idempotent: calling on an already-redacted user is a no-op (the placeholders
  * are deterministic in `users.id`, so the UPDATE is a write-of-same).
+ *
+ * **R2 objects are NOT deleted by this function.** `imports.rawPath` stores
+ * paths to R2 objects that contain raw PII (AI chat exports, LinkedIn HTML).
+ * Callers are responsible for deleting those objects before or after calling
+ * this helper. In production, this is done by the Inngest erasure function —
+ * do not call this helper in isolation or Art. 17 erasure will be incomplete.
  */
 export async function deleteUser(userId: string): Promise<void> {
   await db.transaction(async (tx) => {
@@ -50,7 +62,7 @@ export async function deleteUser(userId: string): Promise<void> {
         email: `deleted+${userId}@deleted.invalid`,
         clerkId: `deleted:${userId}`,
         voiceProfileId: null,
-        plan: "deleted",
+        plan: DELETED_PLAN,
       })
       .where(eq(users.id, userId));
   });
