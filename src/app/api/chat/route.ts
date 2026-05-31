@@ -91,6 +91,12 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   const internalUserId = userRows[0]!.id;
 
   // 3b. Monthly spend cap check — must pass before starting any generation.
+  // Known tolerance: the check and recordLlmSpend are separate DB operations
+  // separated by the LLM stream (~seconds). Under concurrent requests, multiple
+  // streams can pass the cap check before any record spend. The overshoot is
+  // bounded to (concurrent streams × max_tokens cost), acceptable for a soft
+  // platform budget guard. A SELECT FOR UPDATE on a budget row would eliminate
+  // this but requires a schema migration out of scope for this feature.
   const capResult = await checkMonthlyCap();
   if (!capResult.allowed) {
     const resetDate = new Date(capResult.resets_at).toLocaleDateString("en-US", {
