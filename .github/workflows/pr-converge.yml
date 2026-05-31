@@ -77,6 +77,15 @@ jobs:
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
           rm -f .converge-final-action .converge-nits-raw
 
+      - name: "Setup — no-attribution hook"
+        run: |
+          mkdir -p .git/hooks
+          cat > .git/hooks/prepare-commit-msg << 'HOOK'
+          #!/bin/sh
+          sed -i -e '/^Co-authored-by:.*@anthropic\.com/d' -e '/^Co-authored-by:.*claude\[bot\]/d' "$1"
+          HOOK
+          chmod +x .git/hooks/prepare-commit-msg
+
       # ── Round 1 ─────────────────────────────────────────────────────────────
 
       - name: "R1 — Review"
@@ -187,6 +196,12 @@ jobs:
 
       # ── Round 2 ─────────────────────────────────────────────────────────────
 
+      - name: "R2 — Reset verdict sentinel"
+        if: steps.r1_decide.outputs.done != 'true'
+        run: |
+          echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
+            > .converge-verdict.json
+
       - name: "R2 — Review"
         id: r2_review
         if: steps.r1_decide.outputs.done != 'true'
@@ -290,6 +305,12 @@ jobs:
             Before pushing: pnpm typecheck && pnpm lint && pnpm test:unit
 
       # ── Round 3 ─────────────────────────────────────────────────────────────
+
+      - name: "R3 — Reset verdict sentinel"
+        if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
+        run: |
+          echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
+            > .converge-verdict.json
 
       - name: "R3 — Review"
         id: r3_review

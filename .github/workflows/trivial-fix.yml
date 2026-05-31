@@ -32,6 +32,15 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
         name: Install dependencies (skip native builds)
 
+      - name: Setup — no-attribution hook
+        run: |
+          mkdir -p .git/hooks
+          cat > .git/hooks/prepare-commit-msg << 'HOOK'
+          #!/bin/sh
+          sed -i -e '/^Co-authored-by:.*@anthropic\.com/d' -e '/^Co-authored-by:.*claude\[bot\]/d' "$1"
+          HOOK
+          chmod +x .git/hooks/prepare-commit-msg
+
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

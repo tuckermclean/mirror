@@ -99,6 +99,15 @@ jobs:
           git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
+      - name: Setup — no-attribution hook
+        run: |
+          mkdir -p .git/hooks
+          cat > .git/hooks/prepare-commit-msg << 'HOOK'
+          #!/bin/sh
+          sed -i -e '/^Co-authored-by:.*@anthropic\.com/d' -e '/^Co-authored-by:.*claude\[bot\]/d' "$1"
+          HOOK
+          chmod +x .git/hooks/prepare-commit-msg
+
       - name: Find existing PR for issue
         id: existing_pr
         env:
