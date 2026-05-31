@@ -64,13 +64,22 @@ describe("recordLlmSpend + checkMonthlyCap integration", () => {
   });
 
   it("cap check returns allowed=false after inserting spend exceeding the cap", async () => {
-    // Save original cap, override to a tiny value so we can exceed it cheaply
+    // Insert a known spend row in this test's own setup — no dependency on
+    // prior tests. Use a sub-cent cap so the cost is negligible.
+    const costUsd = computeCostUsd("claude-sonnet-4-6", 1_000, 500);
+    await recordLlmSpend({
+      userId: TEST_USER_ID,
+      model: "claude-sonnet-4-6",
+      inputTokens: 1_000,
+      outputTokens: 500,
+      costUsd,
+    });
+
     const originalCap = process.env["LLM_MONTHLY_CAP_USD"];
-    process.env["LLM_MONTHLY_CAP_USD"] = "0.0001";
+    process.env["LLM_MONTHLY_CAP_USD"] = "0.000001";
 
     try {
       const result = await checkMonthlyCap();
-      // The ~$0.45 spend from the previous test should exceed $0.0001
       expect(result.allowed).toBe(false);
       if (!result.allowed) {
         expect(result.resets_at).toBeDefined();
