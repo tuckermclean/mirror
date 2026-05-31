@@ -34,7 +34,8 @@ describe("checkMonthlyCap", () => {
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap("user-uuid-1");
     expect(result.allowed).toBe(true);
-    expect(result.resets_at).toBeUndefined();
+    // Discriminated union: { allowed: true } has no resets_at property
+    expect("resets_at" in result).toBe(false);
   });
 
   it("returns allowed=false when MTD spend equals the cap", async () => {
@@ -67,18 +68,22 @@ describe("checkMonthlyCap", () => {
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap("user-uuid-5");
     expect(result.allowed).toBe(false);
-    expect(result.resets_at).toBeDefined();
 
-    // Must be a valid ISO 8601 date string
-    const parsed = new Date(result.resets_at!);
-    expect(Number.isNaN(parsed.getTime())).toBe(false);
+    // Narrow to the denied branch to satisfy the discriminated union
+    if (!result.allowed) {
+      expect(result.resets_at).toBeDefined();
 
-    // Must be the 1st of the month
-    expect(parsed.getUTCDate()).toBe(1);
+      // Must be a valid ISO 8601 date string
+      const parsed = new Date(result.resets_at);
+      expect(Number.isNaN(parsed.getTime())).toBe(false);
 
-    // Must be in the future (next month or later)
-    const now = new Date();
-    expect(parsed.getTime()).toBeGreaterThan(now.getTime());
+      // Must be the 1st of the month
+      expect(parsed.getUTCDate()).toBe(1);
+
+      // Must be in the future (next month or later)
+      const now = new Date();
+      expect(parsed.getTime()).toBeGreaterThan(now.getTime());
+    }
   });
 
   afterEach(() => {
