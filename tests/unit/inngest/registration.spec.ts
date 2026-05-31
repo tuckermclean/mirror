@@ -1,7 +1,11 @@
-// Unit tests — Inngest client config (app id, event key, signing key). SDK mocked.
+// Unit tests — Inngest client config pass-through only (app id, event key, signing key).
+//
+// Scope: does the client correctly forward env vars to the Inngest constructor?
+// SDK behaviour (e.g. the isDev fallback when no signing key is set) is covered by
+// the real-SDK integration test at tests/integration/inngest/route.spec.ts.
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
-// Mock Inngest SDK so we don't need a real INNGEST_EVENT_KEY in the test env.
+// Mock the SDK so we can inspect constructor arguments without a live Inngest instance.
 vi.mock("inngest", () => {
   class MockInngest {
     public readonly id: string;
