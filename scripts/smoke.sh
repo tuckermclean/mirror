@@ -11,6 +11,7 @@ set -euo pipefail
 PORT=3000
 BASE="http://localhost:${PORT}"
 APP_PID=""
+SMOKE_TMP=""
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -20,6 +21,7 @@ cleanup() {
     kill "$APP_PID" 2>/dev/null || true
     wait "$APP_PID" 2>/dev/null || true
   fi
+  rm -f "$SMOKE_TMP"
 }
 trap cleanup EXIT
 
@@ -53,13 +55,14 @@ pass "/api/health/live → 200"
 # ── 6. Assert GET /api/inngest is < 500 and JSON ─────────────────────────────
 # This is the primary regression guard: Inngest serve() must not 500 when
 # INNGEST_SIGNING_KEY is absent (the bug from PR #22).
-INNGEST_STATUS=$(curl -s -o /tmp/smoke_inngest.json -w "%{http_code}" "${BASE}/api/inngest")
+SMOKE_TMP=$(mktemp /tmp/smoke_inngest.XXXXXX.json)
+INNGEST_STATUS=$(curl -s -o "$SMOKE_TMP" -w "%{http_code}" "${BASE}/api/inngest")
 [[ "$INNGEST_STATUS" -lt 500 ]] \
-  || fail "/api/inngest returned HTTP ${INNGEST_STATUS} (expected < 500); body: $(cat /tmp/smoke_inngest.json)"
+  || fail "/api/inngest returned HTTP ${INNGEST_STATUS} (expected < 500); body: $(cat "$SMOKE_TMP")"
 
 # Verify the response is valid JSON
-if ! node -e "JSON.parse(require('fs').readFileSync('/tmp/smoke_inngest.json','utf8'))" 2>/dev/null; then
-  fail "/api/inngest did not return valid JSON; body: $(cat /tmp/smoke_inngest.json)"
+if ! node -e "JSON.parse(require('fs').readFileSync('${SMOKE_TMP}','utf8'))" 2>/dev/null; then
+  fail "/api/inngest did not return valid JSON; body: $(cat "$SMOKE_TMP")"
 fi
 pass "/api/inngest → ${INNGEST_STATUS} (JSON)"
 
