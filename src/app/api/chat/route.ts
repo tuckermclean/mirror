@@ -93,12 +93,15 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   // 3b. Monthly spend cap check — must pass before starting any generation.
   const capResult = await checkMonthlyCap(internalUserId);
   if (!capResult.allowed) {
-    const now = new Date();
-    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const resetDate = new Date(capResult.resets_at).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
     return NextResponse.json(
       {
         error: "monthly_cap_reached",
-        message: `Mirror has reached this month's generation budget. Try again on ${nextMonth.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, or contact support to upgrade.`,
+        message: `Mirror has reached this month's generation budget. Try again on ${resetDate}, or contact support to upgrade.`,
         resets_at: capResult.resets_at,
       },
       { status: 402 }
