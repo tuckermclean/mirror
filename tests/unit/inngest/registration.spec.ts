@@ -51,8 +51,13 @@ describe("Inngest client", () => {
   it("throws ConfigurationError at module load in production when INNGEST_SIGNING_KEY is absent", async () => {
     Object.assign(process.env, { NODE_ENV: "production" });
     delete process.env["INNGEST_SIGNING_KEY"];
-    await expect(import("@/lib/inngest/client")).rejects.toThrow(
+    // Import errors first to populate the shared module cache so that the
+    // ConfigurationError thrown by client.ts is the same class reference.
+    const { ConfigurationError } = await import("@/lib/errors");
+    const promise = import("@/lib/inngest/client");
+    await expect(promise).rejects.toThrow(
       "INNGEST_SIGNING_KEY must be set in production"
     );
+    await expect(promise).rejects.toBeInstanceOf(ConfigurationError);
   });
 });
