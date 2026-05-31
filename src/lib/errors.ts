@@ -8,3 +8,10 @@ export class UnknownModelError extends Error {
     this.model = model;
   }
 }
+
+export class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigurationError";
+  }
+}
