@@ -33,6 +33,9 @@ cp -r .next/static .next/standalone/.next/static
 cp -r public .next/standalone/public
 
 # ── 3. Start the standalone server ───────────────────────────────────────────
+if lsof -ti:"${PORT}" > /dev/null 2>&1; then
+  fail "Port ${PORT} is already in use — cannot start standalone server"
+fi
 echo "Starting standalone server on port ${PORT}…"
 PORT="${PORT}" node .next/standalone/server.js &
 APP_PID=$!
