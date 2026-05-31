@@ -459,6 +459,44 @@ All interview and generation calls use the Anthropic streaming API. The cost fro
 
 ---
 
+### ADR-009: GDPR Right-to-Erasure — Redaction-in-Place (Soft Delete), Not Hard Delete
+
+**Status:** Accepted (2026-05-31, supersedes the cascade-delete sketch previously in §6)
+
+**Context:**
+GDPR Article 17 requires a code path that fully erases a user's personal data on request. The original `/settings/delete-account` sketch in §6 called `DELETE FROM users`, relying on `ON DELETE CASCADE` to fan the delete across every child table.
+
+That sketch is incompatible with the audit schema. `audit_log.accessor_id` is `NOT NULL ON DELETE RESTRICT` (deliberately — an accessor's audit trail must outlive a soft-delete so we can answer "who looked at what"). PostgreSQL will refuse to hard-delete any user who has ever performed a PII read, which — once `src/lib/db/pii-read.ts` is wired — includes every active user, since users routinely read their own PII. A hard delete would raise `update or delete on table "users" violates foreign key constraint "audit_log_accessor_id_users_id_fk"` and the erasure flow would fail open.
+
+Four options were considered (see issue #16):
+
+1. **Nullify `accessor_id` on user delete** — `ON DELETE SET NULL`. Preserves the audit row, destroys attribution. Weakens SOC 2 / breach-investigation posture.
+2. **Cascade audit rows** — `ON DELETE CASCADE`. Erases every PII-read record the user ever performed. Destroys exactly the data a regulator would subpoena. Unacceptable.
+3. **Redaction in place ("soft delete")** — keep the `users.id` row, NULL/placeholder its PII columns (`email`, `clerk_id`), delete every child row that carries the user's content (interviews, imports, snapshots, generations, commits, outcomes, outcome_deltas, llm_spend_ledger). The `audit_log` FKs are never violated because the parent row survives.
+4. **Hard-delete with audit-trail migration** — copy referenced audit rows to a separate `audit_log_archive` table with frozen accessor display strings, then drop the FK and `DELETE`. Most defensible to a regulator; most code surface; most ways to leave PII behind in the archive.
+
+**Decision:**
+Option 3. The user-facing contract — "delete everything" — is satisfied by *redaction* rather than row removal. The redacted row carries no personal data; it is an opaque identifier the audit log can keep pointing at to preserve the *who-did-what-when* trail that the threat model and SOC 2 alignment both require.
+
+`src/lib/db/delete-user.ts` exposes a single `deleteUser(userId)` helper:
+
+- Runs in a single transaction.
+- Deletes every child row referenced via `users.id` cascade except `audit_log` (interviews, imports, linkedin_snapshots, generations, commits, outcomes, outcome_deltas, llm_spend_ledger). Cascade order is honoured implicitly because parents are deleted before parents-of-parents.
+- `UPDATE users SET email = 'deleted+<id>@deleted.invalid', clerk_id = 'deleted:<id>', voice_profile_id = NULL, plan = 'deleted' WHERE id = <id>`. The `users.id` primary key is preserved; the `clerk_id` placeholder is unique by construction.
+- `audit_log` rows are untouched. `audit_log.user_id` (the *subject* of a PII read) is `ON DELETE SET NULL` for the unlikely future case where a row is genuinely removed; the soft-delete path leaves the FK intact and relies on the PII columns on `users` being redacted.
+- Idempotent — calling `deleteUser` on an already-redacted user is a no-op (the placeholder `clerk_id` and `email` already match).
+
+The Clerk identity is revoked separately by the route handler (`clerk.users.deleteUser(clerkId)`), outside this transaction. That call is non-transactional with Postgres; the helper is the durable record of erasure regardless of Clerk-side success.
+
+**Consequences:**
+- Easier: The `audit_log.accessor_id RESTRICT` constraint stays, and with it the "every PII read is attributable to a non-deletable accessor" invariant the threat model relies on. The erasure flow is a single `UPDATE` + a handful of `DELETE`s in one transaction — small, reviewable, and testable against the real schema in CI.
+- Harder: Anyone reading the schema must understand that `users` is *not* a list of real accounts — some rows are tombstones. Helper-level filters (e.g. a `where: notDeleted` Drizzle predicate) and a follow-up ESLint rule for `users.email`/`users.clerk_id` reads are deferred to the route-handler PR.
+- Compliance posture: GDPR Article 17 is satisfied because the row carries no personal data after redaction (`users.id` alone is not personal data under Art. 4(1) — it is an internal identifier with no link to a natural person once email/clerk_id are gone). CCPA "right to delete" is satisfied on the same basis. This posture is documented in `COMPLIANCE.md` §2.5 and is reviewable by counsel before launch.
+- Accepted risk: The `llm_spend_ledger` row count stays accurate (rows are deleted with the user), so MTD spend calculations are unaffected. Stripe transaction records remain on Stripe under their independent 7-year retention obligation, as noted in `COMPLIANCE.md` §2.5.
+- Reversibility: If a regulator later insists on a true hard delete, Option 4 (audit-trail archive table) is still reachable from this state — the redacted `users` row can be archived to `audit_log_archive` along with referenced audit rows and then dropped. The current decision does not foreclose that.
+
+---
+
 ## 4. Deployment Topology
 
 The system must work on all four paths from §2.5. No path is a second-class citizen.
