@@ -76,9 +76,16 @@ export default async function AdminCostsPage() {
           <span className="text-lg font-semibold">${cap.toFixed(2)}</span>
         </div>
         <div className="space-y-1">
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+          <div
+            role="progressbar"
+            aria-valuenow={Math.round(pctUsed)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Monthly LLM spend"
+            className="h-2 rounded-full bg-secondary overflow-hidden"
+          >
             <div
-              className={`h-full rounded-full transition-all ${pctUsed >= 80 ? "bg-destructive" : "bg-primary"}`}
+              className={`h-full rounded-full ${pctUsed >= 80 ? "bg-destructive" : "bg-primary"}`}
               style={{ width: `${pctUsed}%` }}
             />
           </div>
