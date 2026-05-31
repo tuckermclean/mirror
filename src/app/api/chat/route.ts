@@ -91,7 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   const internalUserId = userRows[0]!.id;
 
   // 3b. Monthly spend cap check — must pass before starting any generation.
-  const capResult = await checkMonthlyCap(internalUserId);
+  const capResult = await checkMonthlyCap();
   if (!capResult.allowed) {
     const resetDate = new Date(capResult.resets_at).toLocaleDateString("en-US", {
       month: "long",

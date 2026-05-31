@@ -29,10 +29,10 @@ describe("checkMonthlyCap", () => {
   });
 
   it("returns allowed=true when MTD spend is below cap", async () => {
-    // MTD spend = $5, cap = $20 (default)
+    // MTD spend = $5, cap = $20 (default) — no userId, global platform spend
     mockWhere.mockResolvedValueOnce([{ total: "5.000000" }]);
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
-    const result = await checkMonthlyCap("user-uuid-1");
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(true);
     // Discriminated union: { allowed: true } has no resets_at property
     expect("resets_at" in result).toBe(false);
@@ -42,7 +42,7 @@ describe("checkMonthlyCap", () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "20.000000" }]);
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
-    const result = await checkMonthlyCap("user-uuid-2");
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
     expect(result.resets_at).toBeDefined();
   });
@@ -51,14 +51,14 @@ describe("checkMonthlyCap", () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "25.123456" }]);
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
-    const result = await checkMonthlyCap("user-uuid-3");
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
   });
 
   it("returns allowed=true when ledger is empty (no spend rows)", async () => {
     mockWhere.mockResolvedValueOnce([{ total: null }]);
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
-    const result = await checkMonthlyCap("user-uuid-4");
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(true);
   });
 
@@ -66,7 +66,7 @@ describe("checkMonthlyCap", () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "999.000000" }]);
     const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
-    const result = await checkMonthlyCap("user-uuid-5");
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
 
     // Narrow to the denied branch to satisfy the discriminated union

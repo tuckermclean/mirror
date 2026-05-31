@@ -35,7 +35,8 @@ afterAll(async () => {
 
 describe("recordLlmSpend + checkMonthlyCap integration", () => {
   it("cap check returns allowed=true for a fresh user with no spend", async () => {
-    const result = await checkMonthlyCap(TEST_USER_ID);
+    // checkMonthlyCap is a global platform cap — no userId param
+    const result = await checkMonthlyCap();
     expect(result.allowed).toBe(true);
   });
 
@@ -68,7 +69,7 @@ describe("recordLlmSpend + checkMonthlyCap integration", () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "0.0001";
 
     try {
-      const result = await checkMonthlyCap(TEST_USER_ID);
+      const result = await checkMonthlyCap();
       // The ~$0.45 spend from the previous test should exceed $0.0001
       expect(result.allowed).toBe(false);
       if (!result.allowed) {

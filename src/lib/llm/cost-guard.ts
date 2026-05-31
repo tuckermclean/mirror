@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { llmSpendLedger } from "@/db/schema";
-import { and, eq, gte, sum } from "drizzle-orm";
+import { gte, sum } from "drizzle-orm";
 import { UnknownModelError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
@@ -45,12 +45,13 @@ export type CapResult =
   | { allowed: false; resets_at: string };
 
 /**
- * Check whether userId has remaining budget for the current calendar month.
+ * Check whether the platform has remaining budget for the current calendar month.
  *
- * Reads from llm_spend_ledger using the (user_id, recorded_at) index so the
- * query is always an index-range scan, not a seqscan.
+ * LLM_MONTHLY_CAP_USD is a global platform budget (protects the Anthropic bill),
+ * not a per-user quota. All spend rows are summed without a userId filter.
+ * Uses the (recorded_at) index for an efficient range scan.
  */
-export async function checkMonthlyCap(userId: string): Promise<CapResult> {
+export async function checkMonthlyCap(): Promise<CapResult> {
   const rawCap = Number(process.env["LLM_MONTHLY_CAP_USD"] ?? 20);
   const capUsd = Number.isFinite(rawCap) && rawCap > 0 ? rawCap : 20;
 
@@ -60,12 +61,7 @@ export async function checkMonthlyCap(userId: string): Promise<CapResult> {
   const rows = await db
     .select({ total: sum(llmSpendLedger.costUsd) })
     .from(llmSpendLedger)
-    .where(
-      and(
-        eq(llmSpendLedger.userId, userId),
-        gte(llmSpendLedger.recordedAt, startOfMonth)
-      )
-    );
+    .where(gte(llmSpendLedger.recordedAt, startOfMonth));
 
   const mtdSpend = Number(rows[0]?.total ?? 0);
 
