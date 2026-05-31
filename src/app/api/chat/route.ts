@@ -5,7 +5,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { interviews, users } from "@/db/schema";
 import { prompts } from "@/lib/prompts/index";
-import { recordLlmSpend } from "@/lib/billing/llm-ledger";
+import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +89,30 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     return NextResponse.json({ error: "user_not_found" }, { status: 404 });
   }
   const internalUserId = userRows[0]!.id;
+
+  // 3b. Monthly spend cap check — must pass before starting any generation.
+  // Known tolerance: the check and recordLlmSpend are separate DB operations
+  // separated by the LLM stream (~seconds). Under concurrent requests, multiple
+  // streams can pass the cap check before any record spend. The overshoot is
+  // bounded to (concurrent streams × max_tokens cost), acceptable for a soft
+  // platform budget guard. A SELECT FOR UPDATE on a budget row would eliminate
+  // this but requires a schema migration out of scope for this feature.
+  const capResult = await checkMonthlyCap();
+  if (!capResult.allowed) {
+    const resetDate = new Date(capResult.resets_at).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+    return NextResponse.json(
+      {
+        error: "monthly_cap_reached",
+        message: `Mirror has reached this month's generation budget. Try again on ${resetDate}, or contact support to upgrade.`,
+        resets_at: capResult.resets_at,
+      },
+      { status: 402 }
+    );
+  }
 
   // 4. Find or create the open interview row
   const existing = await db
@@ -213,11 +237,13 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
             })
             .where(eq(interviews.id, interviewRow.id));
 
+          const model = "claude-sonnet-4-6";
           await recordLlmSpend({
             userId: internalUserId,
-            model: "claude-sonnet-4-6",
+            model,
             inputTokens: finalMessage.usage.input_tokens,
             outputTokens: finalMessage.usage.output_tokens,
+            costUsd: computeCostUsd(model, finalMessage.usage.input_tokens, finalMessage.usage.output_tokens),
           });
         } catch (persistErr) {
           console.error("[chat] post-stream persist failed:", persistErr);
