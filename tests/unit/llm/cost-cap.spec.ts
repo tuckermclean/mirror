@@ -169,4 +169,10 @@ describe("computeCostUsd", () => {
     const { computeCostUsd } = await import("@/lib/llm/cost-guard");
     expect(() => computeCostUsd("gpt-4", 100, 100)).toThrow(/unknown model/i);
   });
+
+  it("throws an UnknownModelError instance for unknown model", async () => {
+    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
+    const { UnknownModelError } = await import("@/lib/errors");
+    expect(() => computeCostUsd("gpt-4", 100, 100)).toThrow(UnknownModelError);
+  });
 });

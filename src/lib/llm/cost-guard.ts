@@ -1,6 +1,7 @@
 import { db } from "@/db/client";
 import { llmSpendLedger } from "@/db/schema";
 import { and, eq, gte, sum } from "drizzle-orm";
+import { UnknownModelError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
 // Pricing table — USD per million tokens
@@ -21,7 +22,7 @@ const MODEL_PRICING: Record<string, { inputPerMToken: number; outputPerMToken: n
 export function computeCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = MODEL_PRICING[model];
   if (!pricing) {
-    throw new Error(`Unknown model "${model}" — add it to MODEL_PRICING in cost-guard.ts`);
+    throw new UnknownModelError(model);
   }
   return (
     (inputTokens * pricing.inputPerMToken) / 1_000_000 +
