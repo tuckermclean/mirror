@@ -172,6 +172,18 @@ The spec's "delete everything" one-click flow is a strong compliance signal. To 
 
 **Gap identified:** The spec describes a "delete everything" button but does not specify the deletion cascade across all tables. The Security Engineer's threat model and the schema migration must include a documented deletion procedure tested against all tables. This must be tested in CI.
 
+**Realised approach — redaction-in-place ("soft delete"):** As of 2026-05-31 (ADR-009 in `ARCHITECTURE.md`, issue #16), "delete everything" is implemented as **redaction of the `users` row plus deletion of every PII-bearing child row**, not as `DELETE FROM users`. The reason is structural: `audit_log.accessor_id` is `NOT NULL ON DELETE RESTRICT` — required by the threat model so that every PII read is permanently attributable to a non-deletable accessor — which makes a true hard delete impossible the moment any user has performed a PII read against their own data.
+
+Specifically, `src/lib/db/delete-user.ts` `deleteUser(userId)` in a single transaction:
+
+- Deletes all rows in `interviews`, `imports`, `linkedin_snapshots`, `generations`, `commits`, `outcomes`, `outcome_deltas`, `llm_spend_ledger` where `user_id = <id>` (each table's `ON DELETE CASCADE` from `users` is honoured implicitly; child-of-child rows are removed by their own cascades).
+- Updates `users` to redact PII: `email = 'deleted+<id>@deleted.invalid'`, `clerk_id = 'deleted:<id>'`, `voice_profile_id = NULL`, `plan = 'deleted'`. The `users.id` primary key is preserved.
+- Leaves `audit_log` untouched.
+
+Counsel-facing rationale: GDPR Article 4(1) defines personal data as information relating to *an identified or identifiable natural person*. After redaction the surviving `users.id` row is an internal opaque identifier with no remaining link to a natural person (the Clerk identity is separately revoked by the route handler, and Clerk holds the only directory mapping that identifier to a person). The audit-log entries the redacted row still anchors are records *about* the now-erased subject, written for the purpose of GDPR Article 30 RoPA and security incident response — they are processed under the lawful basis of legal obligation (Art. 6(1)(c)) and the data they contain about the subject is the row-id and column-name of the read, not the underlying PII.
+
+This posture is **draft and requires lawyer review before launch** ([LAWYER REVIEW REQUIRED]). In particular, EU counsel should confirm whether the redacted `users` row plus retained audit rows satisfies Art. 17 in the regulator's view, or whether the more defensive Option 4 (audit-log archive + true `DELETE`) is needed. If the latter, ADR-009 explicitly notes that the current state is reachable from the future state — Option 4 can be layered on without re-architecting.
+
 ### 2.6 Data Processing Agreement with Anthropic
 
 **Yes, Mirror requires a DPA with Anthropic.**
