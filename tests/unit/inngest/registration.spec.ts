@@ -1,6 +1,9 @@
 // Unit tests — Inngest client config (app id, event key, signing key). SDK mocked.
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
+// Capture the runner's CI env value so afterEach can restore it.
+const originalCI = process.env["CI"];
+
 // Mock Inngest SDK so we don't need a real INNGEST_EVENT_KEY in the test env.
 vi.mock("inngest", () => {
   class MockInngest {
@@ -25,6 +28,11 @@ describe("Inngest client", () => {
     delete process.env["INNGEST_EVENT_KEY"];
     delete process.env["INNGEST_SIGNING_KEY"];
     delete process.env["NEXT_PHASE"];
+    if (originalCI === undefined) {
+      delete process.env["CI"];
+    } else {
+      process.env["CI"] = originalCI;
+    }
     Object.assign(process.env, { NODE_ENV: "test" });
   });
 
@@ -58,8 +66,15 @@ describe("Inngest client", () => {
     await expect(import("@/lib/inngest/client")).resolves.toBeDefined();
   });
 
+  it("does not throw in CI environments even when signing key is absent", async () => {
+    Object.assign(process.env, { NODE_ENV: "production", CI: "true" });
+    delete process.env["INNGEST_SIGNING_KEY"];
+    await expect(import("@/lib/inngest/client")).resolves.toBeDefined();
+  });
+
   it("throws ConfigurationError at module load in production when INNGEST_SIGNING_KEY is absent", async () => {
     Object.assign(process.env, { NODE_ENV: "production" });
+    delete process.env["CI"]; // ensure guard fires even when tests run in CI
     delete process.env["INNGEST_SIGNING_KEY"];
     // Import errors first to populate the shared module cache so that the
     // ConfigurationError thrown by client.ts is the same class reference.

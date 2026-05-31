@@ -1,14 +1,16 @@
 import { Inngest } from "inngest";
 import { ConfigurationError } from "@/lib/errors";
 
-// Fail fast at runtime when INNGEST_SIGNING_KEY is absent in production:
-// unsigned requests would reach this public endpoint once real functions are
-// registered. Excluded during `next build` (NEXT_PHASE=phase-production-build),
-// which imports every route module to collect page data — the signing key is a
-// runtime secret and is intentionally absent at build time.
+// Fail fast at runtime when INNGEST_SIGNING_KEY is absent in production.
+// Two exclusions keep this from firing in non-deployment contexts:
+// - NEXT_PHASE=phase-production-build: `next build` imports every route module
+//   to collect page data; the signing key is a runtime secret, absent at build.
+// - CI=true: E2E tests run the app in production mode but without all secrets;
+//   CI is not a production deployment, so we do not enforce the key there.
 if (
   process.env["NEXT_PHASE"] !== "phase-production-build" &&
   process.env["NODE_ENV"] === "production" &&
+  !process.env["CI"] &&
   !process.env["INNGEST_SIGNING_KEY"]
 ) {
   throw new ConfigurationError("INNGEST_SIGNING_KEY must be set in production");
