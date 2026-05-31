@@ -77,12 +77,18 @@ jobs:
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
           rm -f .converge-final-action .converge-nits-raw
 
-      - name: "Setup — no-attribution hook"
+      - name: "Setup — strip agent attribution from commits"
         run: |
           mkdir -p .git/hooks
           cat > .git/hooks/prepare-commit-msg << 'HOOK'
           #!/bin/sh
-          sed -i -e '/^Co-authored-by:.*@anthropic\.com/d' -e '/^Co-authored-by:.*claude\[bot\]/d' "$1"
+          # Backstop to .claude/settings.json (includeCoAuthoredBy:false): strip any
+          # Claude/Anthropic co-author trailer and the "Generated with Claude Code" line.
+          sed -i \
+            -e '/^Co-authored-by:.*[Aa]nthropic/d' \
+            -e '/^Co-authored-by:.*[Cc]laude/d' \
+            -e '/Generated with \[Claude Code\]/d' \
+            "$1"
           HOOK
           chmod +x .git/hooks/prepare-commit-msg
 
