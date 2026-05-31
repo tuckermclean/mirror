@@ -5,7 +5,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { interviews, users } from "@/db/schema";
 import { prompts } from "@/lib/prompts/index";
-import { recordLlmSpend } from "@/lib/billing/llm-ledger";
+import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +89,21 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     return NextResponse.json({ error: "user_not_found" }, { status: 404 });
   }
   const internalUserId = userRows[0]!.id;
+
+  // 3b. Monthly spend cap check — must pass before starting any generation.
+  const capResult = await checkMonthlyCap(internalUserId);
+  if (!capResult.allowed) {
+    const now = new Date();
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    return NextResponse.json(
+      {
+        error: "monthly_cap_reached",
+        message: `Mirror has reached this month's generation budget. Try again on ${nextMonth.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, or contact support to upgrade.`,
+        resets_at: capResult.resets_at,
+      },
+      { status: 402 }
+    );
+  }
 
   // 4. Find or create the open interview row
   const existing = await db
@@ -213,11 +228,13 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
             })
             .where(eq(interviews.id, interviewRow.id));
 
+          const model = "claude-sonnet-4-6";
           await recordLlmSpend({
             userId: internalUserId,
-            model: "claude-sonnet-4-6",
+            model,
             inputTokens: finalMessage.usage.input_tokens,
             outputTokens: finalMessage.usage.output_tokens,
+            costUsd: computeCostUsd(model, finalMessage.usage.input_tokens, finalMessage.usage.output_tokens),
           });
         } catch (persistErr) {
           console.error("[chat] post-stream persist failed:", persistErr);
