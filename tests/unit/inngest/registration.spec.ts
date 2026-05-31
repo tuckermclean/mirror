@@ -24,6 +24,7 @@ describe("Inngest client", () => {
   afterEach(() => {
     delete process.env["INNGEST_EVENT_KEY"];
     delete process.env["INNGEST_SIGNING_KEY"];
+    delete process.env["NEXT_PHASE"];
     Object.assign(process.env, { NODE_ENV: "test" });
   });
 
@@ -46,6 +47,15 @@ describe("Inngest client", () => {
     expect((inngest as unknown as { signingKey: string }).signingKey).toBe(
       "test-signing-key"
     );
+  });
+
+  it("does not throw at build time (NEXT_PHASE=phase-production-build) even when signing key is absent", async () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      NEXT_PHASE: "phase-production-build",
+    });
+    delete process.env["INNGEST_SIGNING_KEY"];
+    await expect(import("@/lib/inngest/client")).resolves.toBeDefined();
   });
 
   it("throws ConfigurationError at module load in production when INNGEST_SIGNING_KEY is absent", async () => {
