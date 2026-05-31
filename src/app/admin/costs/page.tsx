@@ -38,7 +38,7 @@ export default async function AdminCostsPage() {
   if (!clerkUserId) redirect("/sign-in");
 
   const user = await currentUser();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Clerk publicMetadata is untyped JSON; no SDK generic available here
   if ((user?.publicMetadata as any)?.role !== "admin") {
     redirect("/");
   }
