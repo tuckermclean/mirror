@@ -66,6 +66,39 @@ that describes the problem, not the location:
 Write `.converge-verdict.json` as your LAST action — after the PR comment —
 so the orchestrator always reads a completed verdict.
 
+### CI Failures Are Blockers
+
+Before writing the verdict, check the live CI status of the PR:
+
+```bash
+gh pr checks $PR_NUMBER --json name,state
+```
+
+For each of the **six blocking checks** (Type Check, Lint, Integration Tests,
+Docker Build & Scan, Helm Lint, Helm Kubeconform) whose state is NOT
+`success`, `skipped`, or `neutral` — that is a **🔴 Blocker**. Fetch the
+failure details so the Fixer knows exactly what to change:
+
+```bash
+# Get the run ID from the check name, then fetch failing log lines
+RUN_ID=$(gh run list --branch <branch> --json databaseId,name,conclusion \
+  --jq '.[] | select(.name == "<job-name>" and .conclusion == "failure") | .databaseId' | head -1)
+gh run view "$RUN_ID" --log-failed 2>/dev/null | tail -80
+```
+
+Record it in the verdict with a **stable signature** `ci-fail:<job-slug>`:
+
+- `ci-fail:type-check`
+- `ci-fail:lint`
+- `ci-fail:integration-tests`
+- `ci-fail:docker-build`
+- `ci-fail:helm-lint`
+- `ci-fail:helm-kubeconform`
+
+Include the root-cause error message in the PR comment finding so the Fixer
+knows what code change is required. A CI failure you noticed but left out of the
+verdict is a contract violation.
+
 ### Review Comment
 
 Post (or update) a PR comment with all findings:

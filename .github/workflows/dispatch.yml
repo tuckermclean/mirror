@@ -150,14 +150,19 @@ jobs:
             - If no existing branch: create a new branch (feat/<slug> or design/<slug> from master),
               make your FIRST commit as early as possible (even a stub/scaffold), then IMMEDIATELY
               open a DRAFT PR whose description includes "Closes #<ISSUE NUMBER>":
-                gh pr create --draft --base master --head <branch> --title "<title>" --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
+                gh pr create --draft --base master --head <branch> --title "<title>" \
+                  --label converge --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
             - Commit and `git push` after EACH meaningful step — never batch all work into one
               final commit. Incremental pushes mean a turn/timeout cutoff still leaves your progress.
             - Post a brief status comment early, then keep it updated:
                 gh issue comment <ISSUE NUMBER> --body "🚧 Started on branch <branch>, draft PR #<n> open."
-            - When the task is genuinely complete: mark the PR ready (`gh pr ready <n>`) and post a
-              final summary comment. If you are running low on turns, leave the PR as a draft with a
-              comment listing exactly what remains — do NOT spend your last turns polishing prose.
+            - When the task is genuinely complete: mark the PR ready and ensure it has the
+              converge label so the convergence loop fires:
+                gh pr edit <n> --add-label converge
+                gh pr ready <n>
+              Then post a final summary comment. If you are running low on turns, leave the PR
+              as a draft with a comment listing exactly what remains — do NOT spend your last
+              turns polishing prose.
 
             For review/explain/plan tasks:
             - Post your response as a comment on the issue/PR FIRST (gh issue comment), then refine it.
