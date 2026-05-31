@@ -43,7 +43,8 @@ export default async function AdminCostsPage() {
     redirect("/");
   }
 
-  const cap = Number(process.env["LLM_MONTHLY_CAP_USD"] ?? 20);
+  const rawCap = Number(process.env["LLM_MONTHLY_CAP_USD"] ?? 20);
+  const cap = Number.isFinite(rawCap) && rawCap > 0 ? rawCap : 20;
   const { totalUsd, byModel, startOfMonth } = await getMtdData();
 
   const now = new Date();

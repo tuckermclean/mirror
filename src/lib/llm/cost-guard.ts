@@ -51,7 +51,8 @@ export type CapResult =
  * query is always an index-range scan, not a seqscan.
  */
 export async function checkMonthlyCap(userId: string): Promise<CapResult> {
-  const capUsd = Number(process.env["LLM_MONTHLY_CAP_USD"] ?? 20);
+  const rawCap = Number(process.env["LLM_MONTHLY_CAP_USD"] ?? 20);
+  const capUsd = Number.isFinite(rawCap) && rawCap > 0 ? rawCap : 20;
 
   const now = new Date();
   const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
