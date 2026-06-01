@@ -177,7 +177,7 @@ jobs:
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
               --jq '.[].state' 2>/dev/null \
               | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
@@ -288,7 +288,7 @@ jobs:
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
               --jq '.[].state' 2>/dev/null \
               | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
@@ -404,7 +404,7 @@ jobs:
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
               --jq '.[].state' 2>/dev/null \
               | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
