@@ -79,6 +79,21 @@ describe("converge resolve-blockers", () => {
     expect(resolveBlockers(JSON.stringify({ suggestions: 0 }))).toBe("unknown");
   });
 
+  it("returns 'unknown' when the verdict file does not exist", () => {
+    const result = execFileSync(
+      "bash",
+      [script, "/tmp/no-such-converge-verdict-file.json", "123"],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CONVERGE_COMMENT_BODY: "no footer here",
+        },
+      },
+    ).trim();
+    expect(result).toBe("unknown");
+  });
+
   it("exits non-zero with a usage error when args are missing", () => {
     let status: number | undefined;
     try {
