@@ -5,6 +5,12 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # Manual dispatch: used to re-trigger CI on a branch whose HEAD has no check-runs
+  # (happens when the converge loop pushes via github.token, which GitHub intentionally
+  # does not fire pull_request:synchronize events for — preventing recursive loops).
+  # Long-term fix: swap converge-loop pushes to a GitHub App token so the synchronize
+  # event fires automatically. Until then, `gh workflow run ci.yml --ref <branch>`.
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
