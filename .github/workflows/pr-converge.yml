@@ -175,9 +175,10 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
-              2>/dev/null || echo "0")
-            [ "$PENDING" = "0" ] && break
+              --jq '.[].state' 2>/dev/null \
+              | tr '[:upper:]' '[:lower:]' \
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+            [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
@@ -185,7 +186,8 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
+              '.[] | select(.name == $n) | .state // "missing"' \
+              | head -1 | tr '[:upper:]' '[:lower:]')
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -284,9 +286,10 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
-              2>/dev/null || echo "0")
-            [ "$PENDING" = "0" ] && break
+              --jq '.[].state' 2>/dev/null \
+              | tr '[:upper:]' '[:lower:]' \
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+            [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
@@ -294,7 +297,8 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
+              '.[] | select(.name == $n) | .state // "missing"' \
+              | head -1 | tr '[:upper:]' '[:lower:]')
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -398,9 +402,10 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
-              2>/dev/null || echo "0")
-            [ "$PENDING" = "0" ] && break
+              --jq '.[].state' 2>/dev/null \
+              | tr '[:upper:]' '[:lower:]' \
+              | grep -cE "^(pending|in_progress|queued|waiting)$" || echo "0")
+            [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
           done
@@ -408,7 +413,8 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
+              '.[] | select(.name == $n) | .state // "missing"' \
+              | head -1 | tr '[:upper:]' '[:lower:]')
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -496,7 +502,9 @@ jobs:
                   sleep 480
                   RECHK=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
                   STILL_RED=$(echo "$RECHK" | jq -r \
-                    '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | select(.state | ascii_downcase | (. != "success" and . != "skipped" and . != "neutral"))] | length')
+                    '.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | .state' \
+                    | tr '[:upper:]' '[:lower:]' \
+                    | grep -cvE "^(success|skipped|neutral)$" || echo "3")
                   if [ "$STILL_RED" = "0" ]; then
                     gh pr review "$PR_NUMBER" --approve \
                       --body "CI recovered after re-trigger — all checks green. Converged in $ROUNDS round(s)."
