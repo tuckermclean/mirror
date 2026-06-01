@@ -1,10 +1,11 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { checkMonthlyCap, recordLlmSpend, computeCostUsd } from "@/lib/llm/cost-guard";
+import { checkMonthlyCap, recordLlmSpend, computeCostUsd, getMtdData } from "@/lib/llm/cost-guard";
 import { UnknownModelError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
 // Drizzle builder chain mocks (factory idiom — no vi.resetModules needed)
 // ---------------------------------------------------------------------------
+const mockGroupBy = vi.fn();
 const mockWhere = vi.fn();
 const mockFrom = vi.fn(() => ({ where: mockWhere }));
 const mockSelect = vi.fn(() => ({ from: mockFrom }));
@@ -161,5 +162,59 @@ describe("computeCostUsd", () => {
 
   it("throws an UnknownModelError instance for unknown model", () => {
     expect(() => computeCostUsd("gpt-4", 100, 100)).toThrow(UnknownModelError);
+  });
+});
+
+describe("getMtdData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockInsert.mockReturnValue({ values: mockValues });
+  });
+
+  it("returns totalUsd as the sum of byModel totals", async () => {
+    mockWhere.mockReturnValueOnce({ groupBy: mockGroupBy });
+    mockGroupBy.mockResolvedValueOnce([
+      { model: "claude-sonnet-4-6", total: "5.000000" },
+      { model: "claude-opus-4-7", total: "3.000000" },
+    ]);
+    const result = await getMtdData();
+    expect(result.totalUsd).toBeCloseTo(8, 5);
+  });
+
+  it("returns byModel with correct model and total fields", async () => {
+    mockWhere.mockReturnValueOnce({ groupBy: mockGroupBy });
+    mockGroupBy.mockResolvedValueOnce([
+      { model: "claude-haiku-4-5-20251001", total: "1.234567" },
+    ]);
+    const result = await getMtdData();
+    expect(result.byModel).toHaveLength(1);
+    expect(result.byModel[0]?.model).toBe("claude-haiku-4-5-20251001");
+    expect(result.byModel[0]?.total).toBe("1.234567");
+  });
+
+  it("returns totalUsd 0 and empty byModel when ledger is empty", async () => {
+    mockWhere.mockReturnValueOnce({ groupBy: mockGroupBy });
+    mockGroupBy.mockResolvedValueOnce([]);
+    const result = await getMtdData();
+    expect(result.totalUsd).toBe(0);
+    expect(result.byModel).toHaveLength(0);
+  });
+
+  it("handles null total in a model row (treats as 0)", async () => {
+    mockWhere.mockReturnValueOnce({ groupBy: mockGroupBy });
+    mockGroupBy.mockResolvedValueOnce([{ model: "claude-sonnet-4-6", total: null }]);
+    const result = await getMtdData();
+    expect(result.totalUsd).toBeCloseTo(0, 5);
+  });
+
+  it("returns startOfMonth as UTC midnight on the first of the current month", async () => {
+    mockWhere.mockReturnValueOnce({ groupBy: mockGroupBy });
+    mockGroupBy.mockResolvedValueOnce([]);
+    const result = await getMtdData();
+    expect(result.startOfMonth.getUTCDate()).toBe(1);
+    expect(result.startOfMonth.getUTCHours()).toBe(0);
+    expect(result.startOfMonth.getUTCMinutes()).toBe(0);
   });
 });
