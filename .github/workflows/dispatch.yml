@@ -27,7 +27,7 @@ jobs:
       task_type: ${{ steps.parse.outputs.task_type }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with: { fetch-depth: 0 }
 
       # Dispatcher is committed in .agents/custom/ — no clone needed for this job.
@@ -91,7 +91,7 @@ jobs:
     timeout-minutes: 130
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with: { fetch-depth: 0 }
 
       - name: Setup agents
@@ -229,20 +229,20 @@ jobs:
             --jq ".[] | select(.headRefName == \"${CURRENT_BRANCH}\") | .number" \
             2>/dev/null | head -1 || echo "")
 
-          BODY="⚠️ **Agent exited after ${TURNS} turns** (\`${REASON}\`).
+          printf '⚠️ **Agent exited after %s turns** (`%s`).\n\n' \
+            "${TURNS}" "${REASON}" > /tmp/postmortem.md
+          printf '**Uncommitted work rescued and pushed:** `%s`\n\n' \
+            "${RESCUED}" >> /tmp/postmortem.md
+          printf '<details><summary>Last agent thought (what it was mid-fix on)</summary>\n\n```\n' \
+            >> /tmp/postmortem.md
+          printf '%s\n```\n</details>\n\n' \
+            "${LAST_THOUGHT}" >> /tmp/postmortem.md
+          printf 'The PR is still a **draft**. To continue:\n' \
+            >> /tmp/postmortem.md
+          printf '- `gh pr ready %s` → fires the converge loop (recommended)\n' \
+            "${PR_NUM}" >> /tmp/postmortem.md
+          printf '- Or re-label this issue `agent-work` to re-dispatch from scratch.\n' \
+            >> /tmp/postmortem.md
 
-**Uncommitted work rescued and pushed:** \`${RESCUED}\`
-
-<details><summary>Last agent thought (what it was mid-fix on)</summary>
-
-\`\`\`
-${LAST_THOUGHT}
-\`\`\`
-</details>
-
-The PR is still a **draft**. To continue:
-- \`gh pr ready ${PR_NUM}\` → fires the converge loop (recommended)
-- Or re-label this issue \`agent-work\` to re-dispatch from scratch."
-
-          [ -n "$ISSUE_NUM" ] && gh issue comment "$ISSUE_NUM" --body "$BODY" || true
-          [ -n "$PR_NUM"    ] && gh pr    comment "$PR_NUM"    --body "$BODY" || true
+          [ -n "$ISSUE_NUM" ] && gh issue comment "$ISSUE_NUM" --body-file /tmp/postmortem.md || true
+          [ -n "$PR_NUM"    ] && gh pr    comment "$PR_NUM"    --body-file /tmp/postmortem.md || true
