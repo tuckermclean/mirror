@@ -17,5 +17,17 @@ export default defineConfig({
         inline: ["voyageai"],
       },
     },
+    coverage: {
+      provider: "v8",
+      include: ["src/lib/parsers/**"],
+      thresholds: {
+        "src/lib/parsers/**": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+      },
+    },
   },
 });

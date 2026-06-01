@@ -18,3 +18,12 @@ export class ConfigurationError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/** Thrown when a file cannot be parsed as a known AI export format. */
+export class ParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ParseError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
