@@ -71,6 +71,41 @@ export async function checkMonthlyCap(): Promise<CapResult> {
   return { allowed: true };
 }
 
+export type ModelRow = {
+  model: string;
+  total: string | null;
+};
+
+export type MtdData = {
+  totalUsd: number;
+  byModel: ModelRow[];
+  startOfMonth: Date;
+};
+
+/**
+ * Fetch month-to-date LLM spend totals from the ledger.
+ * Separated from checkMonthlyCap so the admin page can reuse it without
+ * re-querying and without introducing a private, untestable helper.
+ *
+ * Single query: per-model breakdown via GROUP BY. totalUsd is derived
+ * in the application layer by summing byModel, keeping both figures
+ * consistent within one read snapshot.
+ */
+export async function getMtdData(): Promise<MtdData> {
+  const now = new Date();
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const byModel: ModelRow[] = await db
+    .select({ model: llmSpendLedger.model, total: sum(llmSpendLedger.costUsd) })
+    .from(llmSpendLedger)
+    .where(gte(llmSpendLedger.recordedAt, startOfMonth))
+    .groupBy(llmSpendLedger.model);
+
+  const totalUsd = byModel.reduce((acc, row) => acc + Number(row.total ?? 0), 0);
+
+  return { totalUsd, byModel, startOfMonth };
+}
+
 type RecordSpendParams = {
   userId: string;
   generationId?: string;
