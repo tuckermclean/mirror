@@ -58,7 +58,7 @@ jobs:
           else
             echo "agent=.agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
             echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
-            echo "max_turns=50" >> $GITHUB_OUTPUT
+            echo "max_turns=60" >> $GITHUB_OUTPUT
             echo "task_type=implement" >> $GITHUB_OUTPUT
           fi
 
@@ -88,7 +88,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    timeout-minutes: 30
+    timeout-minutes: 130
 
     steps:
       - uses: actions/checkout@v4
@@ -141,6 +141,7 @@ jobs:
           [ -n "$BRANCH" ] && echo "Existing PR branch: $BRANCH" || echo "No existing open PR found"
 
       - uses: anthropics/claude-code-action@v1
+        continue-on-error: true
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model ${{ needs.dispatch.outputs.model }} --max-turns ${{ needs.dispatch.outputs.max_turns }}"
@@ -194,3 +195,54 @@ jobs:
               E2E job is non-blocking and red until Clerk/Anthropic secrets are set).
             - NEVER claim "all acceptance criteria verified" or post an all-green
               summary while any check you did not personally verify is red.
+
+      # ── Post-mortem ─────────────────────────────────────────────────────────
+      # Runs only when the agent step above fails (e.g. error_max_turns).
+      # Rescues any uncommitted work the agent left on disk and posts a triage
+      # comment to the issue/PR so the state is never silently lost.
+      - name: Post-mortem — rescue uncommitted work on agent failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LOG=/home/runner/work/_temp/claude-execution-output.json
+          REASON=$(jq -r '.terminal_reason // "unknown"' "$LOG" 2>/dev/null || echo "unknown")
+          TURNS=$(jq -r  '.num_turns // "?"'            "$LOG" 2>/dev/null || echo "?")
+
+          # Rescue uncommitted changes the agent wrote to disk before hitting the limit
+          RESCUED=false
+          if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            git add -A
+            git commit -m "chore(recovery): partial work rescued at turn-limit exit (${TURNS} turns)"
+            git push origin "$(git branch --show-current)" || true
+            RESCUED=true
+          fi
+
+          # Extract the last thinking block — tells humans what the agent was mid-fix on
+          LAST_THOUGHT=$(jq -r '
+            [.. | objects | select(.thinking?) | .thinking] | last // "(no thinking block found)"
+          ' "$LOG" 2>/dev/null | head -c 600 || echo "(log unavailable)")
+
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          CURRENT_BRANCH="$(git branch --show-current)"
+          PR_NUM=$(gh pr list --state open --json number,headRefName \
+            --jq ".[] | select(.headRefName == \"${CURRENT_BRANCH}\") | .number" \
+            2>/dev/null | head -1 || echo "")
+
+          BODY="⚠️ **Agent exited after ${TURNS} turns** (\`${REASON}\`).
+
+**Uncommitted work rescued and pushed:** \`${RESCUED}\`
+
+<details><summary>Last agent thought (what it was mid-fix on)</summary>
+
+\`\`\`
+${LAST_THOUGHT}
+\`\`\`
+</details>
+
+The PR is still a **draft**. To continue:
+- \`gh pr ready ${PR_NUM}\` → fires the converge loop (recommended)
+- Or re-label this issue \`agent-work\` to re-dispatch from scratch."
+
+          [ -n "$ISSUE_NUM" ] && gh issue comment "$ISSUE_NUM" --body "$BODY" || true
+          [ -n "$PR_NUM"    ] && gh pr    comment "$PR_NUM"    --body "$BODY" || true

@@ -88,8 +88,8 @@ Set `max_turns` based on the chosen `task_type`:
 |--------|---------------------------------------------------------------------|-----------|
 | Light  | `trivial`, `docs`, `explain`, `plan`                                | 15        |
 | Medium | `review`, `a11y`, `ux`                                              | 30        |
-| Heavy  | `implement`, `fix`, `design`, `security`, `db`, `architecture`     | 50        |
-| XL     | `setup` (dependency installs, scaffolding, project init)            | 100       |
+| Heavy  | `implement`, `fix`, `design`, `security`, `db`, `architecture`     | 60        |
+| XL     | `setup` (dependency installs, scaffolding, project init)            | 120       |
 
 Heavy tasks involve the full TDD loop (red → green → refactor → PR) across multiple
 files and need the larger budget to avoid cutting off mid-task with no output.
@@ -111,6 +111,6 @@ Set `max_turns` from the Turn Budget table based on the chosen `task_type`.
   "agent": ".agents/FILENAME.md",
   "model": "claude-sonnet-4-6 | claude-haiku-4-5-20251001 | claude-opus-4-7",
   "task_type": "implement|review|fix|docs|design|ux|a11y|architecture|security|db|setup|trivial|explain|plan",
-  "max_turns": <15 | 30 | 50 | 100 per Turn Budget table>,
+  "max_turns": <15 | 30 | 60 | 120 per Turn Budget table>,
   "rationale": "one sentence"
 }
