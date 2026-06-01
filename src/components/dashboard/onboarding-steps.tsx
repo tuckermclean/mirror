@@ -14,10 +14,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { computeOnboardingProgress } from "@/lib/dashboard/onboarding-progress";
 
 interface OnboardingStepsProps {
   step1Complete: boolean;
   step2Complete: boolean;
+  step3Complete: boolean;
 }
 
 const container = {
@@ -30,10 +32,12 @@ const item = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 };
 
-export function OnboardingSteps({ step1Complete, step2Complete }: OnboardingStepsProps) {
-  const stepsComplete = [step1Complete, step2Complete].filter(Boolean).length;
-  const progressValue = Math.round((stepsComplete / 3) * 100);
-  const step3Unlocked = step1Complete && step2Complete;
+export function OnboardingSteps({ step1Complete, step2Complete, step3Complete }: OnboardingStepsProps) {
+  const { stepsComplete, progressValue, step3Unlocked } = computeOnboardingProgress({
+    step1Complete,
+    step2Complete,
+    step3Complete,
+  });
 
   return (
     <div data-testid="onboarding-steps" className="space-y-8">
