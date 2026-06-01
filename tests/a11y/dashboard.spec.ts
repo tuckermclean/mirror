@@ -21,7 +21,7 @@ authTest.describe("Dashboard accessibility (WCAG AA)", () => {
       "[data-testid=onboarding-steps] a, [data-testid=onboarding-steps] button:not([disabled])"
     ).count();
     // At minimum: step 1 CTA + step 2 CTA + skip link = 3 reachable targets
-    expect(focusableCount).toBeGreaterThanOrEqual(2);
+    expect(focusableCount).toBeGreaterThanOrEqual(3);
   });
 });
 
