@@ -118,6 +118,18 @@ describe("readPii", () => {
     expect(true).toBe(true);
   });
 
+  it("chat route.ts has no no-restricted-syntax eslint-disable bypasses", () => {
+    const fs = require("fs") as typeof import("fs");
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "src", "app", "api", "chat", "route.ts"),
+      "utf-8"
+    );
+    expect(
+      content,
+      "route.ts must not suppress the PII ESLint rule — use readPii() instead"
+    ).not.toMatch(/eslint-disable.*no-restricted-syntax/);
+  });
+
   it("flags direct interviews.transcript access with the ESLint PII rule", async () => {
     const { ESLint } = await import("eslint");
     const cwd = process.cwd();
