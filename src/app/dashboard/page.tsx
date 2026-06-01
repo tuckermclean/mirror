@@ -17,26 +17,28 @@ export default async function DashboardPage() {
     .where(eq(users.clerkId, clerkUserId))
     .limit(1);
 
-  let internalUserId: string;
   if (existing.length === 0) {
     const clerkUser = await currentUser();
     const email =
       clerkUser?.emailAddresses[0]?.emailAddress ?? `${clerkUserId}@clerk.test`;
-    const [inserted] = await db
-      .insert(users)
-      .values({ clerkId: clerkUserId, email })
-      .returning({ id: users.id });
-    internalUserId = inserted.id;
-  } else {
-    internalUserId = existing[0].id;
+    await db.insert(users).values({ clerkId: clerkUserId, email });
   }
+
+  // Re-fetch to get the canonical internal ID (covers both just-inserted and pre-existing).
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.clerkId, clerkUserId))
+    .limit(1);
+
+  if (!user) redirect("/sign-in");
 
   const [completedInterview] = await db
     .select({ completedAt: interviews.completedAt })
     .from(interviews)
     .where(
       and(
-        eq(interviews.userId, internalUserId),
+        eq(interviews.userId, user.id),
         isNotNull(interviews.completedAt)
       )
     )
@@ -45,7 +47,7 @@ export default async function DashboardPage() {
   const [importRow] = await db
     .select({ value: count() })
     .from(imports)
-    .where(eq(imports.userId, internalUserId));
+    .where(eq(imports.userId, user.id));
 
   const importCount = importRow?.value ?? 0;
 
