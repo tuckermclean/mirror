@@ -175,7 +175,7 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state == "pending" or .state == "in_progress")] | length' \
+              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
               2>/dev/null || echo "0")
             [ "$PENDING" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
@@ -185,7 +185,7 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing"' | head -1)
+              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -284,7 +284,7 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state == "pending" or .state == "in_progress")] | length' \
+              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
               2>/dev/null || echo "0")
             [ "$PENDING" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
@@ -294,7 +294,7 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing"' | head -1)
+              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -398,7 +398,7 @@ jobs:
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
             PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '[.[] | select(.state == "pending" or .state == "in_progress")] | length' \
+              --jq '[.[] | select(.state | ascii_downcase | (. == "pending" or . == "in_progress" or . == "queued" or . == "waiting"))] | length' \
               2>/dev/null || echo "0")
             [ "$PENDING" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
@@ -408,7 +408,7 @@ jobs:
           CI_GREEN="true"
           for JOB in "Type Check" "Lint" "Integration Tests" "Docker Build & Scan" "Helm Lint" "Helm Kubeconform"; do
             STATE=$(echo "$CHECKS" | jq -r --arg n "$JOB" \
-              '.[] | select(.name == $n) | .state // "missing"' | head -1)
+              '.[] | select(.name == $n) | .state // "missing" | ascii_downcase' | head -1)
             if [ "$STATE" != "success" ] && [ "$STATE" != "skipped" ] && [ "$STATE" != "neutral" ]; then
               CI_GREEN="false"
               echo "Blocking check '$JOB' not green: ${STATE:-missing}"
@@ -496,7 +496,7 @@ jobs:
                   sleep 480
                   RECHK=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
                   STILL_RED=$(echo "$RECHK" | jq -r \
-                    '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | select(.state != "success" and .state != "skipped" and .state != "neutral")] | length')
+                    '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | select(.state | ascii_downcase | (. != "success" and . != "skipped" and . != "neutral"))] | length')
                   if [ "$STILL_RED" = "0" ]; then
                     gh pr review "$PR_NUMBER" --approve \
                       --body "CI recovered after re-trigger — all checks green. Converged in $ROUNDS round(s)."
