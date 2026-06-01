@@ -1,0 +1,100 @@
+description: "Voice Card extraction eval — schema compliance, factual accuracy, fidelity"
+
+prompts:
+  - file://src/lib/prompts/voice_extraction.md
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+
+tests:
+  - description: "Output matches VoiceCardSchema (all required camelCase fields present)"
+    vars:
+      transcript: "{{fixture}}"
+    assert:
+      - type: javascript
+        value: |
+          try {
+            const parsed = JSON.parse(output);
+            const required = ["vocabulary", "hedgesAvoided", "sentenceLengthDistribution", "emotionalRegister", "jargonHated"];
+            return required.every(f => Object.prototype.hasOwnProperty.call(parsed, f));
+          } catch {
+            return false;
+          }
+
+  - description: "vocabulary contains only words that appear in the input transcript"
+    vars:
+      transcript: "{{fixture}}"
+    assert:
+      - type: llm-rubric
+        value: |
+          The 'vocabulary' array must contain ONLY words or phrases that genuinely appear in the input transcript.
+          Check each vocabulary item: is it a word or phrase the user actually wrote?
+          Pass (score 1) if all items are grounded in the input. Fail (score 0) if any item is hallucinated.
+          This is a pass/fail rubric.
+
+  - description: "sentenceLengthDistribution values are numbers that sum to ~100"
+    vars:
+      transcript: "{{fixture}}"
+    assert:
+      - type: javascript
+        value: |
+          try {
+            const parsed = JSON.parse(output);
+            const dist = parsed.sentenceLengthDistribution;
+            if (!dist || typeof dist !== "object") return false;
+            const { short, medium, long } = dist;
+            if (typeof short !== "number" || typeof medium !== "number" || typeof long !== "number") return false;
+            const sum = short + medium + long;
+            return sum >= 90 && sum <= 110;
+          } catch {
+            return false;
+          }
+
+  - description: "Voice fidelity score >= 3/5 (Claude as grader)"
+    vars:
+      transcript: "{{fixture}}"
+    assert:
+      - type: llm-rubric
+        value: |
+          Rate the fidelity of this Voice Card on a scale of 1–5 using this rubric:
+          5 — All fields (vocabulary, emotionalRegister, sentenceLengthDistribution) are specific and clearly derived from the input.
+          4 — Most fields are specific; one or two are generic.
+          3 — At least half the fields show evidence of reading the actual input, not defaulting to generic values.
+          2 — Mostly generic; input barely used.
+          1 — Completely generic or fabricated.
+          Pass if score >= 3. Respond with the score first, then explanation.
+
+  - description: "No corporate jargon hallucinated (factual accuracy)"
+    vars:
+      transcript: "{{fixture}}"
+    assert:
+      - type: llm-rubric
+        value: |
+          Check whether the 'jargonHated' and 'vocabulary' fields contain ONLY terms the user mentioned or
+          clearly implied in the transcript. The model must NOT invent jargon, buzzwords, or preferences
+          not evidenced by the input.
+          Pass (score >= 3) if all items are grounded in the input. Fail (score < 3) if more than one item is fabricated.
+
+defaultTest:
+  vars:
+    fixture:
+      source: "claude"
+      exportedAt: "2024-11-01T00:00:00Z"
+      totalConversations: 3
+      messages:
+        - role: user
+          content: "Let's debug this Kubernetes pod that keeps OOMKilling. I've checked the resource limits and they look fine on paper, but the container's real working set is 2.3x the request."
+        - role: assistant
+          content: "The gap between request and working set is the classic signal for JVM heap misconfiguration."
+        - role: user
+          content: "JVM. Spring Boot. The heap is set to 512m via JAVA_OPTS but the OOM is happening in the metaspace, not heap. The pod's been running 6 days before it dies, which makes me think it's a class-loader leak, not a heap issue."
+        - role: user
+          content: "MaxMetaspaceSize wasn't set. Classic. Added -XX:MaxMetaspaceSize=256m."
+        - role: user
+          content: "We don't have burn rate alerts yet. Just raw latency alerts that fire when p99 > 250ms. The problem is on-call is getting paged at 3am for things that don't actually threaten the monthly error budget — false urgency everywhere. I want to fix the signal, not just the threshold."
+        - role: user
+          content: "Exactly. The current setup creates toil without reducing real risk. I'd rather have two pages per month that matter than 20 that don't. Noise is a reliability problem too — on-call fatigue degrades incident response quality over time."
+        - role: user
+          content: "Right. The actual trigger was an engineer running a cache flush in production to clear stale data — totally reasonable action with no runbook warning it would cause a thundering herd at peak traffic. Three independent defenses all absent."
+        - role: user
+          content: "I want the action items to be actually done, not performative. In my experience, postmortems with 12 action items get 2 done. I'm going to pick the three highest-leverage items and assign owners with deadlines."
