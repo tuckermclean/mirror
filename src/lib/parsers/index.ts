@@ -1,8 +1,19 @@
-import { unzipSync } from "fflate";
+import { unzip, unzipSync } from "fflate";
 import { ParseError } from "@/lib/errors";
 import { parseChatGPTFiles } from "./chatgpt";
 import { parseClaudeFiles } from "./claude";
 import type { ParsedChatHistory } from "./types";
+
+const MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024; // 500 MB
+
+function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    unzip(data, (err, result) => {
+      if (err) reject(err);
+      else resolve(result as Record<string, Uint8Array>);
+    });
+  });
+}
 
 export type { ParsedChatHistory, ParsedMessage } from "./types";
 export { parseChatGPTExport, extractVocabularyFingerprint } from "./chatgpt";
@@ -87,11 +98,16 @@ export async function parseAiHistory(
 
   let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(bytes);
+    files = await unzipAsync(bytes);
   } catch (err) {
     throw new ParseError(
       `Invalid zip archive: ${err instanceof Error ? err.message : String(err)}`
     );
+  }
+
+  const totalBytes = Object.values(files).reduce((sum, f) => sum + f.length, 0);
+  if (totalBytes > MAX_DECOMPRESSED_BYTES) {
+    throw new ParseError(`Export decompresses to more than 500 MB — rejecting`);
   }
 
   const format = detectZipFormat(files);

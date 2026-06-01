@@ -1,6 +1,17 @@
-import { unzipSync } from "fflate";
+import { unzip } from "fflate";
 import { ParseError } from "@/lib/errors";
 import type { ParsedChatHistory, ParsedMessage } from "./types";
+
+const MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024; // 500 MB
+
+function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    unzip(data, (err, result) => {
+      if (err) reject(err);
+      else resolve(result as Record<string, Uint8Array>);
+    });
+  });
+}
 
 export { parsePlainTextExport } from "./plaintext";
 
@@ -130,13 +141,18 @@ export async function parseClaudeExport(
     throw new ParseError("Empty zip data — cannot parse Claude export");
   }
 
-  let files: ReturnType<typeof unzipSync>;
+  let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(data);
+    files = await unzipAsync(data);
   } catch (err) {
     throw new ParseError(
       `Invalid zip archive: ${err instanceof Error ? err.message : String(err)}`
     );
+  }
+
+  const totalBytes = Object.values(files).reduce((sum, f) => sum + f.length, 0);
+  if (totalBytes > MAX_DECOMPRESSED_BYTES) {
+    throw new ParseError(`Export decompresses to more than 500 MB — rejecting`);
   }
 
   return parseClaudeFiles(files);
