@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { zipSync, strToU8 } from "fflate";
@@ -234,6 +234,71 @@ describe("ChatGPT export parser — parseChatGPTExport", () => {
     expect(result.totalConversations).toBe(2);
     expect(result.messages.length).toBeGreaterThan(0);
   });
+
+  it("throws ParseError when decompressed size exceeds 500 MB cap", async () => {
+    vi.resetModules();
+    vi.doMock("fflate", () => ({
+      unzipSync: (_data: Uint8Array): Record<string, Uint8Array> => ({
+        "bomb.bin": { length: 501 * 1024 * 1024 } as unknown as Uint8Array,
+      }),
+      unzip: (
+        _data: Uint8Array,
+        cb: (err: null, data: Record<string, Uint8Array>) => void
+      ) => {
+        process.nextTick(() =>
+          cb(null, { "bomb.bin": { length: 501 * 1024 * 1024 } as unknown as Uint8Array })
+        );
+      },
+    }));
+    try {
+      // Re-import ParseError from the same module context as the parser (after resetModules)
+      const [{ parseChatGPTExport }, { ParseError: PE }] = await Promise.all([
+        import("@/lib/parsers/chatgpt"),
+        import("@/lib/errors"),
+      ]);
+      const zip = makeZip({ "readme.txt": "hello" });
+
+      await expect(parseChatGPTExport(zip)).rejects.toThrow(PE);
+      await expect(parseChatGPTExport(zip)).rejects.toThrow(/500 MB/);
+    } finally {
+      vi.doUnmock("fflate");
+      vi.resetModules();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// conversationToMessages — iterative DFS
+// ---------------------------------------------------------------------------
+
+describe("ChatGPT export parser — deep conversation DFS", () => {
+  it("handles very deep conversation trees without stack overflow", async () => {
+    const { parseChatGPTExport } = await import("@/lib/parsers/chatgpt");
+
+    const DEPTH = 20_000;
+    const mapping: Record<string, object> = {};
+    for (let i = 0; i < DEPTH; i++) {
+      mapping[`n${i}`] = {
+        id: `n${i}`,
+        message: {
+          id: `m${i}`,
+          author: { role: i % 2 === 0 ? "user" : "assistant" },
+          content: { content_type: "text", parts: [`Msg ${i}`] },
+          create_time: i + 1,
+        },
+        parent: i === 0 ? null : `n${i - 1}`,
+        children: i < DEPTH - 1 ? [`n${i + 1}`] : [],
+      };
+    }
+
+    const conv = { id: "deep", title: "Deep", create_time: 1, update_time: 2, mapping };
+    const zip = makeZip({ "conversations.json": JSON.stringify([conv]) });
+
+    const result = await parseChatGPTExport(zip);
+    expect(result.messages).toHaveLength(DEPTH);
+    expect(result.messages[0]?.content).toBe("Msg 0");
+    expect(result.messages[DEPTH - 1]?.content).toBe(`Msg ${DEPTH - 1}`);
+  }, 30_000);
 });
 
 // ---------------------------------------------------------------------------

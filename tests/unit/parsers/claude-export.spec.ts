@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { zipSync, strToU8 } from "fflate";
@@ -176,6 +176,36 @@ describe("Claude export parser — parseClaudeExport", () => {
     const result = await parseClaudeExport(zip);
     expect(result.totalConversations).toBe(2);
     expect(result.messages.length).toBeGreaterThan(0);
+  });
+
+  it("throws ParseError when decompressed size exceeds 500 MB cap", async () => {
+    vi.resetModules();
+    vi.doMock("fflate", () => ({
+      unzipSync: (_data: Uint8Array): Record<string, Uint8Array> => ({
+        "bomb.bin": { length: 501 * 1024 * 1024 } as unknown as Uint8Array,
+      }),
+      unzip: (
+        _data: Uint8Array,
+        cb: (err: null, data: Record<string, Uint8Array>) => void
+      ) => {
+        process.nextTick(() =>
+          cb(null, { "bomb.bin": { length: 501 * 1024 * 1024 } as unknown as Uint8Array })
+        );
+      },
+    }));
+    try {
+      const [{ parseClaudeExport }, { ParseError: PE }] = await Promise.all([
+        import("@/lib/parsers/claude"),
+        import("@/lib/errors"),
+      ]);
+      const zip = makeZip({ "readme.txt": "hello" });
+
+      await expect(parseClaudeExport(zip)).rejects.toThrow(PE);
+      await expect(parseClaudeExport(zip)).rejects.toThrow(/500 MB/);
+    } finally {
+      vi.doUnmock("fflate");
+      vi.resetModules();
+    }
   });
 });
 
