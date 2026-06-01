@@ -225,3 +225,60 @@ jobs:
                 --repo "$REPO" \
                 --field pr_number="$PR_NUM" 2>/dev/null || true
             done
+
+      # ── 4. agent-work issues with no open PR — re-dispatch if agent exited silently ─
+      # Covers the case where the execute job ran but the agent exited without
+      # creating a branch or PR (continue-on-error swallows the failure so the
+      # post-mortem never fires). Detects these by finding agent-work issues with
+      # no open PR referencing them and a last dispatch run older than 20 min.
+      - name: Re-dispatch agent-work issues with no open PR
+        run: |
+          NOW=$(date +%s)
+          CUTOFF=$((NOW - 1200))   # 20 minutes ago
+
+          gh issue list \
+            --repo "$REPO" \
+            --state open \
+            --label "agent-work" \
+            --json number,title \
+            --jq '.[] | .number' \
+            2>/dev/null | while read -r ISSUE_NUM; do
+              # Skip if there is already an open PR closing this issue
+              OPEN_PR=$(gh pr list --repo "$REPO" --state open --json number,body \
+                --jq ".[] | select(.body | test(\"(Closes|closes|Fixes|fixes|Resolves|resolves) #${ISSUE_NUM}\")) | .number" \
+                2>/dev/null | head -1)
+              [ -n "$OPEN_PR" ] && continue
+
+              # Skip if a dispatch run is currently in progress for this issue
+              IN_FLIGHT=$(gh run list --repo "$REPO" --workflow dispatch.yml \
+                --status in_progress --json databaseId \
+                --jq 'length' 2>/dev/null || echo "0")
+              [ "$IN_FLIGHT" != "0" ] && continue
+
+              # Skip if the last dispatch run finished less than 20 min ago
+              LAST_RUN_TIME=$(gh run list --repo "$REPO" --workflow dispatch.yml \
+                --status completed --limit 5 \
+                --json updatedAt --jq '.[0].updatedAt // ""' 2>/dev/null || echo "")
+              if [ -n "$LAST_RUN_TIME" ]; then
+                LAST_EPOCH=$(date -d "$LAST_RUN_TIME" +%s 2>/dev/null || echo "0")
+                [ "$LAST_EPOCH" -gt "$CUTOFF" ] && continue
+              fi
+
+              # How many times has this issue already been re-dispatched by reconciler?
+              REDISPATCH_COUNT=$(gh issue view "$ISSUE_NUM" --repo "$REPO" \
+                --json comments \
+                --jq '[.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("reconciler re-dispatch"))] | length' \
+                2>/dev/null || echo "0")
+              if [ "$REDISPATCH_COUNT" -ge 3 ]; then
+                echo "Re-dispatch cap (3) reached for issue #$ISSUE_NUM — escalating to needs-human"
+                gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+                  --remove-label "agent-work" --add-label "needs-human" 2>/dev/null || true
+                continue
+              fi
+
+              echo "No open PR for agent-work issue #$ISSUE_NUM — re-dispatching (attempt $((REDISPATCH_COUNT+1))/3)"
+              printf '<!-- reconciler re-dispatch %d -->\n@claude Please implement issue #%s per the spec in the issue body. Create a branch, open a draft PR, and follow all AGENTS.md rules.\n' \
+                "$((REDISPATCH_COUNT+1))" "$ISSUE_NUM" \
+                > /tmp/redispatch-issue.md
+              gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch-issue.md || true
+            done
