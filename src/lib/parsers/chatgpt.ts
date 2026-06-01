@@ -64,20 +64,27 @@ function isTextRole(role: string): role is "user" | "assistant" {
 function conversationToMessages(conv: ChatGPTConversation): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   const mapping = conv.mapping;
-
   const visited = new Set<string>();
-  function walk(nodeId: string): void {
-    if (visited.has(nodeId)) return;
+
+  // Iterative DFS — avoids stack overflow on deep (10 000+) conversation chains
+  const roots = Object.keys(mapping).filter((id) => {
+    const n = mapping[id];
+    return n && (n.parent === null || !mapping[n.parent]);
+  });
+
+  const stack = [...roots];
+  while (stack.length > 0) {
+    const nodeId = stack.pop()!;
+    if (visited.has(nodeId)) continue;
     visited.add(nodeId);
 
     const node = mapping[nodeId];
-    if (!node) return;
+    if (!node) continue;
 
     const msg = node.message;
     if (msg && isTextRole(msg.author.role) && msg.content) {
       const text = extractTextParts(msg.content);
       if (text) {
-        // Use conditional assignment to satisfy exactOptionalPropertyTypes
         const msgObj: ParsedMessage = {
           role: msg.author.role,
           content: text,
@@ -91,16 +98,9 @@ function conversationToMessages(conv: ChatGPTConversation): ParsedMessage[] {
       }
     }
 
-    for (const childId of node.children) {
-      walk(childId);
-    }
-  }
-
-  // Find root nodes (no parent or parent not in mapping)
-  for (const nodeId of Object.keys(mapping)) {
-    const node = mapping[nodeId];
-    if (node && (node.parent === null || !mapping[node.parent])) {
-      walk(nodeId);
+    // Push children in reverse so the leftmost child is processed first
+    for (let i = node.children.length - 1; i >= 0; i--) {
+      stack.push(node.children[i]!);
     }
   }
 
