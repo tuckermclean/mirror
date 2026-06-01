@@ -1,37 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { gte, sum } from "drizzle-orm";
-import { db } from "@/db/client";
-import { llmSpendLedger } from "@/db/schema";
+import { getMtdData } from "@/lib/llm/cost-guard";
+import CostProgressBar from "./cost-progress-bar";
 
 export const dynamic = "force-dynamic";
-
-type ModelRow = {
-  model: string;
-  total: string | null;
-};
-
-async function getMtdData(): Promise<{ totalUsd: number; byModel: ModelRow[]; startOfMonth: Date }> {
-  const now = new Date();
-  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-
-  const [totalRow] = await db
-    .select({ total: sum(llmSpendLedger.costUsd) })
-    .from(llmSpendLedger)
-    .where(gte(llmSpendLedger.recordedAt, startOfMonth));
-
-  const byModel: ModelRow[] = await db
-    .select({ model: llmSpendLedger.model, total: sum(llmSpendLedger.costUsd) })
-    .from(llmSpendLedger)
-    .where(gte(llmSpendLedger.recordedAt, startOfMonth))
-    .groupBy(llmSpendLedger.model);
-
-  return {
-    totalUsd: Number(totalRow?.total ?? 0),
-    byModel,
-    startOfMonth,
-  };
-}
 
 export default async function AdminCostsPage() {
   const { userId: clerkUserId } = await auth();
@@ -77,19 +49,7 @@ export default async function AdminCostsPage() {
           <span className="text-lg font-semibold">${cap.toFixed(2)}</span>
         </div>
         <div className="space-y-1">
-          <div
-            role="progressbar"
-            aria-valuenow={Math.round(pctUsed)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Monthly LLM spend"
-            className="h-2 rounded-full bg-secondary overflow-hidden"
-          >
-            <div
-              className={`h-full rounded-full ${pctUsed >= 80 ? "bg-destructive" : "bg-primary"}`}
-              style={{ width: `${pctUsed}%` }}
-            />
-          </div>
+          <CostProgressBar pctUsed={pctUsed} />
           <p className="text-xs text-muted-foreground text-right">{pctUsed.toFixed(1)}% used</p>
         </div>
         {pctUsed >= 80 && (

@@ -9,7 +9,7 @@
  * Run with: DATABASE_URL=... pnpm test:integration
  * Skipped automatically when DATABASE_URL is absent.
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, afterAll, afterEach, beforeEach } from "vitest";
 import { db } from "@/db/client";
 import {
   users,
@@ -29,15 +29,16 @@ import { deleteUser, DELETED_PLAN } from "@/lib/db/delete-user";
 const itWithDb = process.env["DATABASE_URL"] ? it : it.skip;
 const describeWithDb = process.env["DATABASE_URL"] ? describe : describe.skip;
 
-// Unique-ish suffixes so parallel test runs don't collide on the unique clerk_id.
+// Unique suffix per call so parallel runs and repeated beforeEach calls don't collide.
 const suffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 async function insertTestUser(label: string) {
+  const id = suffix();
   const [row] = await db
     .insert(users)
     .values({
-      clerkId: `test-${label}-${suffix()}`,
-      email: `test-${label}-${suffix()}@example.test`,
+      clerkId: `test-${label}-${id}`,
+      email: `test-${label}-${id}@example.test`,
       plan: "free",
     })
     .returning();
@@ -46,29 +47,20 @@ async function insertTestUser(label: string) {
 }
 
 describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
-  const createdUserIds: string[] = [];
-
-  beforeAll(() => {
-    if (!process.env["DATABASE_URL"]) return;
-  });
-
-  afterAll(async () => {
-    // Best-effort cleanup. Tombstone rows have placeholder PII so they are safe
-    // to leave behind on failure, but tidy them up anyway.
-    for (const id of createdUserIds) {
-      await db.delete(auditLog).where(or(eq(auditLog.userId, id), eq(auditLog.accessorId, id)));
-      await db.delete(users).where(eq(users.id, id));
-    }
-  });
-
   let subject: { id: string; clerkId: string; email: string };
   let accessor: { id: string; clerkId: string; email: string };
 
   beforeEach(async () => {
-    if (!process.env["DATABASE_URL"]) return;
     subject = await insertTestUser("subject");
     accessor = await insertTestUser("accessor");
-    createdUserIds.push(subject.id, accessor.id);
+  });
+
+  afterEach(async () => {
+    // Per-test cleanup so the array never accumulates across beforeEach calls.
+    for (const id of [subject.id, accessor.id]) {
+      await db.delete(auditLog).where(or(eq(auditLog.userId, id), eq(auditLog.accessorId, id)));
+      await db.delete(users).where(eq(users.id, id));
+    }
   });
 
   itWithDb("redacts PII columns on the users row but preserves users.id", async () => {

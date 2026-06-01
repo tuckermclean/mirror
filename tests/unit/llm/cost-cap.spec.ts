@@ -1,14 +1,15 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { checkMonthlyCap, recordLlmSpend, computeCostUsd } from "@/lib/llm/cost-guard";
+import { UnknownModelError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
-// Drizzle builder chain mocks
+// Drizzle builder chain mocks (factory idiom — no vi.resetModules needed)
 // ---------------------------------------------------------------------------
 const mockWhere = vi.fn();
-const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
-const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
-
+const mockFrom = vi.fn(() => ({ where: mockWhere }));
+const mockSelect = vi.fn(() => ({ from: mockFrom }));
 const mockValues = vi.fn().mockResolvedValue(undefined);
-const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
+const mockInsert = vi.fn(() => ({ values: mockValues }));
 
 vi.mock("@/db/client", () => ({
   db: { select: mockSelect, insert: mockInsert },
@@ -20,9 +21,7 @@ vi.mock("@/db/client", () => ({
 
 describe("checkMonthlyCap", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
-    // Re-wire chain after clearAllMocks
     mockFrom.mockReturnValue({ where: mockWhere });
     mockSelect.mockReturnValue({ from: mockFrom });
     mockInsert.mockReturnValue({ values: mockValues });
@@ -31,7 +30,6 @@ describe("checkMonthlyCap", () => {
   it("returns allowed=true when MTD spend is below cap", async () => {
     // MTD spend = $5, cap = $20 (default) — no userId, global platform spend
     mockWhere.mockResolvedValueOnce([{ total: "5.000000" }]);
-    const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(true);
     // Discriminated union: { allowed: true } has no resets_at property
@@ -41,7 +39,6 @@ describe("checkMonthlyCap", () => {
   it("returns allowed=false when MTD spend equals the cap", async () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "20.000000" }]);
-    const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
     if (!result.allowed) {
@@ -52,14 +49,12 @@ describe("checkMonthlyCap", () => {
   it("returns allowed=false when MTD spend exceeds the cap", async () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "25.123456" }]);
-    const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
   });
 
   it("returns allowed=true when ledger is empty (no spend rows)", async () => {
     mockWhere.mockResolvedValueOnce([{ total: null }]);
-    const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(true);
   });
@@ -67,25 +62,24 @@ describe("checkMonthlyCap", () => {
   it("resets_at is the ISO 8601 first day of the next calendar month", async () => {
     process.env["LLM_MONTHLY_CAP_USD"] = "20";
     mockWhere.mockResolvedValueOnce([{ total: "999.000000" }]);
-    const { checkMonthlyCap } = await import("@/lib/llm/cost-guard");
     const result = await checkMonthlyCap();
     expect(result.allowed).toBe(false);
 
-    // Narrow to the denied branch to satisfy the discriminated union
     if (!result.allowed) {
       expect(result.resets_at).toBeDefined();
 
-      // Must be a valid ISO 8601 date string
       const parsed = new Date(result.resets_at);
       expect(Number.isNaN(parsed.getTime())).toBe(false);
-
-      // Must be the 1st of the month
       expect(parsed.getUTCDate()).toBe(1);
 
-      // Must be in the future (next month or later)
       const now = new Date();
       expect(parsed.getTime()).toBeGreaterThan(now.getTime());
     }
+  });
+
+  it("propagates DB errors", async () => {
+    mockWhere.mockRejectedValueOnce(new Error("DB connection lost"));
+    await expect(checkMonthlyCap()).rejects.toThrow("DB connection lost");
   });
 
   afterEach(() => {
@@ -95,7 +89,6 @@ describe("checkMonthlyCap", () => {
 
 describe("recordLlmSpend", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     mockFrom.mockReturnValue({ where: mockWhere });
     mockSelect.mockReturnValue({ from: mockFrom });
@@ -103,7 +96,6 @@ describe("recordLlmSpend", () => {
   });
 
   it("inserts a row with the provided costUsd", async () => {
-    const { recordLlmSpend } = await import("@/lib/llm/cost-guard");
     await recordLlmSpend({
       userId: "user-uuid-1",
       model: "claude-sonnet-4-6",
@@ -122,7 +114,6 @@ describe("recordLlmSpend", () => {
   });
 
   it("inserts generationId when provided", async () => {
-    const { recordLlmSpend } = await import("@/lib/llm/cost-guard");
     await recordLlmSpend({
       userId: "user-uuid-1",
       generationId: "gen-uuid-99",
@@ -136,7 +127,6 @@ describe("recordLlmSpend", () => {
   });
 
   it("sets generationId to null when not provided", async () => {
-    const { recordLlmSpend } = await import("@/lib/llm/cost-guard");
     await recordLlmSpend({
       userId: "user-uuid-1",
       model: "claude-sonnet-4-6",
@@ -150,36 +140,26 @@ describe("recordLlmSpend", () => {
 });
 
 describe("computeCostUsd", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  it("computes cost correctly for claude-sonnet-4-6 ($3/$15 per MTok)", async () => {
-    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
+  it("computes cost correctly for claude-sonnet-4-6 ($3/$15 per MTok)", () => {
     // 1M input tokens → $3, 1M output tokens → $15
     const cost = computeCostUsd("claude-sonnet-4-6", 1_000_000, 1_000_000);
     expect(cost).toBeCloseTo(18, 6);
   });
 
-  it("computes cost correctly for claude-opus-4-7 ($15/$75 per MTok)", async () => {
-    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
+  it("computes cost correctly for claude-opus-4-7 ($15/$75 per MTok)", () => {
     const cost = computeCostUsd("claude-opus-4-7", 1_000_000, 1_000_000);
     expect(cost).toBeCloseTo(90, 6);
   });
 
-  it("returns 0 for 0 tokens", async () => {
-    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
+  it("returns 0 for 0 tokens", () => {
     expect(computeCostUsd("claude-sonnet-4-6", 0, 0)).toBe(0);
   });
 
-  it("throws for unknown model", async () => {
-    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
+  it("throws for unknown model", () => {
     expect(() => computeCostUsd("gpt-4", 100, 100)).toThrow(/unknown model/i);
   });
 
-  it("throws an UnknownModelError instance for unknown model", async () => {
-    const { computeCostUsd } = await import("@/lib/llm/cost-guard");
-    const { UnknownModelError } = await import("@/lib/errors");
+  it("throws an UnknownModelError instance for unknown model", () => {
     expect(() => computeCostUsd("gpt-4", 100, 100)).toThrow(UnknownModelError);
   });
 });
