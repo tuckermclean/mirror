@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { CheckCircle2, Circle, Lock } from "lucide-react";
 import {
   Card,
@@ -22,12 +22,12 @@ interface OnboardingStepsProps {
   step3Complete: boolean;
 }
 
-const container = {
+const container: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.12 } },
 };
 
-const item = {
+const item: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 };
@@ -54,7 +54,7 @@ export function OnboardingSteps({ step1Complete, step2Complete, step3Complete }:
           className="mt-4"
         >
           <ProgressLabel>Progress</ProgressLabel>
-          <ProgressValue>{stepsComplete} of 3 complete</ProgressValue>
+          <ProgressValue>{() => `${stepsComplete} of 3 complete`}</ProgressValue>
         </Progress>
       </div>
 
