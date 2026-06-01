@@ -74,10 +74,13 @@ jobs:
               --json updatedAt \
               --jq '.[0].updatedAt // ""' 2>/dev/null || echo "")
 
-            [ -z "$LAST_RUN_TIME" ] && continue
-
-            LAST_RUN_EPOCH=$(date -d "$LAST_RUN_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LAST_RUN_TIME" +%s 2>/dev/null || echo "0")
-            [ "$LAST_RUN_EPOCH" -gt "$CUTOFF" ] && continue   # still fresh
+            # dispatch.yml always runs on master, not on feature branches, so
+            # LAST_RUN_TIME will always be empty for PR branches. Treat that as
+            # epoch 0 (infinitely stale) rather than skipping.
+            if [ -n "$LAST_RUN_TIME" ]; then
+              LAST_RUN_EPOCH=$(date -d "$LAST_RUN_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LAST_RUN_TIME" +%s 2>/dev/null || echo "0")
+              [ "$LAST_RUN_EPOCH" -gt "$CUTOFF" ] && continue   # still fresh
+            fi
 
             echo "Stale draft: PR #$PR_NUM branch=$BRANCH last-run=$LAST_RUN_TIME"
 
