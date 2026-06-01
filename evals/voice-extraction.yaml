@@ -1,7 +1,7 @@
 description: "Voice Card extraction eval — schema compliance, factual accuracy, fidelity"
 
 prompts:
-  - file://../src/lib/prompts/voice_extraction.md
+  - ../src/lib/prompts/voice_extraction.md
 
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
