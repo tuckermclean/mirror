@@ -203,13 +203,9 @@ jobs:
                 gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH" 2>/dev/null || true
                 continue
               fi
-              # CI has run — check if it's green
-              FAILING=$(gh pr checks "$PR_NUM" --repo "$REPO" \
-                --json name,state \
-                --jq '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests" or .name == "Unit Tests" or .name == "Prompt Evals") | select(.state != "SUCCESS" and .state != "SKIPPED" and .state != "NEUTRAL")] | length' \
-                2>/dev/null || echo "1")
-              [ "$FAILING" != "0" ] && continue
-              # CI is green — re-arm converge if it hasn't run successfully on this HEAD
+              # CI has run — re-arm converge if it isn't already running or completed
+              # successfully. Converge handles CI failures internally; it does not need
+              # CI to be green before starting.
               LAST=$(gh run list \
                 --repo "$REPO" \
                 --workflow pr-converge.yml \
@@ -220,7 +216,7 @@ jobs:
               if [ "$LAST" = "in_progress:" ] || [ "$LAST" = "completed:success" ]; then
                 continue
               fi
-              echo "CI green, converge not running — re-arming converge for PR #$PR_NUM (last=$LAST)"
+              echo "Converge not running — re-arming converge for PR #$PR_NUM (last=$LAST)"
               gh workflow run pr-converge.yml \
                 --repo "$REPO" \
                 --field pr_number="$PR_NUM" 2>/dev/null || true
