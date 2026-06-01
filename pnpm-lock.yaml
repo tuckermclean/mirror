@@ -35,6 +35,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(better-sqlite3@12.10.0)(pg@8.20.0)(postgres@3.4.9)
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.2
       framer-motion:
         specifier: ^12.40.0
         version: 12.40.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -12750,8 +12753,7 @@ snapshots:
 
   fflate@0.4.8: {}
 
-  fflate@0.8.2:
-    optional: true
+  fflate@0.8.2: {}
 
   figures@6.1.0:
     dependencies:
