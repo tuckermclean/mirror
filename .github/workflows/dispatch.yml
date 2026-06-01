@@ -172,13 +172,23 @@ jobs:
               final commit. Incremental pushes mean a turn/timeout cutoff still leaves your progress.
             - Post a brief status comment early, then keep it updated:
                 gh issue comment <ISSUE NUMBER> --body "🚧 Started on branch <branch>, draft PR #<n> open."
-            - When the task is genuinely complete: mark the PR ready and ensure it has the
-              converge label so the convergence loop fires:
-                gh pr edit <n> --add-label converge
-                gh pr ready <n>
-              Then post a final summary comment. If you are running low on turns, leave the PR
-              as a draft with a comment listing exactly what remains — do NOT spend your last
-              turns polishing prose.
+            - When the task is genuinely complete:
+                BEFORE calling gh pr ready, you MUST:
+                  1. Run `pnpm typecheck` — fix ALL errors first. No type errors allowed.
+                  2. Run `pnpm lint` — fix ALL errors/warnings first.
+                  3. Confirm both pass cleanly, then mark the PR ready:
+                       gh pr edit <n> --add-label converge
+                       gh pr ready <n>
+              If you are running low on turns: leave the PR as a draft. The reconciler
+              will detect it and re-dispatch. Do NOT spend your last turns polishing prose.
+
+            EXIT REQUIREMENT (non-negotiable):
+            Before you exit for ANY reason — task complete, turn-limited, or blocked —
+            post a status comment on the issue or PR:
+              gh pr comment <n> --body "✅ Complete: <summary>" (if done)
+              gh pr comment <n> --body "⏸ Paused at turn limit: completed <X>, remaining: <Y>" (if not done)
+            A silent exit is a state machine violation. The reconciler uses this comment
+            to detect whether you finished or were cut off mid-task.
 
             For review/explain/plan tasks:
             - Post your response as a comment on the issue/PR FIRST (gh issue comment), then refine it.
@@ -195,6 +205,21 @@ jobs:
               E2E job is non-blocking and red until Clerk/Anthropic secrets are set).
             - NEVER claim "all acceptance criteria verified" or post an all-green
               summary while any check you did not personally verify is red.
+
+      # ── Tag PR as agent:implementing ────────────────────────────────────────
+      # Runs after the agent step (success or failure) so the reconciler can
+      # find draft PRs the agent opened and track their state.
+      - name: Tag PR as agent:implementing
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
+          if [ -n "$BRANCH" ] && [ "$BRANCH" != "master" ]; then
+            PR=$(gh pr list --state open --head "$BRANCH" --json number \
+              --jq '.[0].number' 2>/dev/null || echo "")
+            [ -n "$PR" ] && gh pr edit "$PR" --add-label "agent:implementing" || true
+          fi
 
       # ── Post-mortem ─────────────────────────────────────────────────────────
       # Runs only when the agent step above fails (e.g. error_max_turns).

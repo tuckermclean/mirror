@@ -65,6 +65,20 @@ jobs:
         id: branch
         run: echo "name=$(git branch --show-current)" >> $GITHUB_OUTPUT
 
+      - name: Setup — check for protected-path changes
+        run: |
+          PROTECTED=$(git diff origin/master...HEAD --name-only 2>/dev/null \
+            | grep -E '^\.github/workflows/|^ARCHITECTURE\.md|^THREAT_MODEL\.md|^COMPLIANCE\.md' \
+            || true)
+          if [ -n "$PROTECTED" ]; then
+            printf '⚠️ This PR modifies protected paths that require human approval per AGENTS.md:\n\n```\n%s\n```\n\nDo not merge without explicit human review of these changes.\n' \
+              "$PROTECTED" > /tmp/protected-comment.md
+            gh pr comment "$PR_NUMBER" --body-file /tmp/protected-comment.md
+            gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+            echo "Protected paths detected — escalating to human without running review rounds."
+            exit 0
+          fi
+
       - name: Setup — clone agents
         run: |
           git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
@@ -452,23 +466,68 @@ jobs:
           if [ "$FINAL_ACTION" = "approve" ]; then
             gh pr review "$PR_NUMBER" --approve \
               --body "Converged in $ROUNDS round(s) — all blockers resolved and CI green."
+            gh pr edit "$PR_NUMBER" --add-label "agent:ready" --remove-label "converge" 2>/dev/null || true
             SUMMARY="Converged — approved after $ROUNDS round(s). Ready for human merge."
           else
             REASON="${FINAL_ACTION#escalate:}"
             case "$REASON" in
               no-progress)
-                MSG="Same blockers appeared in two consecutive rounds — the fixer is stuck." ;;
+                # Same blocker signatures two rounds running — genuine human decision.
+                gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                SUMMARY="Escalated to human — same blockers in rounds 2 and 3, fixer is stuck. Reviewed $ROUNDS round(s)."
+                ;;
               no-verdict)
-                MSG="The final review posted findings but left no machine-readable verdict, and its summary comment could not be parsed. This is likely NOT a real blocker — a human should confirm and merge if CI is green." ;;
+                # Reviewer produced no machine verdict — likely a parse issue, not a real blocker.
+                gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                SUMMARY="Escalated to human — final review left no machine-readable verdict. Confirm and merge if CI is green. Reviewed $ROUNDS round(s)."
+                ;;
               ci-red)
-                MSG="All review blockers were resolved but a required CI check is not green." ;;
+                # Code-review blockers are gone but CI is not green. This is a mechanical
+                # issue (push-trigger gap), not a human decision. Re-trigger CI and wait.
+                BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
+                if [ -n "$BRANCH" ]; then
+                  echo "Blockers cleared but CI not green — re-triggering CI on $BRANCH and waiting up to 8 min…"
+                  gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" 2>/dev/null || true
+                  sleep 480
+                  RECHK=$(gh pr checks "$PR_NUMBER" --json name,state 2>/dev/null || echo '[]')
+                  STILL_RED=$(echo "$RECHK" | jq -r \
+                    '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | select(.state != "success" and .state != "skipped" and .state != "neutral")] | length')
+                  if [ "$STILL_RED" = "0" ]; then
+                    gh pr review "$PR_NUMBER" --approve \
+                      --body "CI recovered after re-trigger — all checks green. Converged in $ROUNDS round(s)."
+                    gh pr edit "$PR_NUMBER" --add-label "agent:ready" --remove-label "converge" 2>/dev/null || true
+                    SUMMARY="Converged — approved after CI re-trigger. Ready for human merge."
+                  else
+                    gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                    SUMMARY="Escalated to human — CI still red after re-trigger. Blockers were code-review-clear. Reviewed $ROUNDS round(s)."
+                  fi
+                else
+                  gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                  SUMMARY="Escalated to human — CI not green and could not determine branch name to re-trigger."
+                fi
+                ;;
               cap-reached)
-                MSG="3-round cap reached with blockers still open." ;;
+                # 3-round cap with remaining blockers. Not needs-human yet — re-dispatch the
+                # implementing agent with a targeted fix prompt. The reconciler tracks retry count.
+                ISSUE_NUM=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null \
+                  | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+                if [ -n "$ISSUE_NUM" ]; then
+                  REMAINING=$(jq -r '.blockers // "unknown"' .converge-verdict-r3.json 2>/dev/null || echo "unknown")
+                  printf '@claude The 3-round convergence cap was reached on PR #%s with %s blocker(s) still open.\n\nReview the latest review comment on that PR for the specific findings, fix them, run `pnpm typecheck && pnpm lint` to confirm they pass, then call `gh pr ready %s`.\n' \
+                    "$PR_NUMBER" "$REMAINING" "$PR_NUMBER" > /tmp/redispatch-comment.md
+                  gh issue comment "$ISSUE_NUM" --body-file /tmp/redispatch-comment.md || true
+                  gh issue edit "$ISSUE_NUM" --add-label "agent-work" 2>/dev/null || true
+                  SUMMARY="Cap reached — re-dispatched implementing agent to fix $REMAINING remaining blocker(s). Reviewed $ROUNDS round(s)."
+                else
+                  gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                  SUMMARY="Escalated to human — 3-round cap reached with blockers open; could not find original issue to re-dispatch. Reviewed $ROUNDS round(s)."
+                fi
+                ;;
               *)
-                MSG="Escalated for human review." ;;
+                gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                SUMMARY="Escalated to human — $REASON. Reviewed $ROUNDS round(s)."
+                ;;
             esac
-            gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
-            SUMMARY="Escalated to human — $MSG Reviewed $ROUNDS round(s)."
           fi
 
           # Open deferred-nits issue if there is anything to defer

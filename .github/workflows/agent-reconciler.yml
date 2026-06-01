@@ -1,0 +1,201 @@
+name: "Agent: Reconciler"
+
+# Controller loop for the agent state machine. Fires every 15 minutes and on
+# every PR push so no draft PR can stay stranded forever without intervention.
+#
+# State machine:
+#   Issue [agent-work]
+#     → dispatch.yml execute → Draft PR [agent:implementing]
+#     → gh pr ready         → Non-draft PR [converge]
+#     → converge approves   → Non-draft PR [agent:ready]  ← human merges
+#
+# Legitimate needs-human triggers (only these four):
+#   1. Protected-path change (workflows, ARCHITECTURE.md, etc.) — caught by converge
+#   2. No-progress: same blocker signatures in rounds 2+3 — caught by converge
+#   3. Build-failure-cap: reconciler re-dispatched ≥3 times, CI still fails
+#   4. Merge conflict: branch cannot auto-rebase — caught here
+#
+# Everything else is auto-recovered. needs-human means a human decision is
+# genuinely required, not that an agent failed and needs a nudge.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  reconcile:
+    name: Reconcile agent state
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      # ── 1. Stale draft detection ──────────────────────────────────────────
+      # Find draft PRs carrying agent:implementing whose last execute run
+      # completed >20 min ago. These are agents that exited without finishing.
+      - name: Recover stale agent:implementing PRs
+        run: |
+          NOW=$(date +%s)
+          CUTOFF=$((NOW - 1200))   # 20 minutes ago
+
+          DRAFT_PRS=$(gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --label "agent:implementing" \
+            --json number,isDraft,headRefName,body \
+            --jq '.[] | select(.isDraft == true) | {number,branch:.headRefName,body}' \
+            2>/dev/null || echo "")
+
+          echo "$DRAFT_PRS" | jq -c '.' 2>/dev/null | while IFS= read -r pr; do
+            PR_NUM=$(echo "$pr" | jq -r '.number')
+            BRANCH=$(echo "$pr"  | jq -r '.branch')
+            PR_BODY=$(echo "$pr" | jq -r '.body')
+
+            # Find the most recent completed execute run on this branch
+            LAST_RUN_TIME=$(gh run list \
+              --repo "$REPO" \
+              --workflow dispatch.yml \
+              --branch "$BRANCH" \
+              --status completed \
+              --limit 1 \
+              --json updatedAt \
+              --jq '.[0].updatedAt // ""' 2>/dev/null || echo "")
+
+            [ -z "$LAST_RUN_TIME" ] && continue
+
+            LAST_RUN_EPOCH=$(date -d "$LAST_RUN_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LAST_RUN_TIME" +%s 2>/dev/null || echo "0")
+            [ "$LAST_RUN_EPOCH" -gt "$CUTOFF" ] && continue   # still fresh
+
+            echo "Stale draft: PR #$PR_NUM branch=$BRANCH last-run=$LAST_RUN_TIME"
+
+            # How many times has the reconciler already re-dispatched for this issue?
+            ISSUE_NUM=$(echo "$PR_BODY" \
+              | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | head -1 \
+              | grep -oE '[0-9]+' || echo "")
+            REDISPATCH_COUNT=0
+            if [ -n "$ISSUE_NUM" ]; then
+              REDISPATCH_COUNT=$(gh issue view "$ISSUE_NUM" \
+                --repo "$REPO" \
+                --json comments \
+                --jq '[.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("reconciler re-dispatch"))] | length' \
+                2>/dev/null || echo "0")
+            fi
+
+            if [ "$REDISPATCH_COUNT" -ge 3 ]; then
+              echo "Re-dispatch cap (3) reached for PR #$PR_NUM — escalating to needs-human"
+              printf '⚠️ **Build-failure-cap reached**\n\nThe reconciler re-dispatched the implementing agent 3 times for this PR and CI is still not passing. A human should diagnose the remaining failures.\n\nPR: #%s\n' \
+                "$PR_NUM" > /tmp/cap-comment.md
+              gh pr comment "$PR_NUM" --repo "$REPO" --body-file /tmp/cap-comment.md || true
+              gh pr edit "$PR_NUM" --repo "$REPO" --add-label "needs-human" \
+                --remove-label "agent:implementing" 2>/dev/null || true
+              continue
+            fi
+
+            # Check CI state on the draft PR's HEAD
+            HEAD_SHA=$(gh pr view "$PR_NUM" --repo "$REPO" \
+              --json headRefOid --jq '.headRefOid' 2>/dev/null || echo "")
+            CI_RUNS=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+              --jq '.total_count' 2>/dev/null || echo "0")
+
+            if [ "$CI_RUNS" = "0" ]; then
+              # CI never ran on this HEAD — trigger it first
+              echo "No CI runs on HEAD $HEAD_SHA — triggering workflow_dispatch"
+              gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH" 2>/dev/null || true
+              # Will re-evaluate on next reconciler tick
+              continue
+            fi
+
+            # Check if all required checks pass
+            FAILING=$(gh pr checks "$PR_NUM" --repo "$REPO" \
+              --json name,state \
+              --jq '[.[] | select(.name == "Type Check" or .name == "Lint" or .name == "Integration Tests") | select(.state != "success" and .state != "skipped" and .state != "neutral")] | length' \
+              2>/dev/null || echo "1")
+
+            if [ "$FAILING" = "0" ]; then
+              echo "CI green on PR #$PR_NUM — marking ready (agent forgot to call gh pr ready)"
+              gh pr ready "$PR_NUM" --repo "$REPO" 2>/dev/null || true
+              # converge label should already be there; ensure it is
+              gh pr edit "$PR_NUM" --repo "$REPO" --add-label "converge" 2>/dev/null || true
+            else
+              # CI is failing — re-dispatch the implementing agent
+              if [ -n "$ISSUE_NUM" ]; then
+                echo "CI failing on PR #$PR_NUM — re-dispatching (attempt $((REDISPATCH_COUNT+1))/3)"
+                TYPECHECK_OUTPUT=$(gh run list \
+                  --repo "$REPO" \
+                  --workflow ci.yml \
+                  --branch "$BRANCH" \
+                  --status completed \
+                  --limit 1 \
+                  --json databaseId \
+                  --jq '.[0].databaseId' 2>/dev/null | \
+                  xargs -I{} gh run view {} --repo "$REPO" --job "Type Check" --log 2>/dev/null \
+                  | grep -E "error TS|error:" | head -10 || echo "(see CI logs)")
+                printf '<!-- reconciler re-dispatch %d -->\n@claude CI is failing on PR #%s. Fix the following errors so `pnpm typecheck` and `pnpm lint` pass, then mark the PR ready:\n\n```\n%s\n```\n' \
+                  "$((REDISPATCH_COUNT+1))" "$PR_NUM" "$TYPECHECK_OUTPUT" \
+                  > /tmp/redispatch.md
+                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch.md || true
+              else
+                echo "Cannot find issue number for PR #$PR_NUM — adding needs-human"
+                gh pr edit "$PR_NUM" --repo "$REPO" --add-label "needs-human" \
+                  --remove-label "agent:implementing" 2>/dev/null || true
+              fi
+            fi
+          done
+
+      # ── 2. Merge conflict detection ───────────────────────────────────────
+      - name: Flag merge conflicts
+        run: |
+          for LABEL in "converge" "agent:implementing"; do
+            gh pr list \
+              --repo "$REPO" \
+              --state open \
+              --label "$LABEL" \
+              --json number,mergeable \
+              --jq '.[] | select(.mergeable == "CONFLICTING") | .number' \
+              2>/dev/null | while read -r PR_NUM; do
+                ALREADY=$(gh pr view "$PR_NUM" --repo "$REPO" \
+                  --json labels --jq '.labels[].name' 2>/dev/null | grep -c "needs-human" || echo "0")
+                [ "$ALREADY" -gt 0 ] && continue
+                echo "Merge conflict on PR #$PR_NUM — escalating to needs-human"
+                printf '⚠️ **Merge conflict detected**\n\nThis branch has conflicts with master that cannot be auto-resolved. A human must rebase or resolve the conflicts, then re-trigger the converge loop.\n\n```\ngh pr ready %s\n```\n' \
+                  "$PR_NUM" > /tmp/conflict-comment.md
+                gh pr comment "$PR_NUM" --repo "$REPO" --body-file /tmp/conflict-comment.md || true
+                gh pr edit "$PR_NUM" --repo "$REPO" \
+                  --add-label "needs-human" \
+                  --remove-label "converge" \
+                  --remove-label "agent:implementing" 2>/dev/null || true
+              done
+          done
+
+      # ── 3. Orphaned CI (non-draft converge PRs with 0 check-runs on HEAD) ─
+      - name: Trigger CI on orphaned converge PRs
+        run: |
+          gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --label "converge" \
+            --json number,isDraft,headRefName,headRefOid \
+            --jq '.[] | select(.isDraft == false)' \
+            2>/dev/null | jq -c '.' | while IFS= read -r pr; do
+              PR_NUM=$(echo "$pr"  | jq -r '.number')
+              BRANCH=$(echo "$pr"  | jq -r '.headRefName')
+              HEAD=$(echo "$pr"    | jq -r '.headRefOid')
+              CI_RUNS=$(gh api "repos/$REPO/commits/$HEAD/check-runs" \
+                --jq '.total_count' 2>/dev/null || echo "0")
+              if [ "$CI_RUNS" = "0" ]; then
+                echo "Orphaned CI on converge PR #$PR_NUM — triggering workflow_dispatch"
+                gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH" 2>/dev/null || true
+              fi
+            done
