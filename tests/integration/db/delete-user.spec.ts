@@ -9,7 +9,7 @@
  * Run with: DATABASE_URL=... pnpm test:integration
  * Skipped automatically when DATABASE_URL is absent.
  */
-import { describe, it, expect, afterAll, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import { db } from "@/db/client";
 import {
   users,
