@@ -4,6 +4,7 @@
  * DB is fully mocked; no DATABASE_URL needed.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import path from "path";
 
 // ---------------------------------------------------------------------------
 // Mocks — must appear before the import of readPii so vi.mock hoisting works.
@@ -119,9 +120,11 @@ describe("readPii", () => {
 
   it("flags direct interviews.transcript access with the ESLint PII rule", async () => {
     const { ESLint } = await import("eslint");
-    const eslint = new ESLint({ cwd: process.cwd() });
+    const cwd = process.cwd();
+    const eslint = new ESLint({ cwd });
 
     // Inline fixture: a file that imports db and selects a PII column directly.
+    // The imports don't need to resolve — no-restricted-syntax is purely syntactic.
     const fixture = [
       'import { db } from "@/db/client";',
       'import { interviews } from "@/db/schema";',
@@ -131,14 +134,18 @@ describe("readPii", () => {
     ].join("\n");
 
     const results = await eslint.lintText(fixture, {
-      // Filename determines which config block applies; not excluded by our ignores.
-      filePath: "src/routes/pii-fixture.ts",
+      // Absolute path so ESLint resolves the config correctly; not in ignore list.
+      filePath: path.join(cwd, "src", "lib", "pii-fixture.ts"),
     });
 
     const messages = results[0]?.messages ?? [];
     const piiErrors = messages.filter((m) =>
       m.message.includes("Direct PII column read")
     );
-    expect(piiErrors.length).toBeGreaterThanOrEqual(1);
+    // Surface all lint messages if assertion fails for easier debugging
+    expect(
+      piiErrors.length,
+      `Expected PII lint error but got messages: ${JSON.stringify(messages.map((m) => m.message))}`
+    ).toBeGreaterThanOrEqual(1);
   });
 });
