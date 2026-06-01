@@ -51,10 +51,14 @@ jobs:
         id: parse
         run: |
           if [ -f .dispatch.json ] && jq -e . .dispatch.json > /dev/null 2>&1; then
-            echo "agent=$(jq -r '.agent' .dispatch.json)" >> $GITHUB_OUTPUT
-            echo "model=$(jq -r '.model' .dispatch.json)" >> $GITHUB_OUTPUT
-            echo "max_turns=$(jq -r '.max_turns' .dispatch.json)" >> $GITHUB_OUTPUT
-            echo "task_type=$(jq -r '.task_type' .dispatch.json)" >> $GITHUB_OUTPUT
+            AGENT=$(jq -r '.agent // empty' .dispatch.json)
+            MODEL=$(jq -r '.model // empty' .dispatch.json)
+            MAX_TURNS=$(jq -r '.max_turns // empty' .dispatch.json)
+            TASK_TYPE=$(jq -r '.task_type // empty' .dispatch.json)
+            echo "agent=${AGENT:-.agents/engineering-senior-developer.md}" >> $GITHUB_OUTPUT
+            echo "model=${MODEL:-claude-sonnet-4-6}" >> $GITHUB_OUTPUT
+            echo "max_turns=${MAX_TURNS:-60}" >> $GITHUB_OUTPUT
+            echo "task_type=${TASK_TYPE:-implement}" >> $GITHUB_OUTPUT
           else
             echo "agent=.agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
             echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
@@ -70,8 +74,9 @@ jobs:
             if (!require('fs').existsSync('.dispatch.json')) return;
             try {
               const r = JSON.parse(require('fs').readFileSync('.dispatch.json','utf8'));
-              const agent = r.agent.split('/').pop().replace('.md','');
-              const model = r.model.includes('haiku') ? 'haiku' : r.model.includes('opus') ? 'opus' : 'sonnet';
+              const agent = (r.agent || '').split('/').pop().replace('.md','');
+              const m = r.model || '';
+              const model = m.includes('haiku') ? 'haiku' : m.includes('opus') ? 'opus' : 'sonnet';
               const body = `🪼 Routing to **${agent}** on \`${model}\`\n> *${r.rationale}*`;
               const num = context.issue?.number || context.payload.issue?.number;
               if (num) await github.rest.issues.createComment({
