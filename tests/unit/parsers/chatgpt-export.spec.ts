@@ -1,24 +1,7 @@
 import { vi, describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
-import { zipSync, strToU8 } from "fflate";
+import { strToU8 } from "fflate";
 import { ParseError } from "@/lib/errors";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function fixtureBytes(rel: string): Uint8Array {
-  return Uint8Array.from(readFileSync(resolve(process.cwd(), rel)));
-}
-
-function makeZip(files: Record<string, string>): Uint8Array {
-  const input: Record<string, Uint8Array> = {};
-  for (const [name, content] of Object.entries(files)) {
-    input[name] = strToU8(content);
-  }
-  return zipSync(input);
-}
+import { fixtureBytes, makeZip } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // parseChatGPTExport
