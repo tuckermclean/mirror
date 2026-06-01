@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 // Toaster) that rely on @base-ui/react hooks require a jsdom/browser environment
 // and will be covered by tests/a11y/ Playwright tests (tracked: issue #6 follow-up).
 
+import CostProgressBar from "@/app/admin/costs/cost-progress-bar";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -24,6 +25,10 @@ import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
 
 describe("shadcn/ui component exports", () => {
+  it("CostProgressBar is a callable React component", () => {
+    expect(typeof CostProgressBar).toBe("function");
+  });
+
   it("Badge is a callable React component", () => {
     expect(typeof Badge).toBe("function");
   });
