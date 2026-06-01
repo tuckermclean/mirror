@@ -134,9 +134,12 @@ jobs:
       - name: Run migrations
         run: pnpm drizzle-kit push --force
 
-      # Only run the db/migrations suite — rag/retrieval is Wk 4 RED.
+      # Run the db + health suites against the live DB+pgvector. The health
+      # suite is wired in here for #15: the readiness probe must be verified
+      # against a real DB in the gating job, not only by mocked unit tests.
+      # rag/retrieval is still Wk 4 RED, so it stays excluded.
       - name: Run integration tests
-        run: pnpm vitest run tests/integration/db
+        run: pnpm vitest run tests/integration/db tests/integration/health
 
   # ── 5. E2E tests ─────────────────────────────────────────────────────────────
   e2e:
