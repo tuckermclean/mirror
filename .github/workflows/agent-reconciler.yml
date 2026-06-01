@@ -131,7 +131,7 @@ jobs:
 
             if [ "$HAS_CONVERGE" != "0" ]; then
               echo "Draft PR #$PR_NUM has converge label — agent finished, marking ready for converge loop"
-              gh pr ready "$PR_NUM" --repo "$REPO" || true
+              GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh pr ready "$PR_NUM" --repo "$REPO" || true
             else
               # Agent never finished — check CI to decide whether to mark ready or re-dispatch
               FAILING=$(gh pr checks "$PR_NUM" --repo "$REPO" \
