@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "I need to think through how to position myself for a senior engineering role."
+  },
+  {
+    "role": "assistant",
+    "content": "The gap you are identifying is real but not disqualifying."
+  },
+  {
+    "role": "user",
+    "content": "My instinct is to reframe the large-company experience as a feature, not a bug."
+  }
+]
