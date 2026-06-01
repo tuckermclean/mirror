@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 /**
  * Sentinel written to `users.plan` after redaction. Callers that list active
  * users must filter `ne(users.plan, DELETED_PLAN)` to exclude tombstone rows.
- * Downstream guard implementation tracked in issue #35.
+ * Downstream guard implementation tracked in issue #36.
  */
 export const DELETED_PLAN = "deleted" as const;
 
