@@ -20,6 +20,9 @@ export default tseslint.config(
       // Allow _-prefixed identifiers as intentional "unused" markers
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       // Guard PII column reads — all four columns must go through readPii().
+      // NOTE: This rule matches on the literal binding name only. Aliased or
+      // destructured imports (e.g. `import { interviews as ivs }`) bypass the
+      // rule. Full type-aware enforcement would require a custom TS-ESLint plugin.
       "no-restricted-syntax": [
         "error",
         {
@@ -44,5 +47,12 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // pii-read.ts is the designated PII accessor — it must reference the PII
+    // columns internally to build queries. All other files must call its exports.
+    // This override must come after the general rule so flat-config precedence works.
+    files: ["src/lib/db/pii-read.ts"],
+    rules: { "no-restricted-syntax": "off" },
   },
 );

@@ -5,22 +5,31 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import path from "path";
+import fs from "fs";
 
 // ---------------------------------------------------------------------------
 // Mocks — must appear before the import of readPii so vi.mock hoisting works.
 // ---------------------------------------------------------------------------
 const mockValues = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const mockInsert = vi.hoisted(() => vi.fn(() => ({ values: mockValues })));
+const mockSelect = vi.hoisted(() => vi.fn());
+const mockFrom = vi.hoisted(() => vi.fn());
+const mockWhere = vi.hoisted(() => vi.fn());
+const mockLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db/client", () => ({
-  db: { insert: mockInsert },
+  db: { insert: mockInsert, select: mockSelect },
 }));
 
 vi.mock("@/db/schema", () => ({
   auditLog: Symbol("auditLog"),
+  interviews: {
+    transcript: Symbol("interviews.transcript"),
+    id: Symbol("interviews.id"),
+  },
 }));
 
-import { readPii } from "@/lib/db/pii-read";
+import { readPii, readInterviewTranscript } from "@/lib/db/pii-read";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -42,6 +51,10 @@ describe("readPii", () => {
     vi.clearAllMocks();
     mockInsert.mockImplementation(() => ({ values: mockValues }));
     mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
   });
 
   it("calls the query function exactly once and returns its result", async () => {
@@ -119,7 +132,6 @@ describe("readPii", () => {
   });
 
   it("chat route.ts has no no-restricted-syntax eslint-disable bypasses", () => {
-    const fs = require("fs") as typeof import("fs");
     const content = fs.readFileSync(
       path.join(process.cwd(), "src", "app", "api", "chat", "route.ts"),
       "utf-8"
@@ -128,6 +140,17 @@ describe("readPii", () => {
       content,
       "route.ts must not suppress the PII ESLint rule — use readPii() instead"
     ).not.toMatch(/eslint-disable.*no-restricted-syntax/);
+  });
+
+  it("does NOT return data when audit write throws", async () => {
+    mockValues.mockRejectedValueOnce(new Error("DB down"));
+    await expect(readPii(async () => "sensitive", baseAudit)).rejects.toThrow("DB down");
+  });
+
+  it("propagates query errors without writing an audit row", async () => {
+    const query = vi.fn().mockRejectedValue(new Error("query failed"));
+    await expect(readPii(query, baseAudit)).rejects.toThrow("query failed");
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("flags direct interviews.transcript access with the ESLint PII rule", async () => {
@@ -159,5 +182,52 @@ describe("readPii", () => {
       piiErrors.length,
       `Expected PII lint error but got messages: ${JSON.stringify(messages.map((m) => m.message))}`
     ).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("readInterviewTranscript", () => {
+  const transcriptData = [{ role: "user", content: "hello" }];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ transcript: transcriptData }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns the transcript row for the given interviewId", async () => {
+    const result = await readInterviewTranscript("interview-1", "user-1", "test reason");
+    expect(result).toEqual({ transcript: transcriptData });
+  });
+
+  it("writes an audit_log row with correct fields", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason");
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+        tableName: "interviews",
+        rowId: "interview-1",
+        fieldName: "transcript",
+        reason: "test reason",
+      })
+    );
+  });
+
+  it("returns undefined when no interview row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readInterviewTranscript("missing-id", "user-1", "test reason");
+    expect(result).toBeUndefined();
+  });
+
+  it("forwards ipAddress to the audit row when provided", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason", "203.0.113.42");
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ ipAddress: "203.0.113.42" })
+    );
   });
 });

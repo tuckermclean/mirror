@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { interviews, users } from "@/db/schema";
 import { prompts } from "@/lib/prompts/index";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { readInterviewTranscript } from "@/lib/db/pii-read";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,8 +149,6 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     .returning({
       id: interviews.id,
       turnCount: interviews.turnCount,
-      // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to readPii() (returning() clause, needs refactor to separate select step)
-      transcript: interviews.transcript,
     });
 
   if (claimed.length === 0) {
@@ -157,10 +156,15 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   }
   const interviewRow = claimed[0]!;
 
-  // 6. Build authoritative message history from the DB transcript.
-  // The client message list is used only to extract the new user message;
-  // history comes from the DB so callers cannot forge prior turns.
-  const dbTranscript = parseTranscript(interviewRow.transcript);
+  // 6. Build authoritative message history from the DB transcript via the
+  // audited PII wrapper. The client message list is used only to extract the
+  // new user message; history comes from the DB so callers cannot forge prior turns.
+  const transcriptRow = await readInterviewTranscript(
+    interviewRow.id,
+    internalUserId,
+    "build authoritative message history for LLM turn"
+  );
+  const dbTranscript = parseTranscript(transcriptRow?.transcript);
   const authoritative: MessageParam[] = [
     ...dbTranscript,
     { role: "user", content: newUserMessage },
@@ -225,7 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
         try {
           const cleanedText = fullText.replace(new RegExp(COMPLETE_TAG, "g"), "").trim();
           const updatedTranscript: TranscriptEntry[] = [
-            ...parseTranscript(interviewRow.transcript),
+            ...dbTranscript,
             { role: "user", content: newUserMessage },
             { role: "assistant", content: cleanedText },
           ];

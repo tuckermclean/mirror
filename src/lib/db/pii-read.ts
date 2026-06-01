@@ -1,5 +1,6 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { auditLog } from "@/db/schema";
+import { auditLog, interviews } from "@/db/schema";
 
 type PiiReadParams = {
   tableName: string;
@@ -13,9 +14,8 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * Call before returning any value from a PII column:
- * interviews.transcript, imports.raw_path, imports.parsed,
- * linkedin_snapshots.raw_html.
+ * @deprecated Use `readPii()` instead — it provides a richer audit row (userId)
+ * and returns the data only after the audit write succeeds (fail-safe).
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({
@@ -59,4 +59,36 @@ export async function readPii<T>(
     ipAddress: audit.ipAddress,
   });
   return result;
+}
+
+/**
+ * Fetches the transcript of a single interview row through the PII audit wrapper.
+ *
+ * Callers in other modules should use this rather than referencing
+ * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ */
+export async function readInterviewTranscript(
+  interviewId: string,
+  userId: string,
+  reason: string,
+  ipAddress?: string
+): Promise<{ transcript: unknown } | undefined> {
+  const rows = await readPii(
+    () =>
+      db
+        .select({ transcript: interviews.transcript })
+        .from(interviews)
+        .where(eq(interviews.id, interviewId))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "interviews",
+      rowId: interviewId,
+      fieldName: "transcript",
+      reason,
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
+    }
+  );
+  return rows[0];
 }
