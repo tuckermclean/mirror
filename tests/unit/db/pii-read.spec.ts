@@ -1,0 +1,144 @@
+/**
+ * Unit tests for readPii<T>() — RED phase per TDD.
+ *
+ * DB is fully mocked; no DATABASE_URL needed.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Mocks — must appear before the import of readPii so vi.mock hoisting works.
+// ---------------------------------------------------------------------------
+const mockValues = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const mockInsert = vi.hoisted(() => vi.fn(() => ({ values: mockValues })));
+
+vi.mock("@/db/client", () => ({
+  db: { insert: mockInsert },
+}));
+
+vi.mock("@/db/schema", () => ({
+  auditLog: Symbol("auditLog"),
+}));
+
+import { readPii } from "@/lib/db/pii-read";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const baseAudit = {
+  userId: "user-uuid-1",
+  accessorId: "user-uuid-1",
+  tableName: "interviews",
+  rowId: "row-uuid-1",
+  fieldName: "transcript",
+  reason: "automated test",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+describe("readPii", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+  });
+
+  it("calls the query function exactly once and returns its result", async () => {
+    const expected = [{ id: "row-1", data: "sensitive" }];
+    const query = vi.fn().mockResolvedValue(expected);
+
+    const result = await readPii(query, baseAudit);
+
+    expect(query).toHaveBeenCalledOnce();
+    expect(result).toBe(expected);
+  });
+
+  it("writes an audit_log row with all required fields", async () => {
+    const query = vi.fn().mockResolvedValue(null);
+
+    await readPii(query, baseAudit);
+
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: baseAudit.userId,
+        accessorId: baseAudit.accessorId,
+        tableName: baseAudit.tableName,
+        rowId: baseAudit.rowId,
+        fieldName: baseAudit.fieldName,
+        reason: baseAudit.reason,
+      })
+    );
+  });
+
+  it("passes ipAddress to the audit row when provided", async () => {
+    const query = vi.fn().mockResolvedValue(null);
+    const audit = { ...baseAudit, ipAddress: "203.0.113.42" };
+
+    await readPii(query, audit);
+
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ ipAddress: "203.0.113.42" })
+    );
+  });
+
+  it("returns the query result even when audit has no ipAddress", async () => {
+    const expected = { secret: "value" };
+    const result = await readPii(async () => expected, baseAudit);
+    expect(result).toEqual(expected);
+  });
+
+  it("requires reason in audit params (TypeScript compile-time enforcement)", () => {
+    // This is a compile-time test. If `reason` were optional, the @ts-expect-error below
+    // would be "unused" and pnpm typecheck would fail — which is exactly the gate.
+    type AuditParam = Parameters<typeof readPii>[1];
+
+    const _withReason: AuditParam = {
+      userId: "u",
+      accessorId: "a",
+      tableName: "t",
+      rowId: "r",
+      fieldName: "f",
+      reason: "present",
+    };
+    void _withReason;
+
+    // @ts-expect-error — reason is required; omitting it must be a compile error
+    const _withoutReason: AuditParam = {
+      userId: "u",
+      accessorId: "a",
+      tableName: "t",
+      rowId: "r",
+      fieldName: "f",
+    };
+    void _withoutReason;
+
+    expect(true).toBe(true);
+  });
+
+  it("flags direct interviews.transcript access with the ESLint PII rule", async () => {
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({ cwd: process.cwd() });
+
+    // Inline fixture: a file that imports db and selects a PII column directly.
+    const fixture = [
+      'import { db } from "@/db/client";',
+      'import { interviews } from "@/db/schema";',
+      "export async function bad() {",
+      "  return db.select({ transcript: interviews.transcript }).from(interviews);",
+      "}",
+    ].join("\n");
+
+    const results = await eslint.lintText(fixture, {
+      // Filename determines which config block applies; not excluded by our ignores.
+      filePath: "src/routes/pii-fixture.ts",
+    });
+
+    const messages = results[0]?.messages ?? [];
+    const piiErrors = messages.filter((m) =>
+      m.message.includes("Direct PII column read")
+    );
+    expect(piiErrors.length).toBeGreaterThanOrEqual(1);
+  });
+});
