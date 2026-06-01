@@ -13,11 +13,6 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * Scaffold: the function exists but call sites are wired in Wk 2 when the
- * ESLint rule blocking direct reads outside this wrapper is added. For now,
- * the table and function are present so the DB migration is complete and
- * callers can opt in immediately.
- *
  * Call before returning any value from a PII column:
  * interviews.transcript, imports.raw_path, imports.parsed,
  * linkedin_snapshots.raw_html.
@@ -31,4 +26,37 @@ export async function recordPiiRead(params: PiiReadParams): Promise<void> {
     reason: params.reason,
     ipAddress: params.ipAddress,
   });
+}
+
+type ReadPiiAuditParams = {
+  userId: string;
+  accessorId: string;
+  tableName: string;
+  rowId: string;
+  fieldName: string;
+  reason: string;
+  ipAddress?: string;
+};
+
+/**
+ * Executes a PII-field query, writes an audit_log row, and returns the data.
+ *
+ * `reason` is required by the type — omitting it is a TypeScript compile error.
+ * All four PII columns are gated behind this wrapper by an ESLint rule.
+ */
+export async function readPii<T>(
+  query: () => Promise<T>,
+  audit: ReadPiiAuditParams
+): Promise<T> {
+  const result = await query();
+  await db.insert(auditLog).values({
+    userId: audit.userId,
+    accessorId: audit.accessorId,
+    tableName: audit.tableName,
+    rowId: audit.rowId,
+    fieldName: audit.fieldName,
+    reason: audit.reason,
+    ipAddress: audit.ipAddress,
+  });
+  return result;
 }

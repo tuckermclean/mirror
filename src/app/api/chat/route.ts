@@ -148,6 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     .returning({
       id: interviews.id,
       turnCount: interviews.turnCount,
+      // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to readPii() (returning() clause, needs refactor to separate select step)
       transcript: interviews.transcript,
     });
 
