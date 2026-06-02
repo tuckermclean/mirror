@@ -111,7 +111,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make install
 
       - name: Setup agents
         run: |
@@ -138,10 +138,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Fast path: if the event is a comment on a PR, use that PR's branch directly.
+          # issue_comment on a PR sets issue.number to the PR number;
+          # pull_request_review_comment sets pull_request.number.
+          PR_FROM_COMMENT=$(gh pr view \
+            "${{ github.event.pull_request.number || github.event.issue.number }}" \
+            --json headRefName,state \
+            --jq 'select(.state == "OPEN") | .headRefName' 2>/dev/null || echo "")
+
           ISSUE_NUM="${{ github.event.issue.number }}"
           BRANCH=""
-          if [ -n "$ISSUE_NUM" ]; then
-            # Check open PRs whose body contains a closing keyword for this issue
+
+          if [ -n "$PR_FROM_COMMENT" ]; then
+            # Comment was on a PR — work on that PR's branch
+            BRANCH="$PR_FROM_COMMENT"
+            echo "Comment on PR branch: $BRANCH"
+          elif [ -n "$ISSUE_NUM" ]; then
+            # Comment on an issue — search for a PR that closes it
             BRANCH=$(gh pr list --state open --json headRefName,body \
               --jq ".[] | select(.body | test(\"(Closes|closes|Fixes|fixes|Resolves|resolves) #${ISSUE_NUM}\")) | .headRefName" \
               2>/dev/null | head -1)
@@ -156,6 +169,7 @@ jobs:
               fi
             fi
           fi
+
           echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
           [ -n "$BRANCH" ] && echo "Existing PR branch: $BRANCH" || echo "No existing open PR found"
 
@@ -167,11 +181,11 @@ jobs:
           show_full_output: "true"
           prompt: |
             Load the agent at: ${{ needs.dispatch.outputs.agent }}
-            Task type: ${{ needs.dispatch.outputs.task_type }}
+            Load the implementation contract: .agents/custom/implementation-contract.md
             Follow ALL rules in AGENTS.md.
 
             EVENT: ${{ github.event_name }}
-            ISSUE NUMBER: ${{ github.event.issue.number }}
+            ISSUE NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
             EXISTING BRANCH: ${{ steps.existing_pr.outputs.branch }}
             TITLE: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
             ISSUE BODY: ${{ github.event.issue.body || '' }}
@@ -179,53 +193,7 @@ jobs:
 
             If COMMENT is non-empty, that is the specific request to fulfill — use ISSUE BODY as background only.
 
-            DURABILITY — your work must survive running out of turns. Do this in order:
-            For implement/fix/design tasks:
-            - If EXISTING BRANCH is set: check it out and push additional work there — do NOT open a new PR.
-            - If no existing branch: create a new branch (feat/<slug> or design/<slug> from master),
-              make your FIRST commit as early as possible (even a stub/scaffold), then IMMEDIATELY
-              open a DRAFT PR whose description includes "Closes #<ISSUE NUMBER>":
-                gh pr create --draft --base master --head <branch> --title "<title>" \
-                  --label converge --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
-            - Commit and `git push` after EACH meaningful step — never batch all work into one
-              final commit. Incremental pushes mean a turn/timeout cutoff still leaves your progress.
-            - Post a brief status comment early, then keep it updated:
-                gh issue comment <ISSUE NUMBER> --body "🚧 Started on branch <branch>, draft PR #<n> open."
-            - When the task is genuinely complete:
-                BEFORE calling gh pr ready, you MUST:
-                  1. Run `pnpm typecheck` — fix ALL errors first. No type errors allowed.
-                  2. Run `pnpm lint` — fix ALL errors/warnings first.
-                  3. Confirm both pass cleanly, then mark the PR ready:
-                       gh pr edit <n> --add-label converge
-                       gh pr ready <n>
-              If you are running low on turns: leave the PR as a draft. The reconciler
-              will detect it and re-dispatch. Do NOT spend your last turns polishing prose.
-
-            EXIT REQUIREMENT (non-negotiable):
-            Before you exit for ANY reason — task complete, turn-limited, or blocked —
-            post a status comment on the issue or PR:
-              gh pr comment <n> --body "✅ Complete: <summary>" (if done)
-              gh pr comment <n> --body "⏸ Paused at turn limit: completed <X>, remaining: <Y>" (if not done)
-            A silent exit is a state machine violation. The reconciler uses this comment
-            to detect whether you finished or were cut off mid-task.
-
-            For review/explain/plan tasks:
-            - Post your response as a comment on the issue/PR FIRST (gh issue comment), then refine it.
-            - Do NOT create branches or PRs for these.
-
-            HONEST REPORTING — before posting any success/summary comment:
-            - Run the project's own checks locally where possible (see AGENTS.md):
-              `pnpm typecheck`, `pnpm lint`, `pnpm test:unit` (and `pnpm test:integration`
-              if DATABASE_URL is set). Report each result factually.
-            - Then run `gh pr checks <PR NUMBER>` to see the PR's REAL CI status.
-            - Only mark a check ✅ if you actually verified it. If CI is still running,
-              say so. If a check is failing, report it and state whether YOUR change
-              caused it or it is a known pre-existing / non-blocking failure (e.g. the
-              E2E job is non-blocking and red until Clerk/Anthropic secrets are set).
-            - NEVER claim "all acceptance criteria verified" or post an all-green
-              summary while any check you did not personally verify is red.
-
-      # ── Tag PR as agent:implementing ────────────────────────────────────────
+      # ── Tag PR as agent:implementing and ensure converge label ───────────────
       # Runs after the agent step (success or failure) so the reconciler can
       # find draft PRs the agent opened and track their state.
       - name: Tag PR as agent:implementing
@@ -235,9 +203,49 @@ jobs:
         run: |
           BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
           if [ -n "$BRANCH" ] && [ "$BRANCH" != "master" ]; then
-            PR=$(gh pr list --state open --head "$BRANCH" --json number \
-              --jq '.[0].number' 2>/dev/null || echo "")
-            [ -n "$PR" ] && gh pr edit "$PR" --add-label "agent:implementing" || true
+            PR=$(gh pr list --state open --head "$BRANCH" --json number,labels \
+              --jq '.[0] | {number,labels:[.labels[].name]}' 2>/dev/null || echo "")
+            PR_NUM=$(echo "$PR" | jq -r '.number // empty' 2>/dev/null || echo "")
+            if [ -n "$PR_NUM" ]; then
+              gh pr edit "$PR_NUM" --add-label "agent:implementing" || true
+              # Re-add converge label if it was stripped (e.g. by conflict detection)
+              # and the PR body references an issue labeled agent-work.
+              HAS_CONVERGE=$(echo "$PR" | jq -r '.labels | map(select(. == "converge")) | length' 2>/dev/null || echo "0")
+              if [ "$HAS_CONVERGE" = "0" ]; then
+                CLOSES=$(gh pr view "$PR_NUM" --json body --jq '.body' 2>/dev/null \
+                  | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
+                if [ -n "$CLOSES" ]; then
+                  IS_AGENT_WORK=$(gh issue view "$CLOSES" --json labels \
+                    --jq '.labels[].name' 2>/dev/null | grep -c "agent-work" || echo "0")
+                  [ "$IS_AGENT_WORK" != "0" ] && gh pr edit "$PR_NUM" --add-label "converge" || true
+                fi
+              fi
+            fi
+          fi
+
+      # ── Exit sentinel — catch silent agent exits ─────────────────────────────
+      # If the agent exited without posting a status comment, post a rescue notice
+      # so the state is never silently lost. Fires on success AND failure.
+      - name: Verify exit comment posted
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ISSUE_OR_PR="${{ github.event.issue.number || github.event.pull_request.number }}"
+          [ -z "$ISSUE_OR_PR" ] && exit 0
+          RUN_STARTED="${{ github.run_id }}"
+          # Check if a comment containing ✅ or ⏸ was posted during this run
+          RECENT=$(gh issue view "$ISSUE_OR_PR" --json comments \
+            --jq "[.comments[] | select(.body | test(\"✅|⏸\"))] | length" \
+            2>/dev/null || echo "0")
+          if [ "$RECENT" = "0" ]; then
+            CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
+            PR_NUM=$(gh pr list --state open --json number,headRefName \
+              --jq ".[] | select(.headRefName == \"${CURRENT_BRANCH}\") | .number" \
+              2>/dev/null | head -1 || echo "")
+            MSG="⚠️ Agent exited without posting a status comment (run \`$RUN_STARTED\`). Work may be incomplete. Check the branch \`${CURRENT_BRANCH}\` and re-dispatch if needed."
+            [ -n "$PR_NUM" ] && gh pr comment "$PR_NUM" --body "$MSG" || \
+              gh issue comment "$ISSUE_OR_PR" --body "$MSG" || true
           fi
 
       # ── Post-mortem ─────────────────────────────────────────────────────────
@@ -267,7 +275,7 @@ jobs:
             [.. | objects | select(.thinking?) | .thinking] | last // "(no thinking block found)"
           ' "$LOG" 2>/dev/null | head -c 600 || echo "(log unavailable)")
 
-          ISSUE_NUM="${{ github.event.issue.number }}"
+          ISSUE_NUM="${{ github.event.issue.number || github.event.pull_request.number }}"
           CURRENT_BRANCH="$(git branch --show-current)"
           PR_NUM=$(gh pr list --state open --json number,headRefName \
             --jq ".[] | select(.headRefName == \"${CURRENT_BRANCH}\") | .number" \

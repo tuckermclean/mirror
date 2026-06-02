@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration build smoke e2e ci
+.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci
 
 install:
 	pnpm install --frozen-lockfile
@@ -26,6 +26,21 @@ smoke:
 
 e2e:
 	pnpm test:e2e
+
+eval-prompts:
+	pnpm eval:prompts
+
+helm-lint:
+	helm lint infra/helm/mirror-web
+	helm lint infra/helm/mirror-worker
+
+helm-kubeconform:
+	helm template mirror-web infra/helm/mirror-web \
+		-f infra/helm/mirror-web/values-prod.yaml \
+		| kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+	helm template mirror-worker infra/helm/mirror-worker \
+		-f infra/helm/mirror-worker/values-prod.yaml \
+		| kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
 
 # Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
 # Run this before pushing to avoid round-trip debugging.

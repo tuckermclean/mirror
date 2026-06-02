@@ -22,79 +22,43 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run typecheck
-        run: pnpm typecheck
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
+      - run: make typecheck
 
   # ── 2. Lint ──────────────────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run lint
-        run: pnpm lint
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
+      - run: make lint
 
   # ── 3. Unit tests ────────────────────────────────────────────────────────────
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
       # Unit tests for Wk 2+ modules (voice-card, crypto, parsers) are
       # intentionally RED until their implementations land. Run them so
       # failures are visible but don't block the CI check.
-      - name: Run unit tests
+      - run: make test-unit
         continue-on-error: true
-        run: pnpm test:unit
 
   # ── 4. Integration tests ─────────────────────────────────────────────────────
   integration:
@@ -117,35 +81,21 @@ jobs:
     env:
       DATABASE_URL: postgres://mirror:mirror@localhost:5432/mirror_test
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
       - name: Enable pgvector extension
         run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
-
       - name: Run migrations
         run: pnpm drizzle-kit push --force
-
       # Run the db + health suites against the live DB+pgvector. The health
       # suite is wired in here for #15: the readiness probe must be verified
       # against a real DB in the gating job, not only by mocked unit tests.
       # rag/retrieval is still Wk 4 RED, so it stays excluded.
-      - name: Run integration tests
-        run: pnpm vitest run tests/integration/db tests/integration/health
+      - run: make test-integration
 
   # ── 5. E2E tests ─────────────────────────────────────────────────────────────
   e2e:
@@ -177,37 +127,21 @@ jobs:
       CLERK_TEST_USER_EMAIL: ${{ secrets.CLERK_TEST_USER_EMAIL }}
       CLERK_TEST_USER_PASSWORD: ${{ secrets.CLERK_TEST_USER_PASSWORD }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
-
-      - name: Build app
-        run: pnpm build
-
+      - run: make build
       - name: Enable pgvector extension
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
-
       - name: Run migrations
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: pnpm drizzle-kit push --force
-
       - name: Start app and wait for readiness
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: |
@@ -220,13 +154,11 @@ jobs:
           echo "APP_PID=$APP_PID" >> "$GITHUB_ENV"
           # Wait up to 60 seconds for the server to be ready
           timeout 60 bash -c 'until curl -sf http://localhost:3000/api/health/ready; do sleep 2; done'
-
       # Wk 1 scope: auth + interview. Wk 2+ specs (import, linkedin, walkthrough,
       # commit) are RED by design and excluded from this job.
       - name: Run E2E tests (Wk 1 scope)
         if: env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         run: pnpm exec playwright test tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
-
       - name: Upload Playwright report
         if: always() && env.CLERK_SECRET_KEY != '' && env.ANTHROPIC_API_KEY != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -248,15 +180,9 @@ jobs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-ref: ${{ steps.build.outputs.imageid }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3  # v4.1.0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5  # v4.1.0
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3  # v4.1.0
+      - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5  # v4.1.0
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee  # v4.2.0
@@ -264,7 +190,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9  # v6.1.0
@@ -274,7 +199,6 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix=sha-,format=short
-
       - name: Build image
         id: build
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf  # v7.2.0
@@ -291,7 +215,6 @@ jobs:
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
       - name: Check image size
         run: |
           IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
@@ -305,7 +228,6 @@ jobs:
             echo "ERROR: Image size ${SIZE_MB} MB exceeds 250 MB limit"
             exit 1
           fi
-
       - name: Run Trivy vulnerability scan
         # continue-on-error so a CVE finding doesn't gate the build; findings
         # are still uploaded to GitHub Security for review and remediation.
@@ -318,7 +240,6 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
-
       - name: Upload Trivy SARIF results
         if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@f52b05f4acaaa234e44466e66d29050e135ea9ef  # v4.36.0
@@ -330,19 +251,10 @@ jobs:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Install Helm
-        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2  # v5.0.0
-        with:
-          version: v3.17.0
-
-      - name: Lint mirror-web chart
-        run: helm lint infra/helm/mirror-web
-
-      - name: Lint mirror-worker chart
-        run: helm lint infra/helm/mirror-worker
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2  # v5.0.0
+        with: { version: v3.17.0 }
+      - run: make helm-lint
 
   # ── 8. Helm kubeconform ──────────────────────────────────────────────────────
   helm-kubeconform:
@@ -350,32 +262,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: helm-lint
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Install Helm
-        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2  # v5.0.0
-        with:
-          version: v3.17.0
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2  # v5.0.0
+        with: { version: v3.17.0 }
       - name: Install kubeconform
         run: |
           KUBECONFORM_VERSION=v0.7.0
           curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
             | tar xz -C /usr/local/bin kubeconform
           chmod +x /usr/local/bin/kubeconform
-
-      - name: Validate mirror-web (prod values)
-        run: |
-          helm template mirror-web infra/helm/mirror-web \
-            -f infra/helm/mirror-web/values-prod.yaml \
-            | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
-
-      - name: Validate mirror-worker (prod values)
-        run: |
-          helm template mirror-worker infra/helm/mirror-worker \
-            -f infra/helm/mirror-worker/values-prod.yaml \
-            | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+      - run: make helm-kubeconform
 
   # ── 9. Prompt evals (gated on secret availability) ──────────────────────────
   prompt-eval:
@@ -387,23 +283,12 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        with: { run_install: false }
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with: { node-version-file: package.json, cache: pnpm }
+      - run: make install
       - name: Run prompt evals
         if: env.ANTHROPIC_API_KEY != ''
-        run: pnpm eval:prompts
+        run: make eval-prompts
