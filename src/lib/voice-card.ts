@@ -29,13 +29,20 @@ export const VoiceCardSchema = z.object({
 export type VoiceCard = z.infer<typeof VoiceCardSchema>;
 
 // ---------------------------------------------------------------------------
-// Prompt loading — load once at module init, never inline
+// Prompt loading — lazy to avoid FS access at module init (safe for edge/test)
 // ---------------------------------------------------------------------------
 
-const VOICE_EXTRACTION_SYSTEM = readFileSync(
-  new URL("./prompts/voice_extraction.md", import.meta.url),
-  "utf8"
-);
+let _voiceExtractionSystem: string | null = null;
+
+function getVoiceExtractionSystem(): string {
+  if (_voiceExtractionSystem === null) {
+    _voiceExtractionSystem = readFileSync(
+      new URL("./prompts/voice_extraction.md", import.meta.url),
+      "utf8"
+    );
+  }
+  return _voiceExtractionSystem;
+}
 
 // ---------------------------------------------------------------------------
 // Lazy Anthropic client — avoids coupling module to env at import time
@@ -78,7 +85,7 @@ export async function extractVoiceCard(
 
   // 24h prompt cache check
   const promptHash = createHash("sha256")
-    .update(JSON.stringify({ systemPrompt: VOICE_EXTRACTION_SYSTEM, userMessages: userPrompt, modelId: MODEL }))
+    .update(JSON.stringify({ systemPrompt: getVoiceExtractionSystem(), userMessages: userPrompt, modelId: MODEL }))
     .digest("hex");
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -105,7 +112,7 @@ export async function extractVoiceCard(
   const stream = getClient().messages.stream({
     model: MODEL,
     max_tokens: 1024,
-    system: VOICE_EXTRACTION_SYSTEM,
+    system: getVoiceExtractionSystem(),
     messages: [{ role: "user", content: userPrompt }],
   });
 
