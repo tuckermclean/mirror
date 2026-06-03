@@ -20,11 +20,32 @@ export default tseslint.config(
       // Allow _-prefixed identifiers as intentional "unused" markers
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       // Guard PII column reads — all four columns must go through readPii().
-      // NOTE: This rule matches on the literal binding name only. Aliased or
-      // destructured imports (e.g. `import { interviews as ivs }`) bypass the
-      // rule. Full type-aware enforcement would require a custom TS-ESLint plugin.
+      // The column-level selectors below match only the literal binding name.
+      // The alias-import selectors above this comment catch the bypass where
+      // someone writes `import { interviews as ivs }` and then accesses
+      // `ivs.transcript` (which the column rules would miss).
       "no-restricted-syntax": [
         "error",
+        // Alias-import bypass guards — must appear before the column-level rules.
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] ImportSpecifier[imported.name='interviews'][local.name!='interviews']",
+          message:
+            "Do not alias 'interviews' from '@/db/schema' — aliased names bypass the PII ESLint guard. Use the unaliased import and access columns through readPii().",
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] ImportSpecifier[imported.name='imports'][local.name!='imports']",
+          message:
+            "Do not alias 'imports' from '@/db/schema' — aliased names bypass the PII ESLint guard. Use the unaliased import and access columns through readPii().",
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] ImportSpecifier[imported.name='linkedinSnapshots'][local.name!='linkedinSnapshots']",
+          message:
+            "Do not alias 'linkedinSnapshots' from '@/db/schema' — aliased names bypass the PII ESLint guard. Use the unaliased import and access columns through readPii().",
+        },
+        // Column-level PII read guards.
         {
           selector:
             "MemberExpression[object.name='interviews'][property.name='transcript']",

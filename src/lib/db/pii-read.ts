@@ -14,8 +14,26 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * @deprecated Use `readPii()` instead — it provides a richer audit row (userId)
- * and returns the data only after the audit write succeeds (fail-safe).
+ * @deprecated Use `readPii()` instead — it provides richer audit data (`userId`
+ * in addition to `accessorId`) and returns data only after the audit write
+ * succeeds (fail-safe ordering).
+ *
+ * **Removal target**: Mirror v1.0 (planned 2026-Q3). This function will be
+ * deleted once all callers are migrated.
+ *
+ * **Migration guide** — replace:
+ * ```ts
+ * await recordPiiRead({ tableName, rowId, fieldName, accessorId, reason, ipAddress });
+ * ```
+ * with:
+ * ```ts
+ * const data = await readPii(
+ *   () => db.select({ ... }).from(table).where(eq(table.id, rowId)).limit(1),
+ *   { userId: currentUserId, accessorId, tableName, rowId, fieldName, reason, ipAddress }
+ * );
+ * ```
+ * If `userId` is unavailable (e.g. a background job), pass the service-account
+ * identifier for both `userId` and `accessorId`.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({
@@ -61,18 +79,35 @@ export async function readPii<T>(
   return result;
 }
 
+type ReadInterviewTranscriptOptions = {
+  /** Client IP forwarded from the request, for the audit trail. */
+  ipAddress?: string;
+  /**
+   * The identity that is accessing the data. Defaults to `userId`.
+   * Pass a service-account ID here for background jobs or admin reads
+   * so the audit log accurately reflects who/what made the access.
+   */
+  accessorId?: string;
+};
+
 /**
  * Fetches the transcript of a single interview row through the PII audit wrapper.
  *
  * Callers in other modules should use this rather than referencing
  * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ *
+ * @param interviewId - UUID of the interview row to fetch.
+ * @param userId - The authenticated user on whose behalf the read is made.
+ * @param reason - Human-readable justification written to the audit log.
+ * @param options - Optional `ipAddress` and `accessorId` (defaults to `userId`).
  */
 export async function readInterviewTranscript(
   interviewId: string,
   userId: string,
   reason: string,
-  ipAddress?: string
+  options?: ReadInterviewTranscriptOptions
 ): Promise<{ transcript: unknown } | undefined> {
+  const accessorId = options?.accessorId ?? userId;
   const rows = await readPii(
     () =>
       db
@@ -82,12 +117,12 @@ export async function readInterviewTranscript(
         .limit(1),
     {
       userId,
-      accessorId: userId,
+      accessorId,
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",
       reason,
-      ...(ipAddress !== undefined ? { ipAddress } : {}),
+      ...(options?.ipAddress !== undefined ? { ipAddress: options.ipAddress } : {}),
     }
   );
   return rows[0];
