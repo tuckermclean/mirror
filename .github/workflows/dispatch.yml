@@ -265,7 +265,12 @@ jobs:
             PR_NUM=$(gh pr list --state open --json number,headRefName \
               --jq ".[] | select(.headRefName == \"${CURRENT_BRANCH}\") | .number" \
               2>/dev/null | head -1 || echo "")
-            MSG="⚠️ Agent exited without posting a status comment (run \`$RUN_STARTED\`). Work may be incomplete. Check the branch \`${CURRENT_BRANCH}\` and re-dispatch if needed."
+            if [ -n "$CURRENT_BRANCH" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+              BRANCH_HINT=" Check the branch \`${CURRENT_BRANCH}\` and re-dispatch if needed."
+            else
+              BRANCH_HINT=" Re-dispatch if needed."
+            fi
+            MSG="⚠️ Agent exited without posting a status comment (run \`$RUN_STARTED\`). Work may be incomplete.${BRANCH_HINT}"
             [ -n "$PR_NUM" ] && gh pr comment "$PR_NUM" --body "$MSG" || \
               gh issue comment "$ISSUE_OR_PR" --body "$MSG" || true
           fi
