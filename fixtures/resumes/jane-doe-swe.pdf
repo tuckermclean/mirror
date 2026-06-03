@@ -1,0 +1,80 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>
+   /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 798 >>
+stream
+BT
+/F1 10 Tf
+50 750 Td
+(Jane Doe) Tj
+0 -14 Td
+50 736 Td
+(Senior Software Engineer at Acme Corp) Tj
+0 -14 Td
+50 722 Td
+(San Francisco, CA) Tj
+0 -14 Td
+50 708 Td
+() Tj
+0 -14 Td
+50 694 Td
+(About) Tj
+0 -14 Td
+50 680 Td
+(Passionate software engineer with 8 years of experience building scalable distributed systems.) Tj
+0 -14 Td
+50 666 Td
+() Tj
+0 -14 Td
+50 652 Td
+(Experience) Tj
+0 -14 Td
+50 638 Td
+(Senior Software Engineer | Acme Corp | Jan 2020 - Present) Tj
+0 -14 Td
+50 624 Td
+(Software Engineer | Beta Tech | Jun 2016 - Dec 2019) Tj
+0 -14 Td
+50 610 Td
+() Tj
+0 -14 Td
+50 596 Td
+(Education) Tj
+0 -14 Td
+50 582 Td
+(BS Computer Science | Stanford University | 2012 - 2016) Tj
+0 -14 Td
+50 568 Td
+() Tj
+0 -14 Td
+50 554 Td
+(Skills) Tj
+0 -14 Td
+50 540 Td
+(Python, Go, Kubernetes, PostgreSQL) Tj
+0 -14 Td
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000296 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+1145
+%%EOF

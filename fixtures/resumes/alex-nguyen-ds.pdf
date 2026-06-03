@@ -1,0 +1,80 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>
+   /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 763 >>
+stream
+BT
+/F1 10 Tf
+50 750 Td
+(Alex Nguyen) Tj
+0 -14 Td
+50 736 Td
+(Data Scientist | ML Engineer | Ex-Google) Tj
+0 -14 Td
+50 722 Td
+(Seattle, WA) Tj
+0 -14 Td
+50 708 Td
+() Tj
+0 -14 Td
+50 694 Td
+(About) Tj
+0 -14 Td
+50 680 Td
+(ML practitioner specializing in recommendation systems and large-scale data pipelines.) Tj
+0 -14 Td
+50 666 Td
+() Tj
+0 -14 Td
+50 652 Td
+(Experience) Tj
+0 -14 Td
+50 638 Td
+(Senior Data Scientist | BigCo | Apr 2022 - Present) Tj
+0 -14 Td
+50 624 Td
+(ML Engineer | Google | Jan 2019 - Mar 2022) Tj
+0 -14 Td
+50 610 Td
+() Tj
+0 -14 Td
+50 596 Td
+(Education) Tj
+0 -14 Td
+50 582 Td
+(MS Machine Learning | CMU | 2017 - 2019) Tj
+0 -14 Td
+50 568 Td
+() Tj
+0 -14 Td
+50 554 Td
+(Skills) Tj
+0 -14 Td
+50 540 Td
+(Python, TensorFlow, Spark, SQL, PyTorch) Tj
+0 -14 Td
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000296 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+1110
+%%EOF

@@ -1,0 +1,47 @@
+[
+  {
+    "file": "jane-doe-swe.pdf",
+    "expected": {
+      "name": "Jane Doe",
+      "headline": "Senior Software Engineer at Acme Corp",
+      "location": "San Francisco, CA",
+      "about": "Passionate software engineer with 8 years of experience building scalable distributed systems."
+    }
+  },
+  {
+    "file": "john-smith-pm.pdf",
+    "expected": {
+      "name": "John Smith",
+      "headline": "Product Manager | Building B2B SaaS products",
+      "location": "New York, NY",
+      "about": "Product leader with a decade of experience launching 0→1 products at high-growth startups."
+    }
+  },
+  {
+    "file": "alex-nguyen-ds.pdf",
+    "expected": {
+      "name": "Alex Nguyen",
+      "headline": "Data Scientist | ML Engineer | Ex-Google",
+      "location": "Seattle, WA",
+      "about": "ML practitioner specializing in recommendation systems and large-scale data pipelines."
+    }
+  },
+  {
+    "file": "maria-garcia-design.pdf",
+    "expected": {
+      "name": "Maria Garcia",
+      "headline": "UX Designer | Human-Centered Design",
+      "location": "Austin, TX",
+      "about": "Designer with 6 years of experience crafting intuitive, accessible user experiences."
+    }
+  },
+  {
+    "file": "sam-chen-devops.pdf",
+    "expected": {
+      "name": "Sam Chen",
+      "headline": "DevOps Engineer | Platform | SRE",
+      "location": "Remote",
+      "about": "Infrastructure engineer passionate about reliability, automation, and developer experience."
+    }
+  }
+]
