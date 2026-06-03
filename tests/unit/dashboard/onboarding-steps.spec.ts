@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { computeOnboardingProgress } from "@/lib/dashboard/onboarding-progress";
+import {
+  computeOnboardingProgress,
+  getStep3IconState,
+} from "@/lib/dashboard/onboarding-progress";
 
 describe("computeOnboardingProgress", () => {
   it("returns 0% and unlocked=false when no steps complete", () => {
@@ -64,5 +67,24 @@ describe("computeOnboardingProgress", () => {
       step3Complete: true,
     });
     expect(result.step3Unlocked).toBe(false);
+  });
+});
+
+describe("getStep3IconState", () => {
+  it("returns 'check' when step3Complete is true", () => {
+    expect(getStep3IconState(true, true)).toBe("check");
+  });
+
+  it("returns 'check' even if step3Unlocked is somehow false when complete", () => {
+    // step3Complete=true always takes priority
+    expect(getStep3IconState(true, false)).toBe("check");
+  });
+
+  it("returns 'circle' when unlocked but not complete", () => {
+    expect(getStep3IconState(false, true)).toBe("circle");
+  });
+
+  it("returns 'lock' when not unlocked and not complete", () => {
+    expect(getStep3IconState(false, false)).toBe("lock");
   });
 });
