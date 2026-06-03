@@ -4,6 +4,7 @@ import { eq, and, isNotNull, count } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, interviews, imports, generations } from "@/db/schema";
 import { OnboardingSteps } from "@/components/dashboard/onboarding-steps";
+import { logger } from "@/lib/logger";
 
 export default async function DashboardPage() {
   const { userId: clerkUserId } = await auth();
@@ -14,8 +15,11 @@ export default async function DashboardPage() {
   // the second hits the unique constraint and is silently discarded rather than
   // erroring.
   const clerkUser = await currentUser();
-  const email =
-    clerkUser?.emailAddresses[0]?.emailAddress ?? `${clerkUserId}@clerk.test`;
+  const resolvedEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+  if (!resolvedEmail) {
+    logger.warn({ msg: "Clerk user has no email address; using fallback", clerkUserId });
+  }
+  const email = resolvedEmail ?? `${clerkUserId}@clerk.test`;
 
   const [inserted] = await db
     .insert(users)

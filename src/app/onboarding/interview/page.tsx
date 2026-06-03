@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { InterviewChat } from "@/components/interview-chat";
+import { logger } from "@/lib/logger";
 
 export default async function InterviewPage() {
   const { userId: clerkUserId } = await auth();
@@ -19,8 +20,11 @@ export default async function InterviewPage() {
 
   if (existing.length === 0) {
     const clerkUser = await currentUser();
-    const email =
-      clerkUser?.emailAddresses[0]?.emailAddress ?? `${clerkUserId}@clerk.test`;
+    const resolvedEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+    if (!resolvedEmail) {
+      logger.warn({ msg: "Clerk user has no email address; using fallback", clerkUserId });
+    }
+    const email = resolvedEmail ?? `${clerkUserId}@clerk.test`;
     await db.insert(users).values({ clerkId: clerkUserId, email });
   }
 
