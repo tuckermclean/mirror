@@ -27,3 +27,12 @@ export class ParseError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/** Thrown when an LLM response cannot be parsed or fails schema validation. */
+export class LlmParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LlmParseError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

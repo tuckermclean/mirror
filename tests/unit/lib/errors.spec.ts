@@ -44,3 +44,29 @@ describe("ConfigurationError", () => {
     expect(err.message).toBe("missing INNGEST_SIGNING_KEY");
   });
 });
+
+describe("LlmParseError", () => {
+  it("is instanceof LlmParseError", async () => {
+    const { LlmParseError } = await import("@/lib/errors");
+    const err = new LlmParseError("bad json");
+    expect(err).toBeInstanceOf(LlmParseError);
+  });
+
+  it("is instanceof Error", async () => {
+    const { LlmParseError } = await import("@/lib/errors");
+    const err = new LlmParseError("bad json");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("has name LlmParseError", async () => {
+    const { LlmParseError } = await import("@/lib/errors");
+    const err = new LlmParseError("bad json");
+    expect(err.name).toBe("LlmParseError");
+  });
+
+  it("exposes the message", async () => {
+    const { LlmParseError } = await import("@/lib/errors");
+    const err = new LlmParseError("Voice Card schema validation failed");
+    expect(err.message).toBe("Voice Card schema validation failed");
+  });
+});

@@ -6,6 +6,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { generations } from "@/db/schema";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { LlmParseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 
@@ -98,12 +99,12 @@ export async function extractVoiceCard(
     const fenced = fullText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     rawOutput = JSON.parse(fenced ? fenced[1]! : fullText.trim());
   } catch {
-    throw new Error("Failed to parse Voice Card JSON from LLM response");
+    throw new LlmParseError("Failed to parse Voice Card JSON from LLM response");
   }
 
   const parsed = VoiceCardSchema.safeParse(rawOutput);
   if (!parsed.success) {
-    throw new Error(`Voice Card schema validation failed: ${parsed.error.message}`);
+    throw new LlmParseError(`Voice Card schema validation failed: ${parsed.error.message}`);
   }
 
   const voiceCard = parsed.data;
