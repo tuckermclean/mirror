@@ -257,6 +257,16 @@ describe("processImport — status transitions", () => {
     await expect(processImport(IMPORT_ID)).rejects.toBe(original);
   });
 
+  it("re-throws the root-cause error even when the status=failed DB update in the catch block also throws", async () => {
+    const originalError = new Error("root-cause-parse-failure");
+    mockParseAiHistory.mockRejectedValue(originalError);
+    // status=processing succeeds; status=failed in catch block throws a secondary error
+    mockDbUpdateChain.where
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("db-connection-lost"));
+    await expect(processImport(IMPORT_ID)).rejects.toBe(originalError);
+  });
+
   it("sets status = 'failed' when the import row is not found", async () => {
     mockDbSelectChain.limit.mockResolvedValue([]);
     await expect(processImport(IMPORT_ID)).rejects.toThrow();
