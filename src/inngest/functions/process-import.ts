@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
-import { readImportRawPath, readPii } from "@/lib/db/pii-read";
+import { readImportRawPath, writePii } from "@/lib/db/pii-read";
 import { fetchFromR2 } from "@/lib/storage/r2";
 import { parseChatGPTExport } from "@/lib/parsers/chatgpt";
 import { parseClaudeExport, parsePlainTextExport } from "@/lib/parsers/claude";
@@ -18,87 +18,74 @@ export const processImport = inngest.createFunction(
   {
     id: "import-process",
     concurrency: { key: "event.data.importId", limit: 1 },
+    triggers: [{ event: "mirror/import.process" }],
   },
-  { event: "mirror/import.process" },
-  async ({ event }: { event: { data: { importId: string } } }) => {
+  async ({ event, step }: { event: { data: { importId: string } }; step: { run: <T>(id: string, fn: () => Promise<T>) => Promise<T> } }) => {
     const { importId } = event.data;
 
-    // Load the import row to get userId and source
-    const importRows = await db
-      .select({ id: imports.id, userId: imports.userId, source: imports.source })
-      .from(imports)
-      .where(eq(imports.id, importId))
-      .limit(1);
+    // Step 1: Load import row.
+    const importRow = await step.run("load-import-row", async () => {
+      const rows = await db
+        .select({ id: imports.id, userId: imports.userId, source: imports.source })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1);
+      return rows[0] ?? null;
+    });
 
-    const importRow = importRows[0];
     if (!importRow) {
       logger.error("process-import: import row not found", { importId });
       return { error: "import_not_found" };
     }
 
-    const { userId, source } = importRow;
+    const { userId } = importRow;
+    const source = importRow.source as ImportSource;
 
-    // Read raw_path through PII wrapper
-    const rawPathRow = await readImportRawPath(
-      importId,
-      userId,
-      "import processing — fetch raw file for parsing"
-    );
+    // Step 2: Read raw_path through PII wrapper.
+    const rawPath = await step.run("load-raw-path", async () => {
+      const row = await readImportRawPath(
+        importId,
+        userId,
+        "import processing — fetch raw file for parsing"
+      );
+      return row?.rawPath ?? null;
+    });
 
-    const rawPath = rawPathRow?.rawPath;
     if (!rawPath) {
       logger.error("process-import: raw_path is null", { importId });
       return { error: "missing_raw_path" };
     }
 
-    // Fetch the raw file from R2
-    const bytes = await fetchFromR2(rawPath);
+    // Step 3: Fetch from R2 and parse.
+    const history = await step.run("fetch-and-parse", async () => {
+      const bytes = await fetchFromR2(rawPath);
 
-    // Dispatch to the correct parser
-    let history: ParsedChatHistory;
+      let parsed: ParsedChatHistory;
+      if (source === "chatgpt_zip") {
+        parsed = await parseChatGPTExport(bytes);
+      } else if (source === "claude_zip") {
+        parsed = await parseClaudeExport(bytes);
+      } else if (source === "linkedin_pdf") {
+        const { snapshot } = await parseLinkedInPdf(bytes, userId);
+        parsed = linkedInSnapshotToHistory(snapshot);
+      } else if (source === "plain_text") {
+        const text = new TextDecoder().decode(bytes);
+        parsed = parsePlainTextExport(text);
+      } else {
+        logger.error("process-import: unknown source", { importId, source });
+        throw new Error(`Unknown import source: ${String(source)}`);
+      }
+      return parsed;
+    });
 
-    if (source === "chatgpt_zip" || source === "chatgpt") {
-      history = await parseChatGPTExport(bytes);
-    } else if (source === "claude_zip" || source === "claude") {
-      history = await parseClaudeExport(bytes);
-    } else if ((source as string) === "linkedin_pdf") {
-      const { snapshot } = await parseLinkedInPdf(bytes, userId);
-      history = linkedInSnapshotToHistory(snapshot);
-      // Store the snapshot in parsed field via PII wrapper
-      await readPii(
-        async () => {
-          await db
-            .update(imports)
-            .set({ parsed: snapshot as unknown as Record<string, unknown> })
-            .where(eq(imports.id, importId));
-          return [];
-        },
-        {
-          userId,
-          accessorId: userId,
-          tableName: "imports",
-          rowId: importId,
-          fieldName: "parsed",
-          reason: "import processing — store linkedin snapshot",
-        }
-      );
-    } else if ((source as string) === "plain_text") {
-      const text = new TextDecoder().decode(bytes);
-      history = parsePlainTextExport(text);
-    } else {
-      logger.error("process-import: unknown source", { importId, source });
-      return { error: "unknown_source", source };
-    }
-
-    // Store parsed chat history for non-linkedin imports via PII wrapper
-    if (source !== "linkedin_pdf") {
-      await readPii(
+    // Step 4: Store parsed chat history via PII write wrapper.
+    await step.run("store-parsed", async () => {
+      await writePii(
         async () => {
           await db
             .update(imports)
             .set({ parsed: history as unknown as Record<string, unknown> })
             .where(eq(imports.id, importId));
-          return [];
         },
         {
           userId,
@@ -109,22 +96,36 @@ export const processImport = inngest.createFunction(
           reason: "import processing — store parsed chat history",
         }
       );
-    }
+    });
 
-    // Extract voice card and produce embedding
-    const voiceCard = extractVoiceCard(history);
-    const embedding = await embedVoiceProfile(history, voiceCard);
+    // Step 5: Embed voice profile (skip if already set — idempotency).
+    const embedding = await step.run("embed-voice-profile", async () => {
+      const existingRows = await db
+        .select({ voiceEmbedding: imports.voiceEmbedding })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1);
 
-    // Store voice_embedding and update voice_profile_id
-    await db
-      .update(imports)
-      .set({ voiceEmbedding: embedding })
-      .where(eq(imports.id, importId));
+      if (existingRows[0]?.voiceEmbedding !== null && existingRows[0]?.voiceEmbedding !== undefined) {
+        return existingRows[0].voiceEmbedding;
+      }
 
-    await db
-      .update(users)
-      .set({ voiceProfileId: importId })
-      .where(eq(users.id, userId));
+      const voiceCard = extractVoiceCard(history);
+      return embedVoiceProfile(history, voiceCard);
+    });
+
+    // Step 6: Persist embedding and link voice profile.
+    await step.run("persist-voice-embedding", async () => {
+      await db
+        .update(imports)
+        .set({ voiceEmbedding: embedding })
+        .where(eq(imports.id, importId));
+
+      await db
+        .update(users)
+        .set({ voiceProfileId: importId })
+        .where(eq(users.id, userId));
+    });
 
     logger.info("process-import: completed", { importId, userId, source });
 
