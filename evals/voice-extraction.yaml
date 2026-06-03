@@ -1,0 +1,117 @@
+description: "Voice Card extraction prompt eval"
+
+prompts:
+  - file://prompts/voice_extraction_messages.json
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+
+# Fixture: a condensed ParsedChatHistory that contains clear voice signals.
+# The SRE persona: direct, technical, avoids hedges, uses "toil"/"SLO"/"error budget".
+# This matches the persona in evals/personas/sre-senior-01.json.
+defaultTest:
+  vars:
+    transcript_json: |
+      {
+        "source": "claude",
+        "messages": [
+          {
+            "role": "user",
+            "content": "I'm a senior SRE. Nine years in platform and reliability. I've been the load-bearing column at two companies. I don't say 'just' — it's dismissive. I don't say 'I think' when I know. My sentences are short and direct."
+          },
+          {
+            "role": "assistant",
+            "content": "What does reliability mean to you day-to-day?"
+          },
+          {
+            "role": "user",
+            "content": "Keeping the lights on without anyone noticing. Good infrastructure is invisible. I track SLOs and error budgets. I've reduced toil by 60% at my current company. On-call is my element — I stay calm, narrow the hypothesis space fast. Most people find it miserable. I don't."
+          },
+          {
+            "role": "assistant",
+            "content": "What's something that drains you?"
+          },
+          {
+            "role": "user",
+            "content": "Alert storms. 200 pages a shift, 190 are noise. You stop trusting the system. I've spent years on toil reduction — alert fatigue, flaky tests, manual deploys. Invisible work. Nobody calls it out in post-mortems. The word 'synergy' in any context. 'Move the needle.' 'Rockstar engineer.' I'd walk out."
+          },
+          {
+            "role": "assistant",
+            "content": "Where do you want to go next?"
+          },
+          {
+            "role": "user",
+            "content": "Build platform teams. Not be the only senior SRE keeping everything together. I won't go somewhere that calls infrastructure a cost center and means it. I write terse. Direct. No jargon. I'll use 'toil' in casual conversation. That's how I talk."
+          }
+        ],
+        "exportedAt": "2024-01-15T10:00:00Z",
+        "totalConversations": 1
+      }
+
+tests:
+  - description: "Voice Card output matches required JSON schema"
+    assert:
+      - type: json-schema
+        value:
+          type: object
+          required:
+            [vocabulary, hedgesAvoided, sentenceLengthDistribution, emotionalRegister, jargonHated]
+          properties:
+            vocabulary:
+              type: array
+              items: { type: string }
+              minItems: 1
+            hedgesAvoided:
+              type: array
+              items: { type: string }
+              minItems: 1
+            sentenceLengthDistribution:
+              type: object
+              required: [short, medium, long]
+              properties:
+                short: { type: number, minimum: 0, maximum: 1 }
+                medium: { type: number, minimum: 0, maximum: 1 }
+                long: { type: number, minimum: 0, maximum: 1 }
+            emotionalRegister:
+              type: string
+              minLength: 1
+            jargonHated:
+              type: array
+              items: { type: string }
+              minItems: 1
+
+  - description: "No hallucinated vocabulary (all extracted words appear in input transcript)"
+    assert:
+      - type: javascript
+        value: |
+          const card = JSON.parse(output);
+          const transcript = JSON.parse(vars.transcript_json);
+          const inputText = transcript.messages
+            .filter(m => m.role === 'user')
+            .map(m => m.content.toLowerCase())
+            .join(' ');
+          const missing = card.vocabulary.filter(word =>
+            !inputText.includes(word.toLowerCase())
+          );
+          if (missing.length > 0) {
+            throw new Error(`Hallucinated vocabulary not in input: ${missing.join(', ')}`);
+          }
+          return true;
+
+  - description: "Voice fidelity >= 3/5 — extracted Voice Card captures this person's distinctive voice"
+    assert:
+      - type: llm-rubric
+        value: |
+          The input is a chat transcript of an SRE who: writes short, direct sentences;
+          avoids hedges like "I think" and "just"; uses reliability vocabulary (toil, SLO,
+          error budget); hates jargon like "synergy", "move the needle", "rockstar".
+          The output is a Voice Card extracted from this transcript.
+
+          Rate 1–5 how well the Voice Card captures the distinctive signals in the input:
+          5 = all key signals captured (vocabulary, hedges, register, jargon).
+          4 = most signals captured, minor gaps.
+          3 = recognizable signals present, some missed or generic.
+          2 = mostly generic output, Voice Card could fit many people.
+          1 = output doesn't reflect the input at all.
+
+          Pass if score >= 3.
