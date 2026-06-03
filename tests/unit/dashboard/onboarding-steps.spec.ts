@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeOnboardingProgress } from "@/lib/dashboard/onboarding-progress";
+import { getStep3Icon } from "@/lib/dashboard/onboarding-progress";
 
 describe("computeOnboardingProgress", () => {
   it("returns 0% and unlocked=false when no steps complete", () => {
@@ -64,5 +65,23 @@ describe("computeOnboardingProgress", () => {
       step3Complete: true,
     });
     expect(result.step3Unlocked).toBe(false);
+  });
+});
+
+describe("getStep3Icon", () => {
+  it("returns 'check' when step3Complete is true", () => {
+    expect(getStep3Icon({ step3Complete: true, step3Unlocked: true })).toBe("check");
+  });
+
+  it("returns 'check' even when step3Complete is true but step3Unlocked is false (data inconsistency)", () => {
+    expect(getStep3Icon({ step3Complete: true, step3Unlocked: false })).toBe("check");
+  });
+
+  it("returns 'circle' when unlocked but not yet complete", () => {
+    expect(getStep3Icon({ step3Complete: false, step3Unlocked: true })).toBe("circle");
+  });
+
+  it("returns 'lock' when not yet unlocked and not complete", () => {
+    expect(getStep3Icon({ step3Complete: false, step3Unlocked: false })).toBe("lock");
   });
 });
