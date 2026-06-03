@@ -82,6 +82,7 @@ export const imports = pgTable(
     source: text("source").notNull(),
     rawPath: text("raw_path"),
     parsed: jsonb("parsed"),
+    status: text("status").notNull().default("pending"),
     voiceEmbedding: vectorColumn("voice_embedding", 3072),
   },
   (table) => [index("imports_user_id_idx").on(table.userId)]

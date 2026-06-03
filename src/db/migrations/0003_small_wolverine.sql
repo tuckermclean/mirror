@@ -1,0 +1,1 @@
+ALTER TABLE "imports" ADD COLUMN "status" text DEFAULT 'pending' NOT NULL;

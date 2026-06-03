@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { auditLog, interviews } from "@/db/schema";
+import { auditLog, imports, interviews } from "@/db/schema";
 
 type PiiReadParams = {
   tableName: string;
@@ -86,6 +86,38 @@ export async function readInterviewTranscript(
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",
+      reason,
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
+    }
+  );
+  return rows[0];
+}
+
+/**
+ * Fetches the rawPath of a single imports row through the PII audit wrapper.
+ *
+ * The ESLint PII guard forbids direct `.select()` on `imports.raw_path`;
+ * all callers must go through this helper.
+ */
+export async function readImportRawPath(
+  importId: string,
+  userId: string,
+  reason: string,
+  ipAddress?: string
+): Promise<{ id: string; rawPath: string | null; userId: string } | undefined> {
+  const rows = await readPii(
+    () =>
+      db
+        .select({ id: imports.id, rawPath: imports.rawPath, userId: imports.userId })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "imports",
+      rowId: importId,
+      fieldName: "raw_path",
       reason,
       ...(ipAddress !== undefined ? { ipAddress } : {}),
     }
