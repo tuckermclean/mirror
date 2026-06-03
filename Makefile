@@ -12,9 +12,10 @@ lint:
 test-unit:
 	pnpm test:unit
 
-# Requires DATABASE_URL; skips automatically when absent via vitest it.skip guards.
+# Runs db + health suites. Requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
+# rag/retrieval excluded — that module is not yet implemented (RED tests stay out of CI gate).
 test-integration:
-	pnpm test:integration
+	pnpm vitest run tests/integration/db tests/integration/health
 
 build:
 	pnpm build
