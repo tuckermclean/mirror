@@ -80,6 +80,7 @@ export const imports = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     source: text("source").notNull(),
+    status: text("status").notNull().default("pending"),
     rawPath: text("raw_path"),
     parsed: jsonb("parsed"),
     voiceEmbedding: vectorColumn("voice_embedding", 3072),
