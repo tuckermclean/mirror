@@ -230,4 +230,59 @@ describe("readInterviewTranscript", () => {
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
   });
+
+  it("uses an explicit accessorId when provided (service-account reads)", async () => {
+    await readInterviewTranscript(
+      "interview-1",
+      "user-1",
+      "test reason",
+      undefined,
+      "service-account-1"
+    );
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "service-account-1",
+      })
+    );
+  });
+
+  it("defaults accessorId to userId when accessorId is omitted", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason");
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+      })
+    );
+  });
+});
+
+describe("ESLint PII alias bypass detection", () => {
+  it("flags aliased PII schema imports with the ESLint PII rule", async () => {
+    const { ESLint } = await import("eslint");
+    const cwd = process.cwd();
+    const eslint = new ESLint({ cwd });
+
+    const fixture = [
+      'import { db } from "@/db/client";',
+      'import { interviews as ivs } from "@/db/schema";',
+      "export async function bad() {",
+      "  return db.select({ t: ivs.transcript }).from(ivs);",
+      "}",
+    ].join("\n");
+
+    const results = await eslint.lintText(fixture, {
+      filePath: path.join(cwd, "src", "lib", "pii-alias-fixture.ts"),
+    });
+
+    const messages = results[0]?.messages ?? [];
+    const piiErrors = messages.filter((m) =>
+      m.message.includes("PII guard")
+    );
+    expect(
+      piiErrors.length,
+      `Expected PII alias lint error but got: ${JSON.stringify(messages.map((m) => m.message))}`
+    ).toBeGreaterThanOrEqual(1);
+  });
 });
