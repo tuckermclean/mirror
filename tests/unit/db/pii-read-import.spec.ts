@@ -91,9 +91,21 @@ describe("readImportRawPath", () => {
   });
 
   it("forwards ipAddress to the audit row when provided", async () => {
-    await readImportRawPath(IMPORT_ID, REQUESTER_ID, REASON, "203.0.113.42");
+    await readImportRawPath(IMPORT_ID, REQUESTER_ID, REASON, {
+      ipAddress: "203.0.113.42",
+    });
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ ipAddress: "203.0.113.42" })
+    );
+  });
+
+  it("uses subjectUserId as audit userId when different from requesterId", async () => {
+    const SUBJECT_ID = "subject-user-uuid-xyz789";
+    await readImportRawPath(IMPORT_ID, REQUESTER_ID, REASON, {
+      subjectUserId: SUBJECT_ID,
+    });
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: SUBJECT_ID, accessorId: REQUESTER_ID })
     );
   });
 

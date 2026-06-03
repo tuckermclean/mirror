@@ -61,17 +61,26 @@ export async function readPii<T>(
   return result;
 }
 
+type ReadImportRawPathOpts = {
+  subjectUserId?: string;
+  ipAddress?: string;
+};
+
 /**
  * Fetches the raw_path of a single import row through the PII audit wrapper.
  *
  * The audit row is written before the value is returned; if the audit write
  * throws, no data is returned to the caller (fail-closed).
+ *
+ * `subjectUserId` is the owner of the import (defaults to `requesterId`).
+ * Pass it explicitly when a service identity reads a user's data so the audit
+ * trail correctly identifies both the accessor and the data subject.
  */
 export async function readImportRawPath(
   importId: string,
   requesterId: string,
   reason: string,
-  ipAddress?: string
+  opts?: ReadImportRawPathOpts
 ): Promise<{ rawPath: string | null } | undefined> {
   const rows = await readPii(
     () =>
@@ -87,7 +96,7 @@ export async function readImportRawPath(
       rowId: importId,
       fieldName: "raw_path",
       reason,
-      ...(ipAddress !== undefined ? { ipAddress } : {}),
+      ...(opts?.ipAddress !== undefined ? { ipAddress: opts.ipAddress } : {}),
     }
   );
   return rows[0];
