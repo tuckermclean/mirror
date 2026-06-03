@@ -182,9 +182,8 @@ describe("POST /api/imports/upload", () => {
     mockAuth.mockResolvedValue({ userId: "clerk-user-1" });
     const req = makeFormRequest(zipBytes());
     const res = await POST(req as unknown as import("next/server").NextRequest);
-    if (res.status === 200) {
-      const body = (await res.json()) as { importId: string };
-      expect(body.importId).toBeDefined();
-    }
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { importId: string };
+    expect(body.importId).toBeDefined();
   });
 });
