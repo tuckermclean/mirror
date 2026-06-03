@@ -12,7 +12,7 @@ Do this in order:
 
 1. **If EXISTING BRANCH is set:** check it out and push additional work there. Do NOT open a new PR.
 
-2. **If no existing branch:** create a new branch (`feat/<slug>` or `design/<slug>` from `master`),
+2. **If no existing branch:** create a new branch (`feat/<slug>`, `fix/<slug>`, `refactor/<slug>`, `docs/<slug>`, `chore/<slug>`, `test/<slug>`, or `design/<slug>` from `master`),
    make your **first commit as early as possible** (even a stub/scaffold), then **immediately**
    open a DRAFT PR whose description includes `Closes #<ISSUE NUMBER>`:
    ```
@@ -48,8 +48,8 @@ Before you exit for **any** reason — task complete, turn-limited, or blocked �
 post a status comment on the issue or PR:
 
 ```
-gh pr comment <n> --body "✅ Complete: <summary>"           # if done
-gh pr comment <n> --body "⏸ Paused at turn limit: completed <X>, remaining: <Y>"  # if not done
+gh pr comment <n> --body "✅ Complete: <summary>"           # if done (or gh issue comment if no PR yet)
+gh pr comment <n> --body "⏸ Paused at turn limit: completed <X>, remaining: <Y>"  # if not done (or gh issue comment if no PR yet)
 ```
 
 A silent exit is a state machine violation. The reconciler uses this comment to detect
