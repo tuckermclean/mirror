@@ -20,9 +20,10 @@ export default tseslint.config(
       // Allow _-prefixed identifiers as intentional "unused" markers
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       // Guard PII column reads — all four columns must go through readPii().
-      // NOTE: This rule matches on the literal binding name only. Aliased or
-      // destructured imports (e.g. `import { interviews as ivs }`) bypass the
-      // rule. Full type-aware enforcement would require a custom TS-ESLint plugin.
+      // The member-expression selectors catch direct access by the canonical
+      // binding name. The ImportSpecifier selectors catch aliased imports (e.g.
+      // `import { interviews as ivs }`) that would otherwise bypass the member
+      // expression check by renaming the binding at import time.
       "no-restricted-syntax": [
         "error",
         {
@@ -44,6 +45,24 @@ export default tseslint.config(
           selector:
             "MemberExpression[object.name='linkedinSnapshots'][property.name='rawHtml']",
           message: PII_MESSAGE,
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] > ImportSpecifier[imported.name='interviews'][local.name!='interviews']",
+          message:
+            "PII guard: do not alias the 'interviews' import — aliased names bypass the no-restricted-syntax PII check.",
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] > ImportSpecifier[imported.name='imports'][local.name!='imports']",
+          message:
+            "PII guard: do not alias the 'imports' import — aliased names bypass the no-restricted-syntax PII check.",
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/db/schema'] > ImportSpecifier[imported.name='linkedinSnapshots'][local.name!='linkedinSnapshots']",
+          message:
+            "PII guard: do not alias the 'linkedinSnapshots' import — aliased names bypass the no-restricted-syntax PII check.",
         },
       ],
     },

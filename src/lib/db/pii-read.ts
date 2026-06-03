@@ -14,8 +14,21 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * @deprecated Use `readPii()` instead — it provides a richer audit row (userId)
- * and returns the data only after the audit write succeeds (fail-safe).
+ * @deprecated Use `readPii()` instead. `recordPiiRead` will be removed in v2.0.
+ *
+ * **Migration guide:**
+ * Replace:
+ * ```ts
+ * await recordPiiRead({ tableName, rowId, fieldName, accessorId, reason, ipAddress });
+ * const data = await myQuery();
+ * ```
+ * With:
+ * ```ts
+ * const data = await readPii(myQuery, { userId, accessorId, tableName, rowId, fieldName, reason, ipAddress });
+ * ```
+ * `readPii` enforces fail-safe semantics: it never returns data when the audit
+ * write fails, and it records both `userId` (the data owner) and `accessorId`
+ * (the acting principal) for richer audit trails.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({
@@ -66,12 +79,16 @@ export async function readPii<T>(
  *
  * Callers in other modules should use this rather than referencing
  * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ *
+ * Pass `accessorId` when a service account reads data on behalf of a user.
+ * Omitting it defaults to `userId` (self-read).
  */
 export async function readInterviewTranscript(
   interviewId: string,
   userId: string,
   reason: string,
-  ipAddress?: string
+  ipAddress?: string,
+  accessorId?: string
 ): Promise<{ transcript: unknown } | undefined> {
   const rows = await readPii(
     () =>
@@ -82,7 +99,7 @@ export async function readInterviewTranscript(
         .limit(1),
     {
       userId,
-      accessorId: userId,
+      accessorId: accessorId ?? userId,
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",
