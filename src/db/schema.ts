@@ -9,6 +9,7 @@ import {
   date,
   customType,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -83,8 +84,15 @@ export const imports = pgTable(
     rawPath: text("raw_path"),
     parsed: jsonb("parsed"),
     voiceEmbedding: vectorColumn("voice_embedding", 3072),
+    status: text("status").notNull().default("pending"),
   },
-  (table) => [index("imports_user_id_idx").on(table.userId)]
+  (table) => [
+    index("imports_user_id_idx").on(table.userId),
+    check(
+      "imports_status_check",
+      sql`${table.status} IN ('pending', 'processing', 'done', 'failed')`
+    ),
+  ]
 );
 
 // ---------------------------------------------------------------------------
