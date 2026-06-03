@@ -36,3 +36,12 @@ export class ValidationError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/** Thrown when a storage operation (R2, S3, etc.) returns an unexpected result. */
+export class StorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

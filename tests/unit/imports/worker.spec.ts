@@ -16,6 +16,7 @@ import {
   beforeEach,
   afterEach,
 } from "vitest";
+import { ValidationError, StorageError } from "@/lib/errors";
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — must appear before any SUT import
@@ -262,6 +263,36 @@ describe("processImport — status transitions", () => {
 
     const setCalls = mockDbUpdateChain.set.mock.calls as Array<[Record<string, unknown>]>;
     expect(setCalls.some((c) => c[0]?.status === "failed")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// processImport — typed error classes (AGENTS.md: never throw naked Error)
+// ---------------------------------------------------------------------------
+describe("processImport — typed error classes", () => {
+  it("throws ValidationError (not naked Error) when the import row is not found", async () => {
+    mockDbSelectChain.limit.mockResolvedValue([]);
+    await expect(processImport(IMPORT_ID)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("throws ValidationError (not naked Error) when rawPath is null", async () => {
+    mockReadImportRawPath.mockResolvedValue({ rawPath: null });
+    await expect(processImport(IMPORT_ID)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("throws ValidationError (not naked Error) when rawPath is undefined", async () => {
+    mockReadImportRawPath.mockResolvedValue(undefined);
+    await expect(processImport(IMPORT_ID)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("throws StorageError (not naked Error) when R2 Body is undefined", async () => {
+    mockR2Send.mockResolvedValue({ Body: undefined });
+    await expect(processImport(IMPORT_ID)).rejects.toBeInstanceOf(StorageError);
+  });
+
+  it("throws StorageError (not naked Error) when R2 Body is null", async () => {
+    mockR2Send.mockResolvedValue({ Body: null });
+    await expect(processImport(IMPORT_ID)).rejects.toBeInstanceOf(StorageError);
   });
 });
 
