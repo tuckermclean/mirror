@@ -116,13 +116,13 @@ function makeBody(bytes: Uint8Array = new Uint8Array([0x50, 0x4b, 0x03, 0x04])) 
 }
 
 // ---------------------------------------------------------------------------
-// Setup: reset mock state before each test
-// Addresses the fragile vi.resetModules()-inside-helper anti-pattern from the
-// salvage branch — moved to beforeEach so every test gets a clean slate.
+// Setup: reset mock state before each test.
+// vi.resetModules() is intentionally placed here rather than inside a helper
+// function — the salvage branch had it inside runWorker() which was fragile
+// (module caches were cleared mid-test, causing intermittent failures).
 // ---------------------------------------------------------------------------
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.resetModules();
 
   // Fluent update chain resolves by default
   mockDbUpdateChain.where.mockResolvedValue(undefined);
@@ -149,32 +149,45 @@ afterEach(() => {
 // Inngest function registration
 // ---------------------------------------------------------------------------
 describe("importProcess (Inngest registration)", () => {
+  // beforeAll runs once before any test in this describe, and crucially BEFORE
+  // the outer beforeEach (which calls vi.clearAllMocks()). This lets us snapshot
+  // the createFunction call recorded at module-load time.
+  //
+  // Inngest v4 API: createFunction(options, handler) — triggers live inside options.
+  let regConfig: { id: string; triggers?: Array<{ event: string }> } | undefined;
+  let regHandler:
+    | ((ctx: { event: { data: { importId: string } } }) => Promise<void>)
+    | undefined;
+
+  beforeAll(() => {
+    const args = mockCreateFunction.mock.calls[0] as
+      | [
+          { id: string; triggers?: Array<{ event: string }> },
+          (ctx: { event: { data: { importId: string } } }) => Promise<void>,
+        ]
+      | undefined;
+    regConfig = args?.[0];
+    regHandler = args?.[1];
+  });
+
   it("calls inngest.createFunction once at module load", () => {
-    expect(mockCreateFunction).toHaveBeenCalledOnce();
+    expect(regConfig).toBeDefined();
   });
 
   it("registers with id 'import-process'", () => {
-    const [config] = mockCreateFunction.mock.calls[0] as [{ id: string }, unknown, unknown];
-    expect(config.id).toBe("import-process");
+    expect(regConfig?.id).toBe("import-process");
   });
 
   it("registers on 'mirror/import.process' event trigger", () => {
-    const [, trigger] = mockCreateFunction.mock.calls[0] as [
-      unknown,
-      { event: string },
-      unknown,
-    ];
-    expect(trigger.event).toBe("mirror/import.process");
+    // Inngest v4 places triggers inside the options object (not as a separate arg)
+    const eventTrigger = regConfig?.triggers?.find((t) => t.event !== undefined);
+    expect(eventTrigger?.event).toBe("mirror/import.process");
   });
 
   it("handler invokes processImport with importId from event.data", async () => {
-    const handler = mockCreateFunction.mock.calls[0]?.[2] as (ctx: {
-      event: { data: { importId: string } };
-    }) => Promise<void>;
-
-    await handler({ event: { data: { importId: IMPORT_ID } } });
-
-    // processImport ran: DB update with "processing" should have been called
+    expect(regHandler).toBeDefined();
+    await regHandler!({ event: { data: { importId: IMPORT_ID } } });
+    // processImport ran: DB update with "processing" was called
     expect(mockDbUpdateChain.update).toHaveBeenCalled();
   });
 });
