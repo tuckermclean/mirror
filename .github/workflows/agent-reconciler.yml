@@ -160,7 +160,7 @@ jobs:
                   printf '<!-- reconciler re-dispatch %d -->\n@claude CI is failing on PR #%s. Fix the following errors so `pnpm typecheck` and `pnpm lint` pass, then mark the PR ready:\n\n```\n%s\n```\n' \
                     "$((REDISPATCH_COUNT+1))" "$PR_NUM" "$TYPECHECK_OUTPUT" \
                     > /tmp/redispatch.md
-                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch.md || true
+                  GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch.md || true
                 else
                   echo "Cannot find issue number for PR #$PR_NUM — adding needs-human"
                   gh pr edit "$PR_NUM" --repo "$REPO" --add-label "needs-human" \
@@ -261,19 +261,16 @@ jobs:
                 2>/dev/null | head -1)
               [ -n "$OPEN_PR" ] && continue
 
-              # Skip if a dispatch run is currently in progress for this issue
-              IN_FLIGHT=$(gh run list --repo "$REPO" --workflow dispatch.yml \
-                --status in_progress --json databaseId \
-                --jq 'length' 2>/dev/null || echo "0")
-              [ "$IN_FLIGHT" != "0" ] && continue
-
-              # Skip if the last dispatch run finished less than 20 min ago
-              LAST_RUN_TIME=$(gh run list --repo "$REPO" --workflow dispatch.yml \
-                --status completed --limit 5 \
-                --json updatedAt --jq '.[0].updatedAt // ""' 2>/dev/null || echo "")
-              if [ -n "$LAST_RUN_TIME" ]; then
-                LAST_EPOCH=$(date -d "$LAST_RUN_TIME" +%s 2>/dev/null || echo "0")
-                [ "$LAST_EPOCH" -gt "$CUTOFF" ] && continue
+              # Per-issue freshness guard: skip only if this specific issue was picked up
+              # or nudged in the last ~15 min. A global in-flight dispatch for a different
+              # issue must not starve a brand-new issue that was never dispatched (e.g. one
+              # created by the Claude bot, whose labeled event GitHub silently drops).
+              LAST_ACTIVITY=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json comments \
+                --jq '[.comments[] | select(.body | test("Routing to|reconciler re-dispatch")) | .createdAt] | last // ""' \
+                2>/dev/null || echo "")
+              if [ -n "$LAST_ACTIVITY" ]; then
+                LA_EPOCH=$(date -d "$LAST_ACTIVITY" +%s 2>/dev/null || echo 0)
+                [ "$LA_EPOCH" -gt "$((NOW - 900))" ] && continue   # touched <15 min ago
               fi
 
               # How many times has this issue already been re-dispatched by reconciler?
@@ -292,5 +289,5 @@ jobs:
               printf '<!-- reconciler re-dispatch %d -->\n@claude Please implement issue #%s per the spec in the issue body. Create a branch, open a draft PR, and follow all AGENTS.md rules.\n' \
                 "$((REDISPATCH_COUNT+1))" "$ISSUE_NUM" \
                 > /tmp/redispatch-issue.md
-              gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch-issue.md || true
+              GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh issue comment "$ISSUE_NUM" --repo "$REPO" --body-file /tmp/redispatch-issue.md || true
             done

@@ -174,10 +174,13 @@ jobs:
         run: |
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
-            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '.[].state' 2>/dev/null \
-              | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
+            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state --jq '
+              [ .[]
+                | select(.name=="Type Check" or .name=="Lint" or .name=="Integration Tests"
+                         or .name=="Docker Build & Scan" or .name=="Helm Lint" or .name=="Helm Kubeconform")
+                | select((.state|ascii_downcase) as $s
+                         | $s=="pending" or $s=="in_progress" or $s=="queued" or $s=="waiting") ]
+              | length' 2>/dev/null || echo 0)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
@@ -285,10 +288,13 @@ jobs:
         run: |
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
-            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '.[].state' 2>/dev/null \
-              | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
+            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state --jq '
+              [ .[]
+                | select(.name=="Type Check" or .name=="Lint" or .name=="Integration Tests"
+                         or .name=="Docker Build & Scan" or .name=="Helm Lint" or .name=="Helm Kubeconform")
+                | select((.state|ascii_downcase) as $s
+                         | $s=="pending" or $s=="in_progress" or $s=="queued" or $s=="waiting") ]
+              | length' 2>/dev/null || echo 0)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
@@ -401,10 +407,13 @@ jobs:
         run: |
           end=$((SECONDS + 480))
           while [ $SECONDS -lt $end ]; do
-            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state \
-              --jq '.[].state' 2>/dev/null \
-              | tr '[:upper:]' '[:lower:]' \
-              | grep -cE "^(pending|in_progress|queued|waiting)$" || true)
+            PENDING=$(gh pr checks "$PR_NUMBER" --json name,state --jq '
+              [ .[]
+                | select(.name=="Type Check" or .name=="Lint" or .name=="Integration Tests"
+                         or .name=="Docker Build & Scan" or .name=="Helm Lint" or .name=="Helm Kubeconform")
+                | select((.state|ascii_downcase) as $s
+                         | $s=="pending" or $s=="in_progress" or $s=="queued" or $s=="waiting") ]
+              | length' 2>/dev/null || echo 0)
             [ "${PENDING:-0}" = "0" ] && break
             echo "CI pending ($PENDING jobs), waiting…"
             sleep 30
@@ -555,7 +564,7 @@ jobs:
             ISSUE_URL=$(gh issue create \
               --title "Deferred polish from PR #${PR_NUMBER}" \
               --body-file /tmp/deferred-issue-body.md \
-              --label "agent-work" 2>/dev/null | tail -1 || echo "")
+              --label "polish" 2>/dev/null | tail -1 || echo "")
             [ -n "$ISSUE_URL" ] && ISSUE_LINK=" Deferred items: $ISSUE_URL"
           fi
 
