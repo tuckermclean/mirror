@@ -27,3 +27,12 @@ export class ParseError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/** Thrown when caller-supplied input fails a domain validation rule. */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
