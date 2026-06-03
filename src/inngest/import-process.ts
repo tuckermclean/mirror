@@ -1,5 +1,6 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { eq } from "drizzle-orm";
+import { eventType, staticSchema } from "inngest";
 import { db } from "@/db/client";
 import { imports } from "@/db/schema";
 import { r2, R2_BUCKET } from "@/lib/r2";
@@ -8,6 +9,10 @@ import { parseAiHistory } from "@/lib/parsers/index";
 import { inngest } from "@/lib/inngest/client";
 import { logger } from "@/lib/logger";
 import { StorageError, ValidationError } from "@/lib/errors";
+
+const importProcessEvent = eventType("mirror/import.process", {
+  schema: staticSchema<{ importId: string }>(),
+});
 
 /**
  * Core import-processing logic — exported separately for unit-test ergonomics.
@@ -92,8 +97,12 @@ export async function processImport(importId: string): Promise<void> {
 }
 
 export const importProcess = inngest.createFunction(
-  { id: "import-process", triggers: [{ event: "mirror/import.process" }] },
-  async ({ event }: { event: { data: { importId: string } } }) => {
+  {
+    id: "import-process",
+    concurrency: { key: "event.data.importId", limit: 1 },
+    triggers: [importProcessEvent],
+  },
+  async ({ event }) => {
     await processImport(event.data.importId);
   },
 );
