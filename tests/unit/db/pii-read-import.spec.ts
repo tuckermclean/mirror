@@ -104,10 +104,22 @@ describe("readImportRawPath", () => {
     ).rejects.toThrow("audit DB down");
   });
 
-  it("requires a non-empty reason — prevents silent audit bypass", async () => {
+  it("forwards reason to the audit row", async () => {
     await readImportRawPath(IMPORT_ID, ACCESSOR_ID, "non-empty reason");
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ reason: "non-empty reason" })
     );
+  });
+
+  it("rejects an empty reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportRawPath(IMPORT_ID, ACCESSOR_ID, "")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("rejects a whitespace-only reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportRawPath(IMPORT_ID, ACCESSOR_ID, "   ")
+    ).rejects.toMatchObject({ name: "ValidationError" });
   });
 });

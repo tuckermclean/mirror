@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { auditLog, imports, interviews } from "@/db/schema";
+import { ValidationError } from "@/lib/errors";
 
 type PiiReadParams = {
   tableName: string;
@@ -74,6 +75,9 @@ export async function readImportRawPath(
   reason: string,
   ipAddress?: string
 ): Promise<{ rawPath: string | null } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
   const rows = await readPii(
     () =>
       db
