@@ -90,7 +90,7 @@ export async function readImportRawPath(
         .where(eq(imports.id, importId))
         .limit(1),
     {
-      userId: requesterId,
+      userId: opts?.subjectUserId ?? requesterId,
       accessorId: requesterId,
       tableName: "imports",
       rowId: importId,
