@@ -35,13 +35,21 @@ helm-lint:
 	helm lint infra/helm/mirror-web
 	helm lint infra/helm/mirror-worker
 
+# CRDs in these charts: keda.sh/ScaledObject (mirror-worker), monitoring.coreos.com/ServiceMonitor (mirror-web).
+# The datreeio CRDs-catalog supplies JSON schemas for both so kubeconform validates them properly.
+# --ignore-missing-schemas is kept as a safety net for any CRD not yet in the catalog.
+KUBECONFORM_FLAGS := -strict -kubernetes-version 1.29.0 \
+	-schema-location default \
+	-schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+	-ignore-missing-schemas
+
 helm-kubeconform:
 	helm template mirror-web infra/helm/mirror-web \
 		-f infra/helm/mirror-web/values-prod.yaml \
-		| kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+		| kubeconform $(KUBECONFORM_FLAGS)
 	helm template mirror-worker infra/helm/mirror-worker \
 		-f infra/helm/mirror-worker/values-prod.yaml \
-		| kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+		| kubeconform $(KUBECONFORM_FLAGS)
 
 # Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
 # Run this before pushing to avoid round-trip debugging.
