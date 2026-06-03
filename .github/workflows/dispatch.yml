@@ -223,6 +223,28 @@ jobs:
             fi
           fi
 
+      # ── Trigger CI after agent push ─────────────────────────────────────────
+      # GitHub blocks pull_request:synchronize events for pushes made by Actions
+      # tokens (loop prevention), so CI never auto-fires after an agent push.
+      # Explicitly trigger it here so the pipeline doesn't stall until the next
+      # 15-minute reconciler tick.
+      - name: Trigger CI on agent branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
+          [ -z "$BRANCH" ] || [ "$BRANCH" = "master" ] && exit 0
+          HEAD="$(git rev-parse HEAD 2>/dev/null || echo "")"
+          [ -z "$HEAD" ] && exit 0
+          # Only trigger if no check-runs exist for this HEAD yet
+          CI_RUNS=$(gh api "repos/${{ github.repository }}/commits/$HEAD/check-runs" \
+            --jq '.total_count' 2>/dev/null || echo "0")
+          if [ "$CI_RUNS" = "0" ]; then
+            echo "Triggering CI on $BRANCH (no runs on $HEAD yet)"
+            gh workflow run ci.yml --repo "${{ github.repository }}" --ref "$BRANCH" 2>/dev/null || true
+          fi
+
       # ── Exit sentinel — catch silent agent exits ─────────────────────────────
       # If the agent exited without posting a status comment, post a rescue notice
       # so the state is never silently lost. Fires on success AND failure.
