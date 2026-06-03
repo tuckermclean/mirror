@@ -5,7 +5,7 @@ import { readFileSync } from "fs";
 import { db } from "@/db/client";
 import { generations } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
-import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { checkMonthlyCap, computeCostUsd, recordLlmSpend, DEFAULT_MODEL } from "@/lib/llm/cost-guard";
 import type { SupportedModel } from "@/lib/llm/cost-guard";
 import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
@@ -48,7 +48,7 @@ function getClient(): Anthropic {
   return _client;
 }
 
-const MODEL: SupportedModel = "claude-sonnet-4-6";
+const MODEL: SupportedModel = DEFAULT_MODEL;
 
 // ---------------------------------------------------------------------------
 // extractVoiceCard

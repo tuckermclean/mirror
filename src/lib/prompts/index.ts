@@ -1,13 +1,10 @@
 import { readFileSync } from "fs";
 import { createHash } from "crypto";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROMPTS_DIR = join(__dirname);
+const PROMPTS_DIR = new URL("./", import.meta.url);
 
 function loadPrompt(filename: string): { content: string; hash: string } {
-  const content = readFileSync(join(PROMPTS_DIR, filename), "utf-8");
+  const content = readFileSync(new URL(filename, PROMPTS_DIR), "utf-8");
   const hash = createHash("sha256").update(content).digest("hex");
   return { content, hash };
 }

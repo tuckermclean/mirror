@@ -17,6 +17,9 @@ const MODEL_PRICING = {
 /** Union of model IDs tracked in MODEL_PRICING. Compile-time guard against drift. */
 export type SupportedModel = keyof typeof MODEL_PRICING;
 
+/** Default model for new generation calls — must be a key of MODEL_PRICING. */
+export const DEFAULT_MODEL = "claude-sonnet-4-6" satisfies keyof typeof MODEL_PRICING;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
