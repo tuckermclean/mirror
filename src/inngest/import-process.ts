@@ -67,11 +67,20 @@ export async function processImport(importId: string): Promise<void> {
 
     logger.info("import.process.done", { importId });
   } catch (err) {
-    // Ensure import never stays stuck in "processing" — always observable
-    await db
-      .update(imports)
-      .set({ status: "failed" })
-      .where(eq(imports.id, importId));
+    // Ensure import never stays stuck in "processing" — always observable.
+    // Inner try-catch prevents a transient DB failure here from swallowing the
+    // original error (the root cause must reach Inngest's retry machinery).
+    try {
+      await db
+        .update(imports)
+        .set({ status: "failed" })
+        .where(eq(imports.id, importId));
+    } catch (dbErr) {
+      logger.error("import.process.failed-status-update-error", {
+        importId,
+        error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+      });
+    }
 
     logger.error("import.process.failed", {
       importId,
