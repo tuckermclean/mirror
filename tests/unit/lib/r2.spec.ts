@@ -99,4 +99,22 @@ describe("r2 singleton", () => {
     // Constructor called only once (module is cached after first import)
     expect(mockS3Client).toHaveBeenCalledOnce();
   });
+
+  it("throws when R2_ENDPOINT is missing", async () => {
+    process.env["R2_ACCESS_KEY_ID"] = "key";
+    process.env["R2_SECRET_ACCESS_KEY"] = "secret";
+    process.env["R2_BUCKET_NAME"] = "bucket";
+    // R2_ENDPOINT deliberately omitted
+
+    await expect(import("@/lib/r2")).rejects.toThrow();
+  });
+
+  it("throws when R2_ACCESS_KEY_ID is missing", async () => {
+    process.env["R2_ENDPOINT"] = "https://x.r2.cloudflarestorage.com";
+    process.env["R2_SECRET_ACCESS_KEY"] = "secret";
+    process.env["R2_BUCKET_NAME"] = "bucket";
+    // R2_ACCESS_KEY_ID deliberately omitted
+
+    await expect(import("@/lib/r2")).rejects.toThrow();
+  });
 });
