@@ -27,9 +27,14 @@ vi.mock("@/db/schema", () => ({
     transcript: Symbol("interviews.transcript"),
     id: Symbol("interviews.id"),
   },
+  imports: {
+    rawPath: Symbol("imports.rawPath"),
+    parsed: Symbol("imports.parsed"),
+    id: Symbol("imports.id"),
+  },
 }));
 
-import { readPii, readInterviewTranscript } from "@/lib/db/pii-read";
+import { readPii, readInterviewTranscript, readImportRawPath, readImportParsed } from "@/lib/db/pii-read";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -229,5 +234,83 @@ describe("readInterviewTranscript", () => {
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
+  });
+});
+
+describe("readImportRawPath", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ rawPath: "imports/user-1/profile.pdf" }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns the rawPath for the given importId", async () => {
+    const result = await readImportRawPath("import-1", "user-1", "test reason");
+    expect(result).toEqual({ rawPath: "imports/user-1/profile.pdf" });
+  });
+
+  it("writes an audit_log row with correct fields", async () => {
+    await readImportRawPath("import-1", "user-1", "test reason");
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+        tableName: "imports",
+        rowId: "import-1",
+        fieldName: "raw_path",
+        reason: "test reason",
+      })
+    );
+  });
+
+  it("returns undefined when no import row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readImportRawPath("missing-id", "user-1", "test reason");
+    expect(result).toBeUndefined();
+  });
+});
+
+describe("readImportParsed", () => {
+  const parsedData = { source: "linkedin_pdf", messages: [] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ parsed: parsedData }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns the parsed field for the given importId", async () => {
+    const result = await readImportParsed("import-1", "user-1", "test reason");
+    expect(result).toEqual({ parsed: parsedData });
+  });
+
+  it("writes an audit_log row with correct fields", async () => {
+    await readImportParsed("import-1", "user-1", "test reason");
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+        tableName: "imports",
+        rowId: "import-1",
+        fieldName: "parsed",
+        reason: "test reason",
+      })
+    );
+  });
+
+  it("returns undefined when no import row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readImportParsed("missing-id", "user-1", "test reason");
+    expect(result).toBeUndefined();
   });
 });
