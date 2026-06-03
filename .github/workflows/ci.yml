@@ -208,7 +208,7 @@ jobs:
           platforms: linux/amd64
           # Only push on pushes to master; on PRs we load locally for scanning
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-          load: ${{ github.event_name == 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
