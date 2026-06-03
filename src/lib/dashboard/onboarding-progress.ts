@@ -22,3 +22,14 @@ export function computeOnboardingProgress(
   const step3Unlocked = input.step1Complete && input.step2Complete;
   return { stepsComplete, progressValue, step3Unlocked };
 }
+
+export type Step3IconVariant = "check" | "circle" | "lock";
+
+export function getStep3Icon(opts: {
+  step3Complete: boolean;
+  step3Unlocked: boolean;
+}): Step3IconVariant {
+  if (opts.step3Complete) return "check";
+  if (opts.step3Unlocked) return "circle";
+  return "lock";
+}
