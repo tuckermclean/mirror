@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci
+.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts
 
 install:
 	pnpm install --frozen-lockfile
