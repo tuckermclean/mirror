@@ -155,7 +155,13 @@ describe("importProcess (Inngest registration)", () => {
   // the createFunction call recorded at module-load time.
   //
   // Inngest v4 API: createFunction(options, handler) — triggers live inside options.
-  let regConfig: { id: string; triggers?: Array<{ event: string }> } | undefined;
+  let regConfig:
+    | {
+        id: string;
+        triggers?: Array<{ event: string; name?: string }>;
+        concurrency?: { key: string; limit: number };
+      }
+    | undefined;
   let regHandler:
     | ((ctx: { event: { data: { importId: string } } }) => Promise<void>)
     | undefined;
@@ -190,6 +196,20 @@ describe("importProcess (Inngest registration)", () => {
     await regHandler!({ event: { data: { importId: IMPORT_ID } } });
     // processImport ran: DB update with "processing" was called
     expect(mockDbUpdateChain.update).toHaveBeenCalled();
+  });
+
+  it("configures concurrency limit keyed on importId to prevent duplicate processing (S3)", () => {
+    expect(regConfig?.concurrency).toMatchObject({
+      key: "event.data.importId",
+      limit: 1,
+    });
+  });
+
+  it("registers trigger as typed EventType (has .name property — not a plain string trigger) (S4)", () => {
+    // An Inngest v4 EventType object carries both .event and .name on the instance.
+    // A plain { event: "..." } trigger object only has .event, not .name.
+    const trigger = regConfig?.triggers?.[0];
+    expect(trigger).toHaveProperty("name", "mirror/import.process");
   });
 });
 
