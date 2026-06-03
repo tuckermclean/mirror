@@ -14,7 +14,6 @@ import { readPii } from "@/lib/db/pii-read";
 import { and, eq } from "drizzle-orm";
 
 const describeWithDb = process.env["DATABASE_URL"] ? describe : describe.skip;
-const itWithDb = process.env["DATABASE_URL"] ? it : it.skip;
 
 const suffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -40,7 +39,7 @@ describeWithDb("readPii — integration", () => {
     await db.delete(users).where(eq(users.id, userId));
   });
 
-  itWithDb("executes the query and returns its result", async () => {
+  it("executes the query and returns its result", async () => {
     const expected = { id: "interview-1", summary: "test" };
     const query = async () => expected;
 
@@ -56,7 +55,7 @@ describeWithDb("readPii — integration", () => {
     expect(result).toEqual(expected);
   });
 
-  itWithDb("writes an audit_log row with correct fields", async () => {
+  it("writes an audit_log row with correct fields", async () => {
     const query = async () => ({ data: "pii" });
 
     await readPii(query, {
