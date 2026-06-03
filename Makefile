@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci
+.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts
 
 install:
 	pnpm install --frozen-lockfile
@@ -35,6 +35,10 @@ helm-lint:
 	helm lint infra/helm/mirror-web
 	helm lint infra/helm/mirror-worker
 
+db-push:
+	pnpm drizzle-kit push --force
+
+# CRDs (cert-manager, external-secrets, etc.) lack upstream schemas — suppress noise.
 # CRDs in these charts: keda.sh/ScaledObject (mirror-worker), monitoring.coreos.com/ServiceMonitor (mirror-web).
 # The datreeio CRDs-catalog supplies JSON schemas for both so kubeconform validates them properly.
 # --ignore-missing-schemas is kept as a safety net for any CRD not yet in the catalog.
@@ -50,6 +54,17 @@ helm-kubeconform:
 	helm template mirror-worker infra/helm/mirror-worker \
 		-f infra/helm/mirror-worker/values-prod.yaml \
 		| kubeconform $(KUBECONFORM_FLAGS)
+
+playwright-install:
+	pnpm exec playwright install --with-deps
+
+# Wk 1 scope only: runs until all e2e specs are stable.
+e2e-ci:
+	pnpm exec playwright test tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
+
+# For CI steps that run on untrusted code — skips postinstall hooks.
+install-no-scripts:
+	pnpm install --frozen-lockfile --ignore-scripts
 
 # Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
 # Run this before pushing to avoid round-trip debugging.
