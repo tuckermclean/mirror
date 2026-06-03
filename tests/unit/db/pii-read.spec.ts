@@ -1,5 +1,5 @@
 /**
- * Unit tests for readPii<T>() — RED phase per TDD.
+ * Unit tests for readPii<T>().
  *
  * DB is fully mocked; no DATABASE_URL needed.
  */
