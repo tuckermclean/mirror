@@ -66,6 +66,17 @@ e2e-ci:
 install-no-scripts:
 	pnpm install --frozen-lockfile --ignore-scripts
 
+playwright-install:
+	pnpm exec playwright install --with-deps
+
+# Wk 1 scope only: runs until all e2e specs are stable.
+e2e-ci:
+	pnpm exec playwright test tests/e2e/auth.spec.ts tests/e2e/interview.spec.ts
+
+# For CI steps that run on untrusted code — skips postinstall hooks.
+install-no-scripts:
+	pnpm install --frozen-lockfile --ignore-scripts
+
 # Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
 # Run this before pushing to avoid round-trip debugging.
 ci: install typecheck lint test-unit test-integration build smoke
