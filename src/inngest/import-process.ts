@@ -7,6 +7,7 @@ import { readImportRawPath } from "@/lib/db/pii-read";
 import { parseAiHistory } from "@/lib/parsers/index";
 import { inngest } from "@/lib/inngest/client";
 import { logger } from "@/lib/logger";
+import { StorageError, ValidationError } from "@/lib/errors";
 
 /**
  * Core import-processing logic — exported separately for unit-test ergonomics.
@@ -28,7 +29,7 @@ export async function processImport(importId: string): Promise<void> {
       .limit(1);
 
     if (!row) {
-      throw new Error(`Import ${importId} not found`);
+      throw new ValidationError(`Import ${importId} not found`);
     }
 
     // Read rawPath via PII audit wrapper — direct .select() on raw_path is a lint error
@@ -39,7 +40,7 @@ export async function processImport(importId: string): Promise<void> {
     );
 
     if (!pathRow?.rawPath) {
-      throw new Error(`Import ${importId} has no raw_path`);
+      throw new ValidationError(`Import ${importId} has no raw_path`);
     }
 
     // Download from R2 using private SDK credentials — never a public URL
@@ -48,7 +49,7 @@ export async function processImport(importId: string): Promise<void> {
     );
 
     if (!Body) {
-      throw new Error(`R2 returned empty body for import ${importId}`);
+      throw new StorageError(`R2 returned empty body for import ${importId}`);
     }
 
     const bytes = new Uint8Array(
