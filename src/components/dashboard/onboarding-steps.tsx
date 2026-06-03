@@ -14,7 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { computeOnboardingProgress } from "@/lib/dashboard/onboarding-progress";
+import { computeOnboardingProgress, getStep3Icon } from "@/lib/dashboard/onboarding-progress";
 
 interface OnboardingStepsProps {
   step1Complete: boolean;
@@ -177,11 +177,21 @@ export function OnboardingSteps({ step1Complete, step2Complete, step3Complete }:
 
         {/* Step 3 — See your Mirror */}
         <motion.li variants={item} data-testid="step-3">
-          <Card className={cn(!step3Unlocked && "opacity-60")}>
+          <Card
+            className={cn(
+              !step3Unlocked && !step3Complete && "opacity-60",
+              step3Complete && "ring-green-500/40 bg-green-500/5"
+            )}
+          >
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  {step3Unlocked ? (
+                  {getStep3Icon({ step3Complete, step3Unlocked }) === "check" ? (
+                    <CheckCircle2
+                      className="size-5 text-green-600 shrink-0"
+                      aria-hidden="true"
+                    />
+                  ) : getStep3Icon({ step3Complete, step3Unlocked }) === "circle" ? (
                     <Circle
                       className="size-5 text-primary shrink-0"
                       aria-hidden="true"
@@ -194,9 +204,19 @@ export function OnboardingSteps({ step1Complete, step2Complete, step3Complete }:
                   )}
                   <CardTitle as="h2">See your Mirror</CardTitle>
                 </div>
-                <Badge variant={step3Unlocked ? "default" : "secondary"}>
-                  Step 3
-                </Badge>
+                {step3Complete ? (
+                  <Badge
+                    data-testid="step-3-complete"
+                    variant="outline"
+                    className="border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  >
+                    Complete
+                  </Badge>
+                ) : (
+                  <Badge variant={step3Unlocked ? "default" : "secondary"}>
+                    Step 3
+                  </Badge>
+                )}
               </div>
               <CardDescription>
                 Mirror rewrites your LinkedIn profile in your authentic voice
