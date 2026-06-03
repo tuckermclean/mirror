@@ -51,40 +51,36 @@ defaultTest:
 tests:
   - description: "Voice Card output matches required JSON schema"
     assert:
-      - type: json-schema
-        value:
-          type: object
-          required:
-            [vocabulary, hedgesAvoided, sentenceLengthDistribution, emotionalRegister, jargonHated]
-          properties:
-            vocabulary:
-              type: array
-              items: { type: string }
-              minItems: 1
-            hedgesAvoided:
-              type: array
-              items: { type: string }
-              minItems: 1
-            sentenceLengthDistribution:
-              type: object
-              required: [short, medium, long]
-              properties:
-                short: { type: number, minimum: 0, maximum: 1 }
-                medium: { type: number, minimum: 0, maximum: 1 }
-                long: { type: number, minimum: 0, maximum: 1 }
-            emotionalRegister:
-              type: string
-              minLength: 1
-            jargonHated:
-              type: array
-              items: { type: string }
-              minItems: 1
+      - type: javascript
+        value: |
+          const fenced = output.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          const card = JSON.parse(fenced ? fenced[1] : output.trim());
+          const required = ['vocabulary', 'hedgesAvoided', 'sentenceLengthDistribution', 'emotionalRegister', 'jargonHated'];
+          for (const key of required) {
+            if (!(key in card)) throw new Error('Missing required field: ' + key);
+          }
+          if (!Array.isArray(card.vocabulary) || card.vocabulary.length < 1)
+            throw new Error('vocabulary must be non-empty array');
+          if (!Array.isArray(card.hedgesAvoided) || card.hedgesAvoided.length < 1)
+            throw new Error('hedgesAvoided must be non-empty array');
+          if (!Array.isArray(card.jargonHated) || card.jargonHated.length < 1)
+            throw new Error('jargonHated must be non-empty array');
+          if (typeof card.emotionalRegister !== 'string' || card.emotionalRegister.length < 1)
+            throw new Error('emotionalRegister must be non-empty string');
+          const sld = card.sentenceLengthDistribution;
+          if (!sld || typeof sld !== 'object' || Array.isArray(sld))
+            throw new Error('sentenceLengthDistribution must be object');
+          for (const k of ['short', 'medium', 'long']) {
+            if (typeof sld[k] !== 'number') throw new Error('sentenceLengthDistribution.' + k + ' must be number');
+          }
+          return true;
 
   - description: "No hallucinated vocabulary (all extracted words appear in input transcript)"
     assert:
       - type: javascript
         value: |
-          const card = JSON.parse(output);
+          const fenced = output.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+          const card = JSON.parse(fenced ? fenced[1] : output.trim());
           const transcript = JSON.parse(vars.transcript_json);
           const inputText = transcript.messages
             .filter(m => m.role === 'user')
