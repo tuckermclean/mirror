@@ -82,15 +82,7 @@ export type MtdData = {
   startOfMonth: Date;
 };
 
-/**
- * Fetch month-to-date LLM spend totals from the ledger.
- * Separated from checkMonthlyCap so the admin page can reuse it without
- * re-querying and without introducing a private, untestable helper.
- *
- * Single query: per-model breakdown via GROUP BY. totalUsd is derived
- * in the application layer by summing byModel, keeping both figures
- * consistent within one read snapshot.
- */
+/** Fetch month-to-date LLM spend totals from the ledger. */
 export async function getMtdData(): Promise<MtdData> {
   const now = new Date();
   const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

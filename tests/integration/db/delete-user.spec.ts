@@ -57,9 +57,11 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
 
   afterEach(async () => {
     // Per-test cleanup so the array never accumulates across beforeEach calls.
-    for (const id of [subject.id, accessor.id]) {
-      await db.delete(auditLog).where(or(eq(auditLog.userId, id), eq(auditLog.accessorId, id)));
-      await db.delete(users).where(eq(users.id, id));
+    // Guard against undefined in case beforeEach threw before assigning subject/accessor.
+    for (const user of [subject, accessor]) {
+      if (!user) continue;
+      await db.delete(auditLog).where(or(eq(auditLog.userId, user.id), eq(auditLog.accessorId, user.id)));
+      await db.delete(users).where(eq(users.id, user.id));
     }
   });
 
