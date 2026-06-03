@@ -108,7 +108,7 @@ describe("importProcess Inngest function", () => {
     mockParseAiHistory.mockResolvedValue(parsedResult);
 
     // Execute the function handler directly
-    const handler = (importProcess as unknown as { handler: Function }).handler;
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
     await handler({ event: { data: { importId } }, step: makeStep() });
 
     // status=processing set first
@@ -124,7 +124,7 @@ describe("importProcess Inngest function", () => {
 
     mockReadImportRawPath.mockRejectedValue(new Error("DB read failed"));
 
-    const handler = (importProcess as unknown as { handler: Function }).handler;
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
     await expect(
       handler({ event: { data: { importId } }, step: makeStep() })
     ).rejects.toThrow();
@@ -142,7 +142,7 @@ describe("importProcess Inngest function", () => {
     mockSend.mockResolvedValue({ Body: makeBodyStream(fakeBytes) });
     mockParseAiHistory.mockResolvedValue(parsedResult);
 
-    const handler = (importProcess as unknown as { handler: Function }).handler;
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
     await handler({ event: { data: { importId } }, step: makeStep() });
 
     expect(mockGetObjectCommand).toHaveBeenCalledWith(
@@ -160,7 +160,7 @@ describe("importProcess Inngest function", () => {
     mockSend.mockResolvedValue({ Body: makeBodyStream(fakeBytes) });
     mockParseAiHistory.mockResolvedValue({ source: "chatgpt", messages: [], totalConversations: 0 });
 
-    const handler = (importProcess as unknown as { handler: Function }).handler;
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
     await handler({ event: { data: { importId } }, step: makeStep() });
 
     expect(mockReadImportRawPath).toHaveBeenCalledWith(
@@ -173,10 +173,26 @@ describe("importProcess Inngest function", () => {
   it("throws NonRetriableError when rawPath row is not found", async () => {
     mockReadImportRawPath.mockResolvedValue(undefined);
 
-    const handler = (importProcess as unknown as { handler: Function }).handler;
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
     await expect(
       handler({ event: { data: { importId: "missing" } }, step: makeStep() })
     ).rejects.toThrow(NonRetriableError);
+  });
+
+  it("wraps I/O operations in step.run for Inngest checkpointing", async () => {
+    const importId = "import-uuid-5";
+    const rawPath = "imports/u/uuid/export.zip";
+    const fakeBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+
+    mockReadImportRawPath.mockResolvedValue({ rawPath, userId: "u" });
+    mockSend.mockResolvedValue({ Body: makeBodyStream(fakeBytes) });
+    mockParseAiHistory.mockResolvedValue({ source: "chatgpt", messages: [], totalConversations: 0 });
+
+    const step = makeStep();
+    const handler = (importProcess as unknown as { handler: (...args: unknown[]) => Promise<unknown> }).handler;
+    await handler({ event: { data: { importId } }, step });
+
+    expect(step.run).toHaveBeenCalled();
   });
 });
 
