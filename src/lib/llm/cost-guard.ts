@@ -8,11 +8,14 @@ import { UnknownModelError } from "@/lib/errors";
 // Formula: inputTokens * inputPerMToken / 1_000_000
 //        + outputTokens * outputPerMToken / 1_000_000
 // ---------------------------------------------------------------------------
-const MODEL_PRICING: Record<string, { inputPerMToken: number; outputPerMToken: number }> = {
+const MODEL_PRICING = {
   "claude-sonnet-4-6": { inputPerMToken: 3, outputPerMToken: 15 },
   "claude-opus-4-7": { inputPerMToken: 15, outputPerMToken: 75 },
   "claude-haiku-4-5-20251001": { inputPerMToken: 0.8, outputPerMToken: 4 },
-};
+} as const satisfies Record<string, { inputPerMToken: number; outputPerMToken: number }>;
+
+/** Union of model IDs tracked in MODEL_PRICING. Compile-time guard against drift. */
+export type SupportedModel = keyof typeof MODEL_PRICING;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -20,7 +23,7 @@ const MODEL_PRICING: Record<string, { inputPerMToken: number; outputPerMToken: n
 
 /** Compute cost in USD from token counts. Throws for unrecognised models. */
 export function computeCostUsd(model: string, inputTokens: number, outputTokens: number): number {
-  const pricing = MODEL_PRICING[model];
+  const pricing = (MODEL_PRICING as Record<string, { inputPerMToken: number; outputPerMToken: number }>)[model];
   if (!pricing) {
     throw new UnknownModelError(model);
   }

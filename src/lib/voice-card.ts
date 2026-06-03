@@ -2,12 +2,11 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import { db } from "@/db/client";
 import { generations } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import type { SupportedModel } from "@/lib/llm/cost-guard";
 import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 
@@ -33,9 +32,8 @@ export type VoiceCard = z.infer<typeof VoiceCardSchema>;
 // Prompt loading — load once at module init, never inline
 // ---------------------------------------------------------------------------
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const VOICE_EXTRACTION_SYSTEM = readFileSync(
-  join(__dirname, "prompts", "voice_extraction.md"),
+  new URL("./prompts/voice_extraction.md", import.meta.url),
   "utf8"
 );
 
@@ -50,7 +48,7 @@ function getClient(): Anthropic {
   return _client;
 }
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL: SupportedModel = "claude-sonnet-4-6";
 
 // ---------------------------------------------------------------------------
 // extractVoiceCard

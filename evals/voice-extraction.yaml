@@ -16,7 +16,7 @@ tests:
           try {
             const parsed = JSON.parse(output);
             const required = ["vocabulary", "hedgesAvoided", "sentenceLengthDistribution", "emotionalRegister", "jargonHated"];
-            return required.every(f => Object.prototype.hasOwnProperty.call(parsed, f));
+            return required.every(f => f in parsed);
           } catch {
             return false;
           }
