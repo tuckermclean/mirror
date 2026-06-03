@@ -224,10 +224,67 @@ describe("readInterviewTranscript", () => {
     expect(result).toBeUndefined();
   });
 
-  it("forwards ipAddress to the audit row when provided", async () => {
-    await readInterviewTranscript("interview-1", "user-1", "test reason", "203.0.113.42");
+  it("forwards ipAddress to the audit row when provided via options", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason", {
+      ipAddress: "203.0.113.42",
+    });
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
+  });
+
+  it("defaults accessorId to userId when no options are given", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason");
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+      })
+    );
+  });
+
+  it("uses an explicit accessorId when provided via options", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "service read", {
+      accessorId: "service-account-1",
+    });
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "service-account-1",
+      })
+    );
+  });
+});
+
+describe("ESLint PII guard — alias bypass", () => {
+  it("flags aliased PII table imports with the ESLint guard", async () => {
+    const { ESLint } = await import("eslint");
+    const cwd = process.cwd();
+    const eslint = new ESLint({ cwd });
+
+    // Alias the table import — the column-level rule won't catch ivs.transcript
+    // because it only matches the literal name 'interviews'. A separate rule
+    // must flag the aliased import itself.
+    const fixture = [
+      'import { db } from "@/db/client";',
+      'import { interviews as ivs } from "@/db/schema";',
+      "export async function bad() {",
+      "  return db.select({ transcript: ivs.transcript }).from(ivs);",
+      "}",
+    ].join("\n");
+
+    const results = await eslint.lintText(fixture, {
+      filePath: path.join(cwd, "src", "lib", "pii-alias-fixture.ts"),
+    });
+
+    const messages = results[0]?.messages ?? [];
+    const guardErrors = messages.filter((m) =>
+      m.message.toLowerCase().includes("alias") ||
+      m.message.toLowerCase().includes("pii")
+    );
+    expect(
+      guardErrors.length,
+      `Expected PII alias-bypass lint error but got: ${JSON.stringify(messages.map((m) => m.message))}`
+    ).toBeGreaterThanOrEqual(1);
   });
 });
