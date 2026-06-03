@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
+import { readImportParsed } from "@/lib/db/pii-read";
 
 // ---------------------------------------------------------------------------
 // Module-level mocks (hoisted before any dynamic imports)
@@ -117,19 +118,20 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
       }
     }
 
-    // Check imports.parsed is set
-    const [imp] = await db
-      .select({ parsed: imports.parsed, voiceEmbedding: imports.voiceEmbedding })
+    // Check imports.parsed is set (via PII wrapper)
+    const parsedRow = await readImportParsed(importId, userId, "integration test: verify parsed output");
+    const [impEmbed] = await db
+      .select({ voiceEmbedding: imports.voiceEmbedding })
       .from(imports)
       .where(eq(imports.id, importId))
       .limit(1);
 
-    expect(imp).toBeDefined();
-    expect(imp?.parsed).not.toBeNull();
+    expect(parsedRow).toBeDefined();
+    expect(parsedRow?.parsed).not.toBeNull();
 
     // Check imports.voice_embedding is non-null
-    expect(imp?.voiceEmbedding).not.toBeNull();
-    expect(Array.isArray(imp?.voiceEmbedding)).toBe(true);
+    expect(impEmbed?.voiceEmbedding).not.toBeNull();
+    expect(Array.isArray(impEmbed?.voiceEmbedding)).toBe(true);
 
     // Check users.voice_profile_id is updated
     const [user] = await db
@@ -199,13 +201,14 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
       return;
     }
 
-    const [imp] = await db
-      .select({ parsed: imports.parsed, voiceEmbedding: imports.voiceEmbedding })
+    const parsedRow2 = await readImportParsed(importId, userId, "integration test: verify parsed output");
+    const [impEmbed2] = await db
+      .select({ voiceEmbedding: imports.voiceEmbedding })
       .from(imports)
       .where(eq(imports.id, importId))
       .limit(1);
 
-    expect(imp?.parsed).not.toBeNull();
-    expect(imp?.voiceEmbedding).not.toBeNull();
+    expect(parsedRow2?.parsed).not.toBeNull();
+    expect(impEmbed2?.voiceEmbedding).not.toBeNull();
   });
 });
