@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { auditLog, interviews } from "@/db/schema";
+import { auditLog, imports, interviews } from "@/db/schema";
 
 type PiiReadParams = {
   tableName: string;
@@ -88,6 +88,60 @@ export async function readInterviewTranscript(
       fieldName: "transcript",
       reason,
       ...(ipAddress !== undefined ? { ipAddress } : {}),
+    }
+  );
+  return rows[0];
+}
+
+/**
+ * Fetches the raw_path of a single import row through the PII audit wrapper.
+ */
+export async function readImportRawPath(
+  importId: string,
+  userId: string,
+  reason: string
+): Promise<{ rawPath: string | null } | undefined> {
+  const rows = await readPii(
+    () =>
+      db
+        .select({ rawPath: imports.rawPath })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "imports",
+      rowId: importId,
+      fieldName: "raw_path",
+      reason,
+    }
+  );
+  return rows[0];
+}
+
+/**
+ * Fetches the parsed field of a single import row through the PII audit wrapper.
+ */
+export async function readImportParsed(
+  importId: string,
+  userId: string,
+  reason: string
+): Promise<{ parsed: unknown } | undefined> {
+  const rows = await readPii(
+    () =>
+      db
+        .select({ parsed: imports.parsed })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "imports",
+      rowId: importId,
+      fieldName: "parsed",
+      reason,
     }
   );
   return rows[0];
