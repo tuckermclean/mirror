@@ -33,8 +33,8 @@ describe("r2 module", () => {
 
   it("exports a non-null r2 client when all env vars are set", async () => {
     Object.assign(process.env, FULL_ENV);
-    const { r2 } = await import("@/lib/r2");
-    expect(r2).toBeDefined();
+    const { r2Client } = await import("@/lib/r2");
+    expect(r2Client).toBeDefined();
   });
 
   it("exports R2_BUCKET equal to the env var value", async () => {

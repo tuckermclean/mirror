@@ -12,7 +12,7 @@ if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) {
   );
 }
 
-export const r2 = new S3Client({
+export const r2Client = new S3Client({
   region: "auto",
   endpoint,
   credentials: { accessKeyId, secretAccessKey },
