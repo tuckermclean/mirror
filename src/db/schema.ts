@@ -73,6 +73,8 @@ export const interviews = pgTable(
 // ---------------------------------------------------------------------------
 // imports
 // ---------------------------------------------------------------------------
+export type ImportStatus = "pending" | "processing" | "done" | "failed";
+
 export const imports = pgTable(
   "imports",
   {
@@ -81,7 +83,7 @@ export const imports = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     source: text("source").notNull(),
-    status: text("status").notNull().default("pending"),
+    status: text("status").notNull().default("pending").$type<ImportStatus>(),
     rawPath: text("raw_path"),
     parsed: jsonb("parsed"),
     voiceEmbedding: vectorColumn("voice_embedding", 3072),
