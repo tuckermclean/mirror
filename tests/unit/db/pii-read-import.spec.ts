@@ -36,15 +36,15 @@ describe("readImportRawPath", () => {
     vi.clearAllMocks();
     mockInsert.mockImplementation(() => ({ values: mockValues }));
     mockValues.mockResolvedValue([]);
-    mockLimit.mockResolvedValue([{ rawPath: "imports/user-1/uuid/export.zip" }]);
+    mockLimit.mockResolvedValue([{ rawPath: "imports/user-1/uuid/export.zip", userId: "user-1" }]);
     mockWhere.mockReturnValue({ limit: mockLimit });
     mockFrom.mockReturnValue({ where: mockWhere });
     mockSelect.mockReturnValue({ from: mockFrom });
   });
 
-  it("returns the rawPath for the given importId", async () => {
+  it("returns the rawPath and userId for the given importId", async () => {
     const result = await readImportRawPath("import-1", "user-1", "inngest worker");
-    expect(result).toEqual({ rawPath: "imports/user-1/uuid/export.zip" });
+    expect(result).toEqual({ rawPath: "imports/user-1/uuid/export.zip", userId: "user-1" });
   });
 
   it("writes an audit_log row with correct fields", async () => {

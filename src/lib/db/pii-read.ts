@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { auditLog, interviews } from "@/db/schema";
+import { auditLog, imports, interviews } from "@/db/schema";
 
 type PiiReadParams = {
   tableName: string;
@@ -59,6 +59,34 @@ export async function readPii<T>(
     ipAddress: audit.ipAddress,
   });
   return result;
+}
+
+export async function readImportRawPath(
+  importId: string,
+  accessorId: string,
+  reason: string,
+  ipAddress?: string
+): Promise<{ rawPath: string; userId: string } | undefined> {
+  const rows = await db
+    .select({ rawPath: imports.rawPath, userId: imports.userId })
+    .from(imports)
+    .where(eq(imports.id, importId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row?.rawPath) return undefined;
+
+  await db.insert(auditLog).values({
+    userId: row.userId,
+    accessorId,
+    tableName: "imports",
+    rowId: importId,
+    fieldName: "raw_path",
+    reason,
+    ...(ipAddress !== undefined ? { ipAddress } : {}),
+  });
+
+  return { rawPath: row.rawPath, userId: row.userId };
 }
 
 /**
