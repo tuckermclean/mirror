@@ -1,17 +1,18 @@
-import VoyageAI from "voyageai";
+import { VoyageAIClient } from "voyageai";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 import type { VoiceCard } from "@/lib/voice/extract";
+import { ConfigurationError, ParseError } from "@/lib/errors";
 
 const EMBEDDING_MODEL = "voyage-3";
 const EMBEDDING_DIMENSIONS = 3072;
 
-let _client: InstanceType<typeof VoyageAI> | undefined;
+let _client: VoyageAIClient | undefined;
 
-function getClient(): InstanceType<typeof VoyageAI> {
+function getClient(): VoyageAIClient {
   if (!_client) {
     const apiKey = process.env["VOYAGE_API_KEY"];
-    if (!apiKey) throw new Error("VOYAGE_API_KEY is required for embeddings");
-    _client = new VoyageAI({ apiKey });
+    if (!apiKey) throw new ConfigurationError("VOYAGE_API_KEY is required for embeddings");
+    _client = new VoyageAIClient({ apiKey });
   }
   return _client;
 }
@@ -50,11 +51,11 @@ export async function embedVoiceProfile(
 
   const embedding = result.data?.[0]?.embedding;
   if (!embedding || !Array.isArray(embedding)) {
-    throw new Error("Voyage AI returned no embedding");
+    throw new ParseError("Voyage AI returned no embedding");
   }
 
   if (embedding.length !== EMBEDDING_DIMENSIONS) {
-    throw new Error(
+    throw new ParseError(
       `Expected ${EMBEDDING_DIMENSIONS}-dim embedding, got ${embedding.length}`
     );
   }

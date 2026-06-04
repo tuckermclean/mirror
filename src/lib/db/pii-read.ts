@@ -61,6 +61,38 @@ export async function readPii<T>(
   return result;
 }
 
+type WritePiiAuditParams = {
+  userId: string;
+  accessorId: string;
+  tableName: string;
+  rowId: string;
+  fieldName: string;
+  reason: string;
+  ipAddress?: string;
+};
+
+/**
+ * Executes a PII-field write, then writes an audit_log row.
+ *
+ * `reason` is required by the type — omitting it is a TypeScript compile error.
+ * Use this wrapper for any mutation of PII columns (parsed, raw_path, transcript).
+ */
+export async function writePii(
+  mutation: () => Promise<void>,
+  audit: WritePiiAuditParams
+): Promise<void> {
+  await mutation();
+  await db.insert(auditLog).values({
+    userId: audit.userId,
+    accessorId: audit.accessorId,
+    tableName: audit.tableName,
+    rowId: audit.rowId,
+    fieldName: audit.fieldName,
+    reason: audit.reason,
+    ipAddress: audit.ipAddress,
+  });
+}
+
 /**
  * Fetches the transcript of a single interview row through the PII audit wrapper.
  *

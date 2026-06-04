@@ -1,5 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { ConfigurationError } from "@/lib/errors";
+import { ConfigurationError, StorageError } from "@/lib/errors";
 
 let _client: S3Client | undefined;
 
@@ -43,7 +43,7 @@ export async function fetchFromR2(key: string): Promise<Uint8Array> {
   );
 
   if (!response.Body) {
-    throw new Error(`R2 object not found: ${key}`);
+    throw new StorageError(`R2 object not found: ${key}`);
   }
 
   const bytes = await response.Body.transformToByteArray();

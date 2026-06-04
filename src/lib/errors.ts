@@ -27,3 +27,24 @@ export class ParseError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/** Thrown when the monthly LLM spend cap is reached. */
+export class MonthlyCapError extends Error {
+  readonly resetsAt: string;
+
+  constructor(resetsAt: string) {
+    super(`monthly_cap_reached — resets at ${resetsAt}`);
+    this.name = "MonthlyCapError";
+    this.resetsAt = resetsAt;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/** Thrown when an object storage operation fails (R2 / S3). */
+export class StorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

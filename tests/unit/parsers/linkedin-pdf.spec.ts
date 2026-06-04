@@ -85,7 +85,7 @@ beforeEach(() => {
   vi.resetModules();
 
   vi.doMock("@anthropic-ai/sdk", () => {
-    const mockCreate = vi.fn(async (params: { messages: Array<{ content: Array<{ source?: { data?: string }; type: string }> }> }) => {
+    const mockCreate = vi.fn(async (_params: { messages: Array<{ content: Array<{ source?: { data?: string }; type: string }> }> }) => {
       // Determine which fixture by inspecting PDF content size
       // (in real usage the PDF bytes differ; here all our fixtures are the same small PDF)
       // We use the fixture index from test context via a closure variable set before mock
@@ -250,7 +250,7 @@ describe("parseLinkedInPdf — core behaviors", () => {
     const { parseLinkedInPdf } = await import("@/lib/parsers/linkedin-pdf");
     const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
-    const { snapshot, partial } = await parseLinkedInPdf(bytes, "user-x");
+    const { partial } = await parseLinkedInPdf(bytes, "user-x");
     expect(partial).toBe(true);
   });
 
