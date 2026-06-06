@@ -80,6 +80,10 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgres://mirror:mirror@localhost:5432/mirror_test
+      R2_ENDPOINT: https://placeholder.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: placeholder
+      R2_SECRET_ACCESS_KEY: placeholder
+      R2_BUCKET_NAME: placeholder-bucket
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
@@ -126,6 +130,10 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLERK_TEST_USER_EMAIL: ${{ secrets.CLERK_TEST_USER_EMAIL }}
       CLERK_TEST_USER_PASSWORD: ${{ secrets.CLERK_TEST_USER_PASSWORD }}
+      R2_ENDPOINT: https://placeholder.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: placeholder
+      R2_SECRET_ACCESS_KEY: placeholder
+      R2_BUCKET_NAME: placeholder-bucket
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
@@ -213,6 +221,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            R2_ENDPOINT=https://placeholder.r2.cloudflarestorage.com
+            R2_ACCESS_KEY_ID=placeholder
+            R2_SECRET_ACCESS_KEY=placeholder
+            R2_BUCKET_NAME=placeholder-bucket
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Check image size
