@@ -275,6 +275,27 @@ describe("parseLinkedInPdf — core behaviors", () => {
     expect(partial).toBe(false);
   });
 
+  it("strips markdown code fences with uppercase language tag (```JSON)", async () => {
+    const snap = { name: "Test User", headline: "Engineer", experience: [], education: [], skills: [] };
+    vi.doMock("@anthropic-ai/sdk", () => ({
+      default: vi.fn().mockImplementation(() => ({
+        messages: {
+          create: vi.fn().mockResolvedValue({
+            content: [{ type: "text", text: "```JSON\n" + JSON.stringify(snap) + "\n```" }],
+            usage: { input_tokens: 100, output_tokens: 50 },
+          }),
+        },
+      })),
+    }));
+
+    const { parseLinkedInPdf } = await import("@/lib/parsers/linkedin-pdf");
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+    const { snapshot, partial } = await parseLinkedInPdf(bytes, "user-x");
+    expect(snapshot.name).toBe("Test User");
+    expect(partial).toBe(false);
+  });
+
   it("throws ApiError when Anthropic SDK throws", async () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({

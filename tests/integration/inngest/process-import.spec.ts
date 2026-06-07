@@ -220,4 +220,69 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
     expect(parsedRow2?.parsed).not.toBeNull();
     expect(impEmbed2?.voiceEmbedding).not.toBeNull();
   });
+
+  it("sets imports.status to 'done' on successful processing", async () => {
+    importId = await seedImport(userId, "linkedin_pdf");
+
+    const { processImport } = await import("@/inngest/functions/process-import");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
+    const ctx = { event: { name: "mirror/import.process", data: { importId } } };
+    const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+
+    if (typeof fn.fn === "function") {
+      await fn.fn({ ...ctx, step: mockStep });
+    } else if (typeof fn.handler === "function") {
+      await fn.handler(ctx);
+    } else if (typeof fn.run === "function") {
+      await fn.run(ctx);
+    } else {
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
+    }
+
+    const [row] = await db
+      .select({ status: imports.status })
+      .from(imports)
+      .where(eq(imports.id, importId))
+      .limit(1);
+
+    expect(row?.status).toBe("done");
+  });
+
+  it("sets imports.status to 'failed' when fetch-and-parse throws a permanent error", async () => {
+    importId = await seedImport(userId, "linkedin_pdf");
+
+    const { fetchFromR2 } = await import("@/lib/storage/r2");
+    const { StorageError } = await import("@/lib/errors");
+    vi.mocked(fetchFromR2).mockRejectedValueOnce(new StorageError("R2 bucket not found"));
+
+    const { processImport } = await import("@/inngest/functions/process-import");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
+    const ctx = { event: { name: "mirror/import.process", data: { importId } } };
+    const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+
+    // The step will throw — processImport should catch it and set status to 'failed'
+    try {
+      if (typeof fn.fn === "function") {
+        await fn.fn({ ...ctx, step: mockStep });
+      } else if (typeof fn.handler === "function") {
+        await fn.handler(ctx);
+      } else if (typeof fn.run === "function") {
+        await fn.run(ctx);
+      } else {
+        throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
+      }
+    } catch {
+      // swallow — the function may re-throw after marking status
+    }
+
+    const [row] = await db
+      .select({ status: imports.status })
+      .from(imports)
+      .where(eq(imports.id, importId))
+      .limit(1);
+
+    expect(row?.status).toBe("failed");
+  });
 });
