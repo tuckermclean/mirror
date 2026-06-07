@@ -11,12 +11,20 @@ const nextConfig: NextConfig = {
     "/api/chat":    ["./src/lib/prompts/**/*"],
     "/api/inngest": ["./src/lib/prompts/**/*"],
   },
-  // onnxruntime-node ships native .node binaries that webpack cannot parse.
-  // voyageai is intentionally NOT listed here: webpack must bundle it so that
-  // its internal directory imports (import './api') are resolved by webpack's
-  // enhanced-resolve rather than the Node.js ESM resolver, which rejects
-  // directory imports with ERR_UNSUPPORTED_DIR_IMPORT.
-  serverExternalPackages: ["onnxruntime-node", "@huggingface/transformers"],
+  // Prevent webpack from bundling voyageai and its transitive dependencies.
+  // voyageai's ESM extended client imports @huggingface/transformers via a
+  // dynamic import() which webpack follows into onnxruntime-node's native
+  // binary files, causing "Module parse failed" for .node binaries.
+  //
+  // Adding voyageai here makes webpack emit require('voyageai') instead of
+  // bundling it. Node.js resolves this through voyageai's CJS build
+  // (package.json "type": "commonjs", main: dist/cjs/extended/index.js).
+  // CJS require() handles directory imports (require('./api') → ./api/index.js)
+  // unlike the ESM loader, so ERR_UNSUPPORTED_DIR_IMPORT is not a concern here.
+  //
+  // For Vitest, voyageai is still inlined (see vitest.config.ts server.deps.inline)
+  // so that Vite's bundler resolves its ESM directory imports during test runs.
+  serverExternalPackages: ["voyageai", "onnxruntime-node", "@huggingface/transformers"],
 };
 
 export default nextConfig;
