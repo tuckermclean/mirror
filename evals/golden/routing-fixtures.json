@@ -1,7 +1,7 @@
 [
   {
     "rule": 1,
-    "label": "security — auth keyword",
+    "label": "security \u2014 auth keyword",
     "input": "Fix the auth flow so sessions expire correctly",
     "expected": {
       "agent": ".agents/engineering-security-engineer.md",
@@ -11,7 +11,7 @@
   },
   {
     "rule": 1,
-    "label": "security — li_at cookie",
+    "label": "security \u2014 li_at cookie",
     "input": "Encrypt the li_at cookie before writing it to the database",
     "expected": {
       "agent": ".agents/engineering-security-engineer.md",
@@ -21,7 +21,7 @@
   },
   {
     "rule": 2,
-    "label": "database — migration keyword",
+    "label": "database \u2014 migration keyword",
     "input": "Add a SQL migration to add a pgvector index on embeddings",
     "expected": {
       "agent": ".agents/engineering-database-optimizer.md",
@@ -31,7 +31,7 @@
   },
   {
     "rule": 2,
-    "label": "database — drizzle keyword",
+    "label": "database \u2014 drizzle keyword",
     "input": "Update the drizzle schema to add soft deletes to the users table",
     "expected": {
       "agent": ".agents/engineering-database-optimizer.md",
@@ -41,7 +41,7 @@
   },
   {
     "rule": 3,
-    "label": "architecture — adr keyword",
+    "label": "architecture \u2014 adr keyword",
     "input": "Write an ADR for the new job queue approach",
     "expected": {
       "agent": ".agents/engineering-software-architect.md",
@@ -51,7 +51,7 @@
   },
   {
     "rule": 3,
-    "label": "architecture — scalability keyword",
+    "label": "architecture \u2014 scalability keyword",
     "input": "Review the worker design for scalability at 10k concurrent users",
     "expected": {
       "agent": ".agents/engineering-software-architect.md",
@@ -61,7 +61,7 @@
   },
   {
     "rule": 4,
-    "label": "devops — ci keyword (whole-word)",
+    "label": "devops \u2014 ci keyword (whole-word)",
     "input": "Fix the CI pipeline so unit tests run in parallel",
     "expected": {
       "agent": ".agents/engineering-devops-automator.md",
@@ -71,7 +71,7 @@
   },
   {
     "rule": 4,
-    "label": "devops — docker keyword",
+    "label": "devops \u2014 docker keyword",
     "input": "Update the Dockerfile to use a multi-stage build",
     "expected": {
       "agent": ".agents/engineering-devops-automator.md",
@@ -81,7 +81,7 @@
   },
   {
     "rule": 5,
-    "label": "AI engineer — prompt keyword",
+    "label": "AI engineer \u2014 prompt keyword",
     "input": "Tune the rewrite prompt to reduce hallucinated job titles",
     "expected": {
       "agent": ".agents/engineering-ai-engineer.md",
@@ -91,7 +91,7 @@
   },
   {
     "rule": 5,
-    "label": "AI engineer — embedding keyword",
+    "label": "AI engineer \u2014 embedding keyword",
     "input": "Switch the embedding provider from OpenAI to Voyage AI",
     "expected": {
       "agent": ".agents/engineering-ai-engineer.md",
@@ -101,7 +101,7 @@
   },
   {
     "rule": 6,
-    "label": "UI designer — tailwind keyword",
+    "label": "UI designer \u2014 tailwind keyword",
     "input": "Refactor the card layout using Tailwind grid utilities",
     "expected": {
       "agent": ".agents/design-ui-designer.md",
@@ -111,7 +111,7 @@
   },
   {
     "rule": 7,
-    "label": "UX architect — user flow keyword",
+    "label": "UX architect \u2014 user flow keyword",
     "input": "Map out the user flow for the profile review walkthrough",
     "expected": {
       "agent": ".agents/design-ux-architect.md",
@@ -121,7 +121,7 @@
   },
   {
     "rule": 8,
-    "label": "accessibility — a11y keyword",
+    "label": "accessibility \u2014 a11y keyword",
     "input": "Fix a11y issues in the profile diff view",
     "expected": {
       "agent": ".agents/testing-accessibility-auditor.md",
@@ -131,7 +131,7 @@
   },
   {
     "rule": 9,
-    "label": "brand guardian — microcopy keyword",
+    "label": "brand guardian \u2014 microcopy keyword",
     "input": "Rewrite the microcopy on the empty state screens",
     "expected": {
       "agent": ".agents/design-brand-guardian.md",
@@ -141,7 +141,7 @@
   },
   {
     "rule": 10,
-    "label": "whimsy injector — easter egg keyword",
+    "label": "whimsy injector \u2014 easter egg keyword",
     "input": "Add an easter egg on the 404 error page",
     "expected": {
       "agent": ".agents/design-whimsy-injector.md",
@@ -151,7 +151,7 @@
   },
   {
     "rule": 11,
-    "label": "technical writer — readme keyword",
+    "label": "technical writer \u2014 readme keyword",
     "input": "Update the README with the new setup instructions",
     "expected": {
       "agent": ".agents/engineering-technical-writer.md",
@@ -161,7 +161,7 @@
   },
   {
     "rule": 12,
-    "label": "onboarding engineer — explain keyword",
+    "label": "onboarding engineer \u2014 explain keyword",
     "input": "Explain how the monthly spend cap enforcement works",
     "expected": {
       "agent": ".agents/engineering-codebase-onboarding-engineer.md",
@@ -171,7 +171,7 @@
   },
   {
     "rule": 13,
-    "label": "senior developer trivial — typo keyword",
+    "label": "senior developer trivial \u2014 typo keyword",
     "input": "Fix a typo in the error message on the sign-in page",
     "expected": {
       "agent": ".agents/engineering-senior-developer.md",
@@ -181,7 +181,7 @@
   },
   {
     "rule": 14,
-    "label": "rapid prototyper — spike keyword",
+    "label": "rapid prototyper \u2014 spike keyword",
     "input": "Spike a local Ollama integration for offline dev testing",
     "expected": {
       "agent": ".agents/engineering-rapid-prototyper.md",
@@ -191,7 +191,7 @@
   },
   {
     "rule": 15,
-    "label": "code reviewer — review keyword",
+    "label": "code reviewer \u2014 review keyword",
     "input": "Review the new rate-limiting middleware before merging",
     "expected": {
       "agent": ".agents/engineering-code-reviewer.md",
@@ -201,7 +201,7 @@
   },
   {
     "rule": 16,
-    "label": "sprint prioritizer — backlog keyword",
+    "label": "sprint prioritizer \u2014 backlog keyword",
     "input": "Groom the backlog for Q3 planning",
     "expected": {
       "agent": ".agents/product-sprint-prioritizer.md",
@@ -211,7 +211,7 @@
   },
   {
     "rule": 17,
-    "label": "senior developer setup — pnpm add keyword",
+    "label": "senior developer setup \u2014 pnpm add keyword",
     "input": "pnpm add the zod library to validate API responses",
     "expected": {
       "agent": ".agents/engineering-senior-developer.md",
@@ -221,7 +221,7 @@
   },
   {
     "rule": 17,
-    "label": "senior developer setup — scaffold keyword",
+    "label": "senior developer setup \u2014 scaffold keyword",
     "input": "Scaffold a new Next.js route for the export feature",
     "expected": {
       "agent": ".agents/engineering-senior-developer.md",
@@ -231,7 +231,7 @@
   },
   {
     "rule": 18,
-    "label": "default — generic implementation task",
+    "label": "default \u2014 generic implementation task",
     "input": "Add pagination to the profile history list",
     "expected": {
       "agent": ".agents/engineering-senior-developer.md",
@@ -241,7 +241,7 @@
   },
   {
     "rule": 18,
-    "label": "default — empty string",
+    "label": "default \u2014 empty string",
     "input": "",
     "expected": {
       "agent": ".agents/engineering-senior-developer.md",
@@ -293,5 +293,14 @@
       "agent": ".agents/engineering-ai-engineer.md",
       "note": "whole-word 'ci' does not fire on 'hallucinated'; prompt (rule 5) wins"
     }
+  },
+  {
+    "rule": 7,
+    "input": "Redesign the information architecture for the onboarding flow",
+    "expected": {
+      "agent": ".agents/design-ux-architect.md",
+      "model": "claude-sonnet-4-6"
+    },
+    "note": "information architecture must route to UX, not software-architect"
   }
 ]

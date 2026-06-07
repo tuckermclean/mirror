@@ -45,8 +45,10 @@ opus    — architecture decisions, security audits, complex multi-file refactor
    → engineering-security-engineer.md + sonnet
 2. migration, .sql, schema, index, query optimization, database, orm, drizzle, pgvector
    → engineering-database-optimizer.md + sonnet
-3. architecture, adr, system design, major refactor, trade-off, scalability
+3. software architecture, system architecture, adr, system design, major refactor, trade-off, scalability
    → engineering-software-architect.md + opus
+   Note: bare "architecture" alone is ambiguous — "information architecture" belongs in rule 7 (UX).
+   Use co-occurring context (adr, system design, scalability, etc.) to identify software-arch work.
 4. ci, cd, pipeline, workflow, docker, kubernetes, terraform, deploy, inngest
    → engineering-devops-automator.md + sonnet
 5. prompt, eval, promptfoo, llm, anthropic, embedding, voice card, rag, generation, interview chat

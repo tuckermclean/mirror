@@ -59,6 +59,12 @@ jobs:
       # failures are visible but don't block the CI check.
       - run: make test-unit
         continue-on-error: true
+      # Coverage: non-blocking until src/ reaches the 80% target documented in ADR-0002.
+      # Thresholds are set to measured actuals (~55% lines) in vitest.config.ts.
+      # Flip continue-on-error to false once coverage climbs to 80%.
+      - name: Coverage
+        run: pnpm coverage
+        continue-on-error: true
 
   # ── 4. Integration tests ─────────────────────────────────────────────────────
   integration:

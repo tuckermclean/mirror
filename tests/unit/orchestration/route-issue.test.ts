@@ -60,11 +60,17 @@ describe("rule 2 — database", () => {
 
 // ── Rule 3: Architecture ─────────────────────────────────────────────────────
 describe("rule 3 — architecture", () => {
-  it("routes 'architecture' to software-architect on opus", () => {
-    const d = routeIssue("Discuss the architecture for multi-tenant data isolation");
+  it("routes 'software architecture' to software-architect on opus", () => {
+    const d = routeIssue("Discuss the software architecture for multi-tenant data isolation");
     expect(d.agent).toBe(".agents/engineering-software-architect.md");
     expect(d.model).toBe("claude-opus-4-8");
     expect(d.taskType).toBe("architecture");
+  });
+
+  it("routes 'system architecture' to software-architect on opus", () => {
+    const d = routeIssue("Document the system architecture decisions made this quarter");
+    expect(d.agent).toBe(".agents/engineering-software-architect.md");
+    expect(d.model).toBe("claude-opus-4-8");
   });
 
   it("routes 'adr' to software-architect on opus", () => {
@@ -81,6 +87,13 @@ describe("rule 3 — architecture", () => {
   it("routes 'trade-off' to software-architect on opus", () => {
     const d = routeIssue("Analyze the trade-off between Redis and Postgres for caching");
     expect(d.agent).toBe(".agents/engineering-software-architect.md");
+  });
+
+  it("'information architecture' routes to ux-architect, NOT software-architect", () => {
+    // Regression: bare 'architecture' was triggering rule 3 before the phrase-form fix.
+    const d = routeIssue("Redesign the information architecture for the onboarding flow");
+    expect(d.agent).toBe(".agents/design-ux-architect.md");
+    expect(d.model).toBe("claude-sonnet-4-6");
   });
 });
 
