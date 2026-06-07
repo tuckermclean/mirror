@@ -1,4 +1,4 @@
-name: "Dispatch: Route to right agent"
+name: "Dispatch: Orchestrate with specialists"
 
 on:
   issues:
@@ -9,84 +9,11 @@ on:
     types: [created]
 
 jobs:
-  dispatch:
+  execute:
     if: |
       (github.event_name == 'issues' && github.event.label.name == 'agent-work') ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      id-token: write
-      contents: read
-      issues: write
-    outputs:
-      agent: ${{ steps.parse.outputs.agent }}
-      model: ${{ steps.parse.outputs.model }}
-      max_turns: ${{ steps.parse.outputs.max_turns }}
-      task_type: ${{ steps.parse.outputs.task_type }}
-
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with: { fetch-depth: 0 }
-
-      # Dispatcher is committed in .agents/custom/ — no clone needed for this job.
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-haiku-4-5-20251001 --max-turns 5"
-          prompt: |
-            Load .agents/custom/receptionist-dispatcher.md
-
-            Classify this and write .dispatch.json:
-            EVENT: ${{ github.event_name }}
-            TITLE: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
-            ISSUE BODY: ${{ github.event.issue.body || '' }}
-            COMMENT: ${{ github.event.comment.body || '' }}
-
-            Output ONLY valid JSON to .dispatch.json.
-
-      - name: Parse routing
-        id: parse
-        run: |
-          if [ -f .dispatch.json ] && jq -e . .dispatch.json > /dev/null 2>&1; then
-            AGENT=$(jq -r '.agent // empty' .dispatch.json)
-            MODEL=$(jq -r '.model // empty' .dispatch.json)
-            MAX_TURNS=$(jq -r '.max_turns // empty' .dispatch.json)
-            TASK_TYPE=$(jq -r '.task_type // empty' .dispatch.json)
-            echo "agent=${AGENT:-.agents/engineering-senior-developer.md}" >> $GITHUB_OUTPUT
-            echo "model=${MODEL:-claude-sonnet-4-6}" >> $GITHUB_OUTPUT
-            echo "max_turns=${MAX_TURNS:-60}" >> $GITHUB_OUTPUT
-            echo "task_type=${TASK_TYPE:-implement}" >> $GITHUB_OUTPUT
-          else
-            echo "agent=.agents/engineering-senior-developer.md" >> $GITHUB_OUTPUT
-            echo "model=claude-sonnet-4-6" >> $GITHUB_OUTPUT
-            echo "max_turns=60" >> $GITHUB_OUTPUT
-            echo "task_type=implement" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Post routing decision
-        uses: actions/github-script@v7
-        if: always()
-        with:
-          script: |
-            if (!require('fs').existsSync('.dispatch.json')) return;
-            try {
-              const r = JSON.parse(require('fs').readFileSync('.dispatch.json','utf8'));
-              const agent = (r.agent || '').split('/').pop().replace('.md','');
-              const m = r.model || '';
-              const model = m.includes('haiku') ? 'haiku' : m.includes('opus') ? 'opus' : 'sonnet';
-              const body = `🪼 Routing to **${agent}** on \`${model}\`\n> *${r.rationale}*`;
-              const num = context.issue?.number || context.payload.issue?.number;
-              if (num) await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: num, body
-              });
-            } catch(e) { console.log('Could not post routing:', e.message); }
-
-  execute:
-    needs: dispatch
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -141,6 +68,31 @@ jobs:
           chmod +x "$STRIP"
           bash "$STRIP" --install
 
+      # ── Entry routing — deterministic, zero-API-key ──────────────────────────
+      # decide-entry.sh maps the GitHub event name to model/turns/contract.
+      # Replaces the former Haiku LLM dispatcher job.
+      # Tested in tests/infra/dispatch-decide-entry.test.ts.
+      - name: Decide entry parameters
+        id: entry
+        run: |
+          eval "$(bash scripts/dispatch/decide-entry.sh "${{ github.event_name }}")"
+          echo "model=${model}"         >> $GITHUB_OUTPUT
+          echo "max_turns=${max_turns}" >> $GITHUB_OUTPUT
+          echo "contract=${contract}"   >> $GITHUB_OUTPUT
+
+      - name: Post orchestration notice
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const m  = '${{ steps.entry.outputs.model }}';
+            const model = m.includes('haiku') ? 'haiku' : m.includes('opus') ? 'opus' : 'sonnet';
+            const num = context.issue?.number || context.payload.issue?.number;
+            if (num) await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: num,
+              body: `🐙 Orchestrating on \`${model}\` — spinning up specialists...`
+            });
+
       - name: Find existing PR for issue
         id: existing_pr
         env:
@@ -185,11 +137,10 @@ jobs:
         continue-on-error: true
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model ${{ needs.dispatch.outputs.model }} --max-turns ${{ needs.dispatch.outputs.max_turns }}"
+          claude_args: "--dangerously-skip-permissions --model ${{ steps.entry.outputs.model }} --max-turns ${{ steps.entry.outputs.max_turns }}"
           show_full_output: "true"
           prompt: |
-            Load the agent at: ${{ needs.dispatch.outputs.agent }}
-            Load the implementation contract: .agents/custom/implementation-contract.md
+            Load and follow: ${{ steps.entry.outputs.contract }}
             Follow ALL rules in AGENTS.md.
 
             EVENT: ${{ github.event_name }}
