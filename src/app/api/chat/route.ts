@@ -1,12 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { interviews, users } from "@/db/schema";
 import { prompts } from "@/lib/prompts/index";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 import { readInterviewTranscript } from "@/lib/db/pii-read";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,11 +80,11 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  // 3. Resolve internal user row from Clerk ID
+  // 3. Resolve internal user row from Clerk ID — exclude tombstone rows (ADR-009)
   const userRows = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.clerkId, clerkUserId))
+    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
     .limit(1);
 
   if (userRows.length === 0) {

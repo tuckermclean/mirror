@@ -1,8 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { eq, and, isNotNull, count } from "drizzle-orm";
+import { eq, and, isNotNull, ne, count } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, interviews, imports, generations } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 import { OnboardingSteps } from "@/components/dashboard/onboarding-steps";
 import { logger } from "@/lib/logger";
 
@@ -28,11 +29,12 @@ export default async function DashboardPage() {
     .returning({ id: users.id });
 
   // If the row pre-existed the conflict branch returns no rows; fetch it once.
+  // Exclude tombstone rows (ADR-009) so deleted users can't resume a dashboard session.
   const userId = inserted?.id ?? (
     await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.clerkId, clerkUserId))
+      .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
       .limit(1)
       .then((rows) => rows[0]?.id)
   );

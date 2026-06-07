@@ -1,8 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 import { InterviewChat } from "@/components/interview-chat";
 import { logger } from "@/lib/logger";
 
@@ -12,10 +13,11 @@ export default async function InterviewPage() {
 
   // Upsert user row on first visit so the chat route never returns user_not_found.
   // In production, a Clerk webhook also fires; this is the optimistic in-band path.
+  // Exclude tombstone rows (ADR-009) — a deleted user is treated as non-existent here.
   const existing = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.clerkId, clerkUserId))
+    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
     .limit(1);
 
   if (existing.length === 0) {
