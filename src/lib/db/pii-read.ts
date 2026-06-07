@@ -67,7 +67,8 @@ export async function readPii<T>(
  *
  * raw_path points to a user's full AI chat export in R2 — PII-adjacent
  * (the file contains private conversation history) so every read is audit-logged.
- * Audit is written before data is returned; if the write fails, the read fails closed.
+ * The underlying query runs first; data is returned to the caller only if the
+ * audit write also succeeds — if the audit insert throws, the read fails closed.
  */
 export async function readImportRawPath(
   importId: string,
