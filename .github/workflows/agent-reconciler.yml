@@ -219,15 +219,17 @@ jobs:
                 gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH" 2>/dev/null || true
                 continue
               fi
-              # CI has run — re-arm converge if it isn't already running or completed
-              # successfully. Converge handles CI failures internally; it does not need
-              # CI to be green before starting.
+              # CI has run — re-arm converge if it isn't already running or genuinely done.
+              # "Genuinely done" means the PR reached a terminal label (agent:ready or
+              # needs-human). completed:success on the workflow is NOT sufficient: converge
+              # exits 0 on cap-reached (it re-dispatches and exits cleanly), leaving the PR
+              # with neither label. Without this check, those PRs stall forever because the
+              # reconciler treats completed:success as "done" and never re-arms.
               #
-              # Fetch status AND updatedAt in one call so we can apply a 5-min recency
-              # guard: once agent pushes carry the bot token (firing synchronize), a
-              # converge fix-push can re-trigger the reconciler while converge is still
-              # finishing its next steps. The in_progress guard handles that correctly,
-              # but the recency guard provides a belt-and-suspenders buffer for races.
+              # Also fetch updatedAt for a 5-min recency guard: once agent pushes carry the
+              # bot token (firing synchronize), a converge fix-push can re-trigger the
+              # reconciler while converge is still finishing later steps. The in_progress
+              # guard handles the common case; the recency guard covers the race.
               LAST_RUN=$(gh run list \
                 --repo "$REPO" \
                 --workflow pr-converge.yml \
@@ -238,13 +240,23 @@ jobs:
                 2>/dev/null || echo '{"state":"none:none","at":""}')
               LAST=$(echo "$LAST_RUN" | jq -r '.state // "none:none"')
               LAST_AT=$(echo "$LAST_RUN" | jq -r '.at // ""')
-              if [ "$LAST" = "in_progress:" ] || [ "$LAST" = "completed:success" ]; then
+              if [ "$LAST" = "in_progress:" ]; then
                 continue
+              fi
+              if [ "$LAST" = "completed:success" ]; then
+                # Converge workflow exited cleanly — but did it actually approve or escalate?
+                # Check for terminal labels. If the PR still has neither, converge exited on
+                # a non-terminal path (e.g. cap-reached re-dispatch) and needs re-arming.
+                HAS_TERMINAL=$(gh pr view "$PR_NUM" --repo "$REPO" \
+                  --json labels --jq '.labels[].name' 2>/dev/null \
+                  | grep -cE "^(agent:ready|needs-human)$" || echo "0")
+                [ "$HAS_TERMINAL" != "0" ] && continue
+                echo "Converge exited successfully but PR #$PR_NUM has no terminal label — re-arming"
               fi
               if [ -n "$LAST_AT" ]; then
                 LAST_EPOCH=$(date -d "$LAST_AT" +%s 2>/dev/null || echo "0")
                 if [ "$(($(date +%s) - LAST_EPOCH))" -lt 300 ]; then
-                  echo "Converge finished < 5min ago — deferring re-arm for PR #$PR_NUM to avoid synchronize feedback loop"
+                  echo "Converge finished < 5min ago — deferring re-arm for PR #$PR_NUM"
                   continue
                 fi
               fi
