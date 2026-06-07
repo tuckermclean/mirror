@@ -29,7 +29,7 @@ e2e:
 	pnpm test:e2e
 
 eval-prompts:
-	pnpm eval:prompts
+	pnpm run eval:interview; E1=$$?; pnpm run eval:voice; E2=$$?; exit $$((E1 | E2))
 
 helm-lint:
 	helm lint infra/helm/mirror-web
