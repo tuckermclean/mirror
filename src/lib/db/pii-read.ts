@@ -164,33 +164,6 @@ export async function readInterviewTranscript(
 }
 
 /**
- * Fetches the raw_path of a single import row through the PII audit wrapper.
- */
-export async function readImportRawPath(
-  importId: string,
-  userId: string,
-  reason: string
-): Promise<{ rawPath: string | null } | undefined> {
-  const rows = await readPii(
-    () =>
-      db
-        .select({ rawPath: imports.rawPath })
-        .from(imports)
-        .where(eq(imports.id, importId))
-        .limit(1),
-    {
-      userId,
-      accessorId: userId,
-      tableName: "imports",
-      rowId: importId,
-      fieldName: "raw_path",
-      reason,
-    }
-  );
-  return rows[0];
-}
-
-/**
  * Fetches the parsed field of a single import row through the PII audit wrapper.
  */
 export async function readImportParsed(
