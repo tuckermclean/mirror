@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { MonthlyCapError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { LinkedInSnapshot } from "@/types/linkedin";
 import type { ParsedChatHistory } from "./types";
@@ -12,9 +13,8 @@ const PROMPTS_DIR = join(__dirname, "../prompts");
 
 const MODEL = "claude-sonnet-4-6";
 
-function loadSystemPrompt(): string {
-  return readFileSync(join(PROMPTS_DIR, "pdf_parse.md"), "utf-8");
-}
+// Loaded once at module init — the prompt is static at runtime
+const SYSTEM_PROMPT = readFileSync(join(PROMPTS_DIR, "pdf_parse.md"), "utf-8");
 
 function isLinkedInSnapshot(value: unknown): value is LinkedInSnapshot {
   if (typeof value !== "object" || value === null) return false;
@@ -96,9 +96,7 @@ export async function parseLinkedInPdf(
 ): Promise<LinkedInParseResult> {
   const cap = await checkMonthlyCap();
   if (!cap.allowed) {
-    throw new Error(
-      JSON.stringify({ error: "monthly_cap_reached", resets_at: cap.resets_at })
-    );
+    throw new MonthlyCapError(cap.resets_at);
   }
 
   let bytes: Uint8Array;
@@ -111,7 +109,6 @@ export async function parseLinkedInPdf(
   }
 
   const base64Data = Buffer.from(bytes).toString("base64");
-  const systemPrompt = loadSystemPrompt();
   const client = new Anthropic();
 
   let response: Anthropic.Message;
@@ -119,7 +116,7 @@ export async function parseLinkedInPdf(
     response = await client.messages.create({
       model: MODEL,
       max_tokens: 2048,
-      system: systemPrompt,
+      system: SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
