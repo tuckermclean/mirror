@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts
+.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
 
 install:
 	pnpm install --frozen-lockfile
@@ -65,6 +65,11 @@ e2e-ci:
 # For CI steps that run on untrusted code — skips postinstall hooks.
 install-no-scripts:
 	pnpm install --frozen-lockfile --ignore-scripts
+
+# Audit PR-triggered workflows for unsafe working-tree script execution.
+# See scripts/ci/check-pr-workflow-script-staging.sh for details.
+audit-workflows:
+	bash scripts/ci/check-pr-workflow-script-staging.sh
 
 # Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
 # Run this before pushing to avoid round-trip debugging.
