@@ -2,9 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 import { getR2Client, getR2Bucket } from "@/lib/storage/r2";
 import { detectSourceFromBytes } from "@/lib/parsers/index";
 import { inngest } from "@/lib/inngest/client";
@@ -80,11 +81,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // Resolve internal user ID from Clerk ID
+  // Resolve internal user ID from Clerk ID — exclude tombstone rows (ADR-009)
   const userRows = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.clerkId, clerkUserId))
+    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
     .limit(1);
 
   if (userRows.length === 0) {

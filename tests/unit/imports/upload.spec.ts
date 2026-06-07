@@ -28,6 +28,7 @@ const mockAuth = vi.hoisted(() => vi.fn());
 const mockDetectSourceFromBytes = vi.hoisted(() => vi.fn());
 const mockR2Send = vi.hoisted(() => vi.fn());
 const mockInngestSend = vi.hoisted(() => vi.fn());
+const mockNe = vi.hoisted(() => vi.fn());
 const mockDbSelectChain = vi.hoisted(() => {
   const limit = vi.fn();
   const where = vi.fn(() => ({ limit }));
@@ -50,6 +51,17 @@ const mockDbDeleteChain = vi.hoisted(() => {
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
 }));
+
+vi.mock("drizzle-orm", async (importActual) => {
+  const actual = await importActual<typeof import("drizzle-orm")>();
+  return {
+    ...actual,
+    ne: (...args: Parameters<typeof actual.ne>) => {
+      mockNe(...args);
+      return actual.ne(...args);
+    },
+  };
+});
 
 vi.mock("@/lib/parsers/index", () => ({
   detectSourceFromBytes: mockDetectSourceFromBytes,
@@ -74,7 +86,7 @@ vi.mock("@/db/client", () => ({
 
 vi.mock("@/db/schema", () => ({
   imports: { id: Symbol("imports.id"), userId: Symbol("imports.userId") },
-  users: { id: Symbol("users.id"), clerkId: Symbol("users.clerkId") },
+  users: { id: Symbol("users.id"), clerkId: Symbol("users.clerkId"), plan: Symbol("users.plan") },
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -86,6 +98,8 @@ vi.mock("@/lib/logger", () => ({
 // ---------------------------------------------------------------------------
 import { POST } from "@/app/api/imports/upload/route";
 import { NextRequest } from "next/server";
+import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -126,6 +140,7 @@ function makeRequest(file: File): NextRequest {
 // ---------------------------------------------------------------------------
 beforeEach(() => {
   vi.clearAllMocks();
+  mockNe.mockClear();
 
   // Default: authenticated
   mockAuth.mockResolvedValue({ userId: "clerk_test_user" });
@@ -370,5 +385,30 @@ describe("Inngest send failure", () => {
     const req = makeRequest(makeZipFile());
     await POST(req);
     expect(mockDbDeleteChain.deleteFrom).toHaveBeenCalledOnce();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tombstone guard — ADR-009 / issue #36
+// ---------------------------------------------------------------------------
+describe("tombstone guard", () => {
+  it("user lookup WHERE clause includes ne(users.plan, DELETED_PLAN)", async () => {
+    const req = makeRequest(makeZipFile());
+    await POST(req);
+    expect(mockNe, "ne() must be called with users.plan and DELETED_PLAN").toHaveBeenCalledWith(
+      users.plan,
+      DELETED_PLAN
+    );
+  });
+
+  it("returns 404 user_not_found when tombstone row is excluded by guard", async () => {
+    // Simulates the tombstone guard filtering out a deleted user —
+    // the query returns [] because ne(users.plan, DELETED_PLAN) excludes the row.
+    mockDbSelectChain.limit.mockResolvedValue([]);
+    const req = makeRequest(makeZipFile());
+    const res = await POST(req);
+    expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body["error"]).toBe("user_not_found");
   });
 });
