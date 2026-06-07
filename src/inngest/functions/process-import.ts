@@ -82,6 +82,7 @@ export const processImport = inngest.createFunction(
 
     if (!rawPath) {
       logger.error("process-import: raw_path is null", { importId });
+      await db.update(imports).set({ status: "failed" }).where(eq(imports.id, importId));
       return { error: "missing_raw_path" };
     }
 
@@ -93,10 +94,14 @@ export const processImport = inngest.createFunction(
       const bytes = await fetchFromR2(rawPath);
       return selectParser(source, bytes, userId, importId);
     }).catch(async (err: unknown) => {
-      await db.update(imports).set({ status: "failed" }).where(eq(imports.id, importId));
       if (err instanceof MonthlyCapError || err instanceof ConfigurationError) {
+        // Permanent failure — will not resolve on retry.
+        await db.update(imports).set({ status: "failed" }).where(eq(imports.id, importId));
         return null;
       }
+      // Retriable error (network blip, rate limit, etc.) — leave status as
+      // "processing" so the user doesn't see a false "failed" during Inngest's
+      // retry window.
       throw err;
     });
 
