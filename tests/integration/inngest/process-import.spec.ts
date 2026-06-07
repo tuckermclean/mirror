@@ -249,12 +249,12 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
     expect(row?.status).toBe("done");
   });
 
-  it("sets imports.status to 'failed' when fetch-and-parse throws a permanent error", async () => {
+  it("sets imports.status to 'failed' when fetch-and-parse throws a permanent error (MonthlyCapError)", async () => {
     importId = await seedImport(userId, "linkedin_pdf");
 
     const { fetchFromR2 } = await import("@/lib/storage/r2");
-    const { StorageError } = await import("@/lib/errors");
-    vi.mocked(fetchFromR2).mockRejectedValueOnce(new StorageError("R2 bucket not found"));
+    const { MonthlyCapError } = await import("@/lib/errors");
+    vi.mocked(fetchFromR2).mockRejectedValueOnce(new MonthlyCapError("Monthly LLM cap reached"));
 
     const { processImport } = await import("@/inngest/functions/process-import");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -262,8 +262,44 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
     const ctx = { event: { name: "mirror/import.process", data: { importId } } };
     const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
 
-    // The step will throw — processImport should catch it and set status to 'failed'
-    try {
+    let result: unknown;
+    if (typeof fn.fn === "function") {
+      result = await fn.fn({ ...ctx, step: mockStep });
+    } else if (typeof fn.handler === "function") {
+      result = await fn.handler(ctx);
+    } else if (typeof fn.run === "function") {
+      result = await fn.run(ctx);
+    } else {
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
+    }
+
+    expect(result).toMatchObject({ error: "permanent_failure" });
+
+    const [row] = await db
+      .select({ status: imports.status })
+      .from(imports)
+      .where(eq(imports.id, importId))
+      .limit(1);
+
+    expect(row?.status).toBe("failed");
+  });
+
+  it("leaves imports.status as 'processing' when fetch-and-parse throws a retriable error (StorageError)", async () => {
+    importId = await seedImport(userId, "linkedin_pdf");
+
+    const { fetchFromR2 } = await import("@/lib/storage/r2");
+    const { StorageError } = await import("@/lib/errors");
+    vi.mocked(fetchFromR2).mockRejectedValueOnce(new StorageError("R2 network timeout"));
+
+    const { processImport } = await import("@/inngest/functions/process-import");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
+    const ctx = { event: { name: "mirror/import.process", data: { importId } } };
+    const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+
+    // Retriable errors re-throw so Inngest can retry — status must stay "processing",
+    // not flash "failed" to users during the retry window.
+    await expect(async () => {
       if (typeof fn.fn === "function") {
         await fn.fn({ ...ctx, step: mockStep });
       } else if (typeof fn.handler === "function") {
@@ -273,9 +309,43 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
       } else {
         throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
       }
-    } catch {
-      // swallow — the function may re-throw after marking status
+    }).rejects.toThrow(StorageError);
+
+    const [row] = await db
+      .select({ status: imports.status })
+      .from(imports)
+      .where(eq(imports.id, importId))
+      .limit(1);
+
+    expect(row?.status).toBe("processing");
+  });
+
+  it("sets imports.status to 'failed' when rawPath is null", async () => {
+    // Insert an import row without rawPath (simulates upload that never completed).
+    const [imp] = await db
+      .insert(imports)
+      .values({ userId, source: "linkedin_pdf" })
+      .returning({ id: imports.id });
+    importId = imp!.id;
+
+    const { processImport } = await import("@/inngest/functions/process-import");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
+    const ctx = { event: { name: "mirror/import.process", data: { importId } } };
+    const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+
+    let result: unknown;
+    if (typeof fn.fn === "function") {
+      result = await fn.fn({ ...ctx, step: mockStep });
+    } else if (typeof fn.handler === "function") {
+      result = await fn.handler(ctx);
+    } else if (typeof fn.run === "function") {
+      result = await fn.run(ctx);
+    } else {
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
     }
+
+    expect(result).toMatchObject({ error: "missing_raw_path" });
 
     const [row] = await db
       .select({ status: imports.status })
