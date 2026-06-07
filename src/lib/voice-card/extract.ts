@@ -30,9 +30,6 @@ function getClient(): Anthropic {
  * parseVoiceCardOutput, and returns the canonical VoiceCard schema shape.
  */
 export async function extractVoiceCard(history: ParsedChatHistory, userId: string): Promise<VoiceCard> {
-  const cap = await checkMonthlyCap();
-  if (!cap.allowed) throw new MonthlyCapError(cap.resets_at);
-
   const transcript = history.messages
     .filter((m) => m.role === "user")
     .map((m) => m.content)
@@ -54,6 +51,10 @@ export async function extractVoiceCard(history: ParsedChatHistory, userId: strin
     const parsed = VoiceCardSchema.safeParse(cached[0].output);
     if (parsed.success) return parsed.data;
   }
+
+  // Only gate on the monthly cap once we know we need a real API call.
+  const cap = await checkMonthlyCap();
+  if (!cap.allowed) throw new MonthlyCapError(cap.resets_at);
 
   let response: Anthropic.Message;
   try {
