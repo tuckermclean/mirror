@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
   // which moves to .next/standalone at runtime — these files would be missing
   // without an explicit trace include.
   outputFileTracingIncludes: {
-    "/api/chat": ["./src/lib/prompts/**/*"],
+    "/api/chat":    ["./src/lib/prompts/**/*"],
+    "/api/inngest": ["./src/lib/prompts/**/*"],
   },
   // onnxruntime-node ships native .node binaries that webpack cannot parse.
   // voyageai is intentionally NOT listed here: webpack must bundle it so that
