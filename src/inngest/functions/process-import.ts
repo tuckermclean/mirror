@@ -9,10 +9,34 @@ import { parseClaudeExport, parsePlainTextExport } from "@/lib/parsers/claude";
 import { parseLinkedInPdf, linkedInSnapshotToHistory } from "@/lib/parsers/linkedin-pdf";
 import { extractVoiceCard } from "@/lib/voice/extract";
 import { embedVoiceProfile } from "@/lib/embeddings";
+import { ConfigurationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 
-type ImportSource = "chatgpt_zip" | "claude_zip" | "linkedin_pdf" | "plain_text";
+export type ImportSource = "chatgpt_zip" | "claude_zip" | "linkedin_pdf" | "plain_text";
+
+/** Dispatch raw bytes to the correct parser for the given import source. */
+export async function selectParser(
+  source: ImportSource,
+  bytes: Uint8Array,
+  userId: string,
+  importId: string
+): Promise<ParsedChatHistory> {
+  if (source === "chatgpt_zip") {
+    return parseChatGPTExport(bytes);
+  } else if (source === "claude_zip") {
+    return parseClaudeExport(bytes);
+  } else if (source === "linkedin_pdf") {
+    const { snapshot } = await parseLinkedInPdf(bytes, userId);
+    return linkedInSnapshotToHistory(snapshot);
+  } else if (source === "plain_text") {
+    const text = new TextDecoder().decode(bytes);
+    return parsePlainTextExport(text);
+  } else {
+    logger.error("process-import: unknown source", { importId, source });
+    throw new ConfigurationError(`Unknown import source: ${String(source)}`);
+  }
+}
 
 export const processImport = inngest.createFunction(
   {
@@ -59,23 +83,7 @@ export const processImport = inngest.createFunction(
     // Step 3: Fetch from R2 and parse.
     const history = await step.run("fetch-and-parse", async () => {
       const bytes = await fetchFromR2(rawPath);
-
-      let parsed: ParsedChatHistory;
-      if (source === "chatgpt_zip") {
-        parsed = await parseChatGPTExport(bytes);
-      } else if (source === "claude_zip") {
-        parsed = await parseClaudeExport(bytes);
-      } else if (source === "linkedin_pdf") {
-        const { snapshot } = await parseLinkedInPdf(bytes, userId);
-        parsed = linkedInSnapshotToHistory(snapshot);
-      } else if (source === "plain_text") {
-        const text = new TextDecoder().decode(bytes);
-        parsed = parsePlainTextExport(text);
-      } else {
-        logger.error("process-import: unknown source", { importId, source });
-        throw new Error(`Unknown import source: ${String(source)}`);
-      }
-      return parsed;
+      return selectParser(source, bytes, userId, importId);
     });
 
     // Step 4: Store parsed chat history via PII write wrapper.
