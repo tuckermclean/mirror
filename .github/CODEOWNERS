@@ -1,0 +1,14 @@
+# Mirror — CODEOWNERS
+#
+# Changes to these paths require explicit approval from the listed owner before merge.
+# Enforced via GitHub: Settings → Branches → master → "Require review from Code Owners".
+#
+# This is the hard enforcement layer for the soft "protected-path → needs-human" guard
+# already in pr-converge.yml. Both must pass for a workflow or core-doc change to land.
+
+/.github/workflows/    @tuckermclean
+/.github/CODEOWNERS    @tuckermclean
+/ARCHITECTURE.md       @tuckermclean
+/THREAT_MODEL.md       @tuckermclean
+/COMPLIANCE.md         @tuckermclean
+/AGENTS.md             @tuckermclean
