@@ -19,8 +19,24 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
-      include: ["src/lib/parsers/**"],
+      include: ["src/**"],
       thresholds: {
+        // TODO: AGENTS.md promises ≥80% global src/ coverage. Actual measured
+        // (unit + infra tests; integration tests omitted — require live DB):
+        //   lines: ~59%, functions: ~59%, branches: ~83%, statements: ~59%
+        // Integration tests require DATABASE_URL and are excluded from `pnpm coverage`.
+        // Setting thresholds to actual rounded down to nearest 5% to avoid blocking CI.
+        // Raise these incrementally as coverage improves toward the 80% target.
+        lines: 55,
+        functions: 55,
+        branches: 80,
+        statements: 55,
+        "src/lib/crypto/**": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/parsers/**": {
           lines: 100,
           functions: 100,
