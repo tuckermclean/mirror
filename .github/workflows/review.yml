@@ -25,7 +25,12 @@ jobs:
 
       - name: Setup agents
         run: |
-          git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
+          # Pinned to a reviewed SHA. To update: review the diff at
+          # https://github.com/msitarzewski/agency-agents/compare/<old>...<new>
+          # then update PINNED_SHA in dispatch.yml, pr-converge.yml, and review.yml.
+          PINNED_SHA="d6553e261e595c651064f899a6c33dd5aa71c9e3"
+          git clone https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
+          git -C /tmp/agency-agents checkout "$PINNED_SHA"
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
       - uses: anthropics/claude-code-action@v1

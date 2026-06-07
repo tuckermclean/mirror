@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
+.PHONY: install typecheck lint test-unit test-integration coverage build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
 
 install:
 	pnpm install --frozen-lockfile
@@ -16,6 +16,9 @@ test-unit:
 # rag/retrieval excluded — that module is not yet implemented (RED tests stay out of CI gate).
 test-integration:
 	pnpm vitest run tests/integration/db tests/integration/health
+
+coverage:
+	pnpm coverage
 
 build:
 	pnpm build
@@ -71,6 +74,10 @@ install-no-scripts:
 audit-workflows:
 	bash scripts/ci/check-pr-workflow-script-staging.sh
 
-# Full local CI gate — matches the blocking checks in .github/workflows/ci.yml.
-# Run this before pushing to avoid round-trip debugging.
+# Local pre-push gate: covers typecheck, lint, integration tests, build, and smoke.
+# Intentional differences from ci.yml's blocking set:
+#   - test-unit runs here (blocking) but is continue-on-error in CI (intentionally-RED suites)
+#   - Docker build, Helm lint, and Helm kubeconform require local tooling; run `make helm-lint`
+#     and `make helm-kubeconform` separately if you have the tools installed.
+# Run this before pushing to catch the common failure modes without a CI round-trip.
 ci: install typecheck lint test-unit test-integration build smoke
