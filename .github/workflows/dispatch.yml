@@ -124,7 +124,7 @@ jobs:
           # To update: verify the diff, then change PINNED_SHA in dispatch.yml,
           # pr-converge.yml, and review.yml.
           ACTUAL_SHA=$(git -C /tmp/agency-agents rev-parse HEAD)
-          PINNED_SHA="4e905cff59e3e3e5b5566d410b2b49e9ab22ecb0"
+          PINNED_SHA="d6553e261e595c651064f899a6c33dd5aa71c9e3"
           if [ "$ACTUAL_SHA" != "$PINNED_SHA" ]; then
             echo "::error::agency-agents SHA mismatch! Expected $PINNED_SHA, got $ACTUAL_SHA"
             echo "::error::Review: https://github.com/msitarzewski/agency-agents/compare/${PINNED_SHA:0:7}...${ACTUAL_SHA:0:7}"
