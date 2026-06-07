@@ -10,6 +10,13 @@ import { logger } from "@/lib/logger";
 import { inngest } from "@/lib/inngest/client";
 
 export async function processImport(importId: string, userId: string): Promise<void> {
+  const [existing] = await db
+    .select({ status: imports.status })
+    .from(imports)
+    .where(eq(imports.id, importId))
+    .limit(1);
+  if (existing?.status === "done") return;
+
   await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
 
   try {
