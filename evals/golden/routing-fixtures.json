@@ -295,9 +295,10 @@
     }
   },
   {
+    "rule": 7,
     "input": "Redesign the information architecture for the onboarding flow",
     "expected": {
-      "agent": ".agents/engineering-ux-architect.md",
+      "agent": ".agents/design-ux-architect.md",
       "model": "claude-sonnet-4-6"
     },
     "note": "information architecture must route to UX, not software-architect"
