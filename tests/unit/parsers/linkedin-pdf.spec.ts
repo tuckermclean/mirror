@@ -275,6 +275,28 @@ describe("parseLinkedInPdf — core behaviors", () => {
     expect(partial).toBe(false);
   });
 
+  it("throws ApiError when Anthropic SDK throws", async () => {
+    vi.doMock("@anthropic-ai/sdk", () => ({
+      default: vi.fn().mockImplementation(() => ({
+        messages: {
+          create: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+        },
+      })),
+    }));
+
+    const { parseLinkedInPdf } = await import("@/lib/parsers/linkedin-pdf");
+    const { ApiError } = await import("@/lib/errors");
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+    const rejection = parseLinkedInPdf(bytes, "user-x");
+    await expect(rejection).rejects.toThrow(ApiError);
+    // Verify we get ApiError specifically, not just any Error
+    await rejection.catch((err) => {
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err.name).toBe("ApiError");
+    });
+  });
+
   it("throws when monthly cap is exceeded", async () => {
     vi.doMock("@/lib/llm/cost-guard", () => ({
       checkMonthlyCap: vi.fn().mockResolvedValue({ allowed: false, resets_at: "2026-07-01T00:00:00.000Z" }),
