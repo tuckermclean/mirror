@@ -10,13 +10,15 @@ prompts:
 
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
 
 defaultTest:
   vars:
     transcript: "file://./fixtures/voice-extraction.txt"
 
 tests:
-  - description: "Output parses as valid JSON"
+  - description: "VoiceCard schema — all structural assertions against one model output"
     assert:
       - type: javascript
         value: |
@@ -24,13 +26,9 @@ tests:
           const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
           try { JSON.parse(stripped); return true; } catch { return false; }
 
-  - description: "Output matches VoiceCardSchema (5 camelCase fields, correct types)"
-    assert:
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
-  - description: "sentenceLengthDistribution short+medium+long sums to 90–110"
-    assert:
       - type: javascript
         value: |
           try {
@@ -47,8 +45,6 @@ tests:
             return false;
           }
 
-  - description: "vocabulary.length is between 1 and 30"
-    assert:
       - type: javascript
         value: |
           try {

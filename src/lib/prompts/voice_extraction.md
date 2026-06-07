@@ -36,15 +36,10 @@ Important constraints:
 - Do NOT invent information not present in the transcript
 - Do NOT include job titles, companies, or skills unless the person explicitly mentions them
 - Do NOT fabricate vocabulary or topics — only report what you actually observe
-- Output raw JSON only — no markdown wrapper, no explanation
-- Do NOT wrap the fields in a `voice_card` key — the five fields must appear at the top level of the JSON object, not nested inside any wrapper
+- Output raw JSON only — no markdown wrapper, no code fence, no explanation
+- The JSON object MUST have exactly these 5 top-level keys and no others: `vocabulary`, `hedgesAvoided`, `sentenceLengthDistribution`, `emotionalRegister`, `jargonHated`
 
-Bad output (FORBIDDEN):
-```json
-{ "voice_card": { "vocabulary": [...], ... } }
+Your output must be exactly this shape (values filled in):
 ```
-
-Good output (REQUIRED):
-```json
-{ "vocabulary": [...], "hedgesAvoided": [...], ... }
+{"vocabulary":[...],"hedgesAvoided":[...],"sentenceLengthDistribution":{"short":N,"medium":N,"long":N},"emotionalRegister":"...","jargonHated":[...]}
 ```
