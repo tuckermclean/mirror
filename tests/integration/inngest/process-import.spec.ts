@@ -111,15 +111,20 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
     const { processImport } = await import("@/inngest/functions/process-import");
 
     // Invoke the handler directly (bypassing Inngest event routing)
-    const handler = (processImport as unknown as { handler: (ctx: { event: { data: { importId: string } } }) => Promise<unknown> }).handler;
-    if (typeof handler === "function") {
-      await handler({ event: { data: { importId } } });
+    // Inngest v4 stores the raw callback on .fn; fall back to .handler/.run for
+    // older shapes. Throw rather than silently skip so any API shape change is
+    // immediately visible instead of causing tests to pass vacuously.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
+    if (typeof fn.fn === "function") {
+      const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+      await fn.fn({ event: { name: "mirror/import.process", data: { importId } }, step: mockStep });
+    } else if (typeof fn.handler === "function") {
+      await fn.handler({ event: { data: { importId } } });
+    } else if (typeof fn.run === "function") {
+      await fn.run({ event: { name: "mirror/import.process", data: { importId } } });
     } else {
-      // Inngest v4 wraps the handler — call via the internal execute path
-      const fn = processImport as unknown as { run: (ctx: unknown) => Promise<unknown> };
-      if (typeof fn.run === "function") {
-        await fn.run({ event: { name: "mirror/import.process", data: { importId } } });
-      }
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
     }
 
     // Check imports.parsed is set (via PII wrapper)
@@ -150,21 +155,20 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
   it("returns error when import row does not exist", async () => {
     const { processImport } = await import("@/inngest/functions/process-import");
 
-    const fn = processImport as unknown as {
-      run?: (ctx: unknown) => Promise<unknown>;
-      handler?: (ctx: unknown) => Promise<unknown>;
-    };
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = processImport as any;
     const ctx = { event: { name: "mirror/import.process", data: { importId: "00000000-0000-0000-0000-000000000000" } } };
+    const mockStep = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
 
     let result: unknown;
-    if (typeof fn.handler === "function") {
+    if (typeof fn.fn === "function") {
+      result = await fn.fn({ ...ctx, step: mockStep });
+    } else if (typeof fn.handler === "function") {
       result = await fn.handler(ctx);
     } else if (typeof fn.run === "function") {
       result = await fn.run(ctx);
     } else {
-      // Skip if we can't invoke directly
-      return;
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
     }
 
     expect(result).toMatchObject({ error: "import_not_found" });
@@ -191,18 +195,19 @@ describe("processImport — integration (real DB, mocked APIs)", () => {
     importId = await seedImport(userId, "chatgpt_zip");
 
     const { processImport } = await import("@/inngest/functions/process-import");
-    const fn = processImport as unknown as {
-      run?: (ctx: unknown) => Promise<unknown>;
-      handler?: (ctx: unknown) => Promise<unknown>;
-    };
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn2 = processImport as any;
     const ctx = { event: { name: "mirror/import.process", data: { importId } } };
-    if (typeof fn.handler === "function") {
-      await fn.handler(ctx);
-    } else if (typeof fn.run === "function") {
-      await fn.run(ctx);
+    const mockStep2 = { run: async (_id: string, cb: () => Promise<unknown>) => cb() };
+
+    if (typeof fn2.fn === "function") {
+      await fn2.fn({ ...ctx, step: mockStep2 });
+    } else if (typeof fn2.handler === "function") {
+      await fn2.handler(ctx);
+    } else if (typeof fn2.run === "function") {
+      await fn2.run(ctx);
     } else {
-      return;
+      throw new Error("Cannot invoke processImport — update invocation pattern for this Inngest version");
     }
 
     const parsedRow2 = await readImportParsed(importId, userId, "integration test: verify parsed output");
