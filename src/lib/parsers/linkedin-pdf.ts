@@ -16,6 +16,15 @@ const MODEL = "claude-sonnet-4-6";
 // Loaded once at module init — the prompt is static at runtime
 const SYSTEM_PROMPT = readFileSync(join(PROMPTS_DIR, "pdf_parse.md"), "utf-8");
 
+let _anthropicClient: Anthropic | undefined;
+
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) {
+    _anthropicClient = new Anthropic();
+  }
+  return _anthropicClient;
+}
+
 function isLinkedInSnapshot(value: unknown): value is LinkedInSnapshot {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -110,7 +119,7 @@ export async function parseLinkedInPdf(
   }
 
   const base64Data = Buffer.from(bytes).toString("base64");
-  const client = new Anthropic();
+  const client = getAnthropicClient();
 
   let response: Anthropic.Message;
   try {
@@ -189,6 +198,10 @@ export async function parseLinkedInPdf(
  */
 export function linkedInSnapshotToHistory(snapshot: LinkedInSnapshot): ParsedChatHistory {
   const messages: ParsedChatHistory["messages"] = [];
+
+  if (snapshot.headline) {
+    messages.push({ role: "user", content: snapshot.headline });
+  }
 
   if (snapshot.about) {
     messages.push({ role: "user", content: snapshot.about });

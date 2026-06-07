@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type DB } from "@/db/client";
 import { auditLog, imports, interviews } from "@/db/schema";
 import { ValidationError } from "@/lib/errors";
 
@@ -73,24 +73,29 @@ type WritePiiAuditParams = {
 };
 
 /**
- * Executes a PII-field write, then writes an audit_log row.
+ * Executes a PII-field write inside a transaction, then writes an audit_log row.
+ *
+ * Both the mutation and the audit insert run atomically: if the audit insert
+ * fails, the mutation is rolled back — no unaudited PII writes can persist.
  *
  * `reason` is required by the type — omitting it is a TypeScript compile error.
  * Use this wrapper for any mutation of PII columns (parsed, raw_path, transcript).
  */
 export async function writePii(
-  mutation: () => Promise<void>,
+  mutation: (tx: DB) => Promise<void>,
   audit: WritePiiAuditParams
 ): Promise<void> {
-  await mutation();
-  await db.insert(auditLog).values({
-    userId: audit.userId,
-    accessorId: audit.accessorId,
-    tableName: audit.tableName,
-    rowId: audit.rowId,
-    fieldName: audit.fieldName,
-    reason: audit.reason,
-    ipAddress: audit.ipAddress,
+  await db.transaction(async (tx) => {
+    await mutation(tx as unknown as DB);
+    await tx.insert(auditLog).values({
+      userId: audit.userId,
+      accessorId: audit.accessorId,
+      tableName: audit.tableName,
+      rowId: audit.rowId,
+      fieldName: audit.fieldName,
+      reason: audit.reason,
+      ipAddress: audit.ipAddress,
+    });
   });
 }
 

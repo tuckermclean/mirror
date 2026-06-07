@@ -388,18 +388,34 @@ describe("linkedInSnapshotToHistory", () => {
     expect(history.messages.every((m) => m.role === "user")).toBe(true);
 
     const texts = history.messages.map((m) => m.content);
+    expect(texts.some((t) => t.includes("Engineer"))).toBe(true);
     expect(texts.some((t) => t.includes("I build things"))).toBe(true);
     expect(texts.some((t) => t.includes("Acme"))).toBe(true);
     expect(texts.some((t) => t.includes("MIT"))).toBe(true);
     expect(texts.some((t) => t.includes("TypeScript"))).toBe(true);
   });
 
-  it("produces an empty message list for a minimal snapshot", async () => {
+  it("includes headline as the first message when present", async () => {
+    const { linkedInSnapshotToHistory } = await import("@/lib/parsers/linkedin-pdf");
+
+    const snapshot = {
+      name: "Jane Smith",
+      headline: "Senior Software Engineer at Acme",
+      experience: [],
+      education: [],
+      skills: [],
+    };
+
+    const history = linkedInSnapshotToHistory(snapshot);
+    expect(history.messages[0]?.content).toBe("Senior Software Engineer at Acme");
+  });
+
+  it("produces an empty message list for a snapshot with no headline or content", async () => {
     const { linkedInSnapshotToHistory } = await import("@/lib/parsers/linkedin-pdf");
 
     const snapshot = {
       name: "Ghost",
-      headline: "Unknown",
+      headline: "",
       experience: [],
       education: [],
       skills: [],

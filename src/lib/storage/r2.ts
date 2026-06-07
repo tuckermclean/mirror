@@ -30,6 +30,16 @@ function getBucket(): string {
   return bucket;
 }
 
+/** Returns the shared S3Client for Cloudflare R2 (lazy singleton). */
+export function getR2Client(): S3Client {
+  return getClient();
+}
+
+/** Returns the configured R2 bucket name. */
+export function getR2Bucket(): string {
+  return getBucket();
+}
+
 /**
  * Fetch an object from R2 by its storage key.
  * Returns the raw bytes of the object.

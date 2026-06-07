@@ -102,8 +102,8 @@ export const processImport = inngest.createFunction(
     // Step 4: Store parsed chat history via PII write wrapper.
     await step.run("store-parsed", async () => {
       await writePii(
-        async () => {
-          await db
+        async (tx) => {
+          await tx
             .update(imports)
             .set({ parsed: history as unknown as Record<string, unknown> })
             .where(eq(imports.id, importId));

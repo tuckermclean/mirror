@@ -2,7 +2,7 @@
  * Unit tests for the import-process Inngest worker.
  *
  * Security properties under test:
- *  - R2 download uses GetObjectCommand (private SDK credentials) — never public URL
+ *  - R2 download uses fetchFromR2 (private SDK credentials) — never public URL
  *  - rawPath read via readImportRawPath() (PII audit wrapper)
  *  - status transitions: pending → processing → done | failed
  *  - li_at / PII never logged
@@ -43,10 +43,9 @@ vi.mock("@/db/schema", () => ({
   },
 }));
 
-const mockR2Send = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/r2", () => ({
-  getR2: () => ({ send: mockR2Send }),
-  getR2Bucket: () => "test-bucket",
+const mockFetchFromR2 = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/storage/r2", () => ({
+  fetchFromR2: mockFetchFromR2,
 }));
 
 const mockReadImportRawPath = vi.hoisted(() => vi.fn());
@@ -75,15 +74,9 @@ vi.mock("@/lib/inngest/client", () => ({
 import { processImport } from "@/inngest/import-process";
 
 // ---------------------------------------------------------------------------
-// Fake response body for R2 GetObjectCommand
+// Fake bytes for fetchFromR2 response
 // ---------------------------------------------------------------------------
 const FAKE_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
-
-function makeR2Body(bytes = FAKE_BYTES) {
-  return {
-    transformToByteArray: vi.fn().mockResolvedValue(bytes),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -105,8 +98,8 @@ beforeEach(() => {
   // PII read returns rawPath
   mockReadImportRawPath.mockResolvedValue({ rawPath: "imports/user/uuid/export.zip" });
 
-  // R2 download returns valid body
-  mockR2Send.mockResolvedValue({ Body: makeR2Body() });
+  // fetchFromR2 returns valid bytes
+  mockFetchFromR2.mockResolvedValue(FAKE_BYTES);
 
   // Parser returns a parsed result
   mockParseAiHistory.mockResolvedValue({ conversations: [] });
@@ -132,11 +125,11 @@ describe("idempotency guard", () => {
 describe("status transitions", () => {
   it("sets status = 'processing' before downloading from R2", async () => {
     let processingSetBefore = false;
-    mockR2Send.mockImplementation(() => {
+    mockFetchFromR2.mockImplementation(() => {
       const calls = mockDbUpdateSet.mock.calls;
       const lastSet = calls[calls.length - 1]?.[0] as Record<string, unknown>;
       processingSetBefore = lastSet?.["status"] === "processing";
-      return Promise.resolve({ Body: makeR2Body() });
+      return Promise.resolve(FAKE_BYTES);
     });
 
     await processImport("import-uuid-1", "user-uuid-1");
@@ -162,7 +155,7 @@ describe("status transitions", () => {
   });
 
   it("sets status = 'failed' when R2 download throws", async () => {
-    mockR2Send.mockRejectedValue(new Error("R2 network error"));
+    mockFetchFromR2.mockRejectedValue(new Error("R2 network error"));
 
     await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("R2 network error");
 
@@ -192,7 +185,7 @@ describe("status transitions", () => {
   });
 
   it("re-throws the error after setting status = 'failed'", async () => {
-    mockR2Send.mockRejectedValue(new Error("storage failure"));
+    mockFetchFromR2.mockRejectedValue(new Error("storage failure"));
     await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("storage failure");
   });
 });
@@ -233,43 +226,35 @@ describe("PII audit (rawPath read)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// R2 download — must use GetObjectCommand (private creds), not public URL
+// R2 download — must use fetchFromR2 (private creds), not public URL
 // ---------------------------------------------------------------------------
 describe("R2 download", () => {
-  it("uses r2.send() (GetObjectCommand) — not a public URL fetch", async () => {
+  it("fetches from R2 via fetchFromR2 — not a public URL fetch", async () => {
     await processImport("import-uuid-1", "user-uuid-1");
-    expect(mockR2Send).toHaveBeenCalledOnce();
+    expect(mockFetchFromR2).toHaveBeenCalledOnce();
   });
 
-  it("passes the rawPath key from pii-read to GetObjectCommand", async () => {
+  it("passes the rawPath from pii-read as the fetchFromR2 key", async () => {
     mockReadImportRawPath.mockResolvedValue({
       rawPath: "imports/user/uuid/special-export.zip",
     });
 
     await processImport("import-uuid-1", "user-uuid-1");
 
-    const sentCmd = mockR2Send.mock.calls[0]?.[0] as {
-      input?: { Key?: string; Bucket?: string };
-    };
-    expect(sentCmd?.input?.["Key"]).toBe("imports/user/uuid/special-export.zip");
-    expect(sentCmd?.input?.["Bucket"]).toBe("test-bucket");
+    expect(mockFetchFromR2).toHaveBeenCalledWith("imports/user/uuid/special-export.zip");
   });
 
-  it("throws StorageError and sets failed if R2 Body is absent", async () => {
-    mockR2Send.mockResolvedValue({ Body: undefined });
+  it("throws StorageError and sets failed if fetchFromR2 throws", async () => {
+    const { StorageError } = await import("@/lib/errors");
+    mockFetchFromR2.mockRejectedValue(
+      new StorageError("R2 object not found: imports/user/uuid/export.zip")
+    );
 
-    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow();
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow(StorageError);
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
     expect(failedCall).toBeDefined();
-  });
-
-  it("StorageError for absent R2 Body uses importId in message, not the rawPath", async () => {
-    mockR2Send.mockResolvedValue({ Body: undefined });
-    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow(
-      "R2 returned empty Body for import import-uuid-1"
-    );
   });
 });
 
