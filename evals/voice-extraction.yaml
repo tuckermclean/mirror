@@ -13,7 +13,7 @@ providers:
 
 defaultTest:
   vars:
-    transcript: "file://./fixtures/voice-extraction.json"
+    transcript: "file://./fixtures/voice-extraction.txt"
 
 tests:
   - description: "Output parses as valid JSON"
