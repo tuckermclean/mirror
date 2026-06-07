@@ -141,6 +141,9 @@ export const generations = pgTable(
   (table) => [
     index("generations_user_id_idx").on(table.userId),
     index("generations_input_snapshot_id_idx").on(table.inputSnapshotId),
+    // Backs the 24h prompt_hash cache lookup the generation route runs before
+    // every LLM call (AGENTS.md prompt-caching architecture rule).
+    index("generations_prompt_hash_idx").on(table.promptHash),
   ]
 );
 
