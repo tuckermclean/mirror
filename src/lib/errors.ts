@@ -1,15 +1,9 @@
 /** Discriminated union result type — avoids naked throws in lib functions. */
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
-// ---------------------------------------------------------------------------
-// VoiceCard parse errors
-// ---------------------------------------------------------------------------
-
-import type { ZodIssue } from "zod";
-
-export type VoiceCardParseError =
-  | { kind: "invalid_json"; raw: string }
-  | { kind: "schema_mismatch"; issues: ZodIssue[] };
+// Re-exported for backward compatibility — canonical definition lives in
+// src/lib/voice-card/errors.ts.
+export type { VoiceCardParseError } from "./voice-card/errors";
 
 /** Thrown when a model string is not in the known pricing table. */
 export class UnknownModelError extends Error {

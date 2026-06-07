@@ -1,5 +1,6 @@
-import type { Result, VoiceCardParseError } from "@/lib/errors";
+import type { Result } from "@/lib/errors";
 import { VoiceCardSchema, type VoiceCard } from "./schema";
+import type { VoiceCardParseError } from "./errors";
 
 const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
 
