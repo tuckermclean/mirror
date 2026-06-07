@@ -31,26 +31,32 @@ describe("r2 module", () => {
     }
   });
 
-  it("exports a non-null r2 client when all env vars are set", async () => {
-    Object.assign(process.env, FULL_ENV);
-    const { r2 } = await import("@/lib/r2");
-    expect(r2).toBeDefined();
+  it("importing the module does NOT throw when env vars are absent", async () => {
+    for (const key of Object.keys(FULL_ENV)) delete process.env[key];
+    await expect(import("@/lib/r2")).resolves.toBeDefined();
   });
 
-  it("exports R2_BUCKET equal to the env var value", async () => {
+  it("getR2() returns a non-null S3Client when all env vars are set", async () => {
     Object.assign(process.env, FULL_ENV);
-    const { R2_BUCKET } = await import("@/lib/r2");
-    expect(R2_BUCKET).toBe("test-bucket");
+    const { getR2 } = await import("@/lib/r2");
+    expect(getR2()).toBeDefined();
+  });
+
+  it("getR2Bucket() returns the env var value when all env vars are set", async () => {
+    Object.assign(process.env, FULL_ENV);
+    const { getR2Bucket } = await import("@/lib/r2");
+    expect(getR2Bucket()).toBe("test-bucket");
   });
 
   it.each(Object.keys(FULL_ENV))(
-    "throws ConfigurationError when %s is missing",
+    "getR2() throws ConfigurationError when %s is missing",
     async (missingKey) => {
       Object.assign(process.env, FULL_ENV);
       delete process.env[missingKey];
-      await expect(import("@/lib/r2")).rejects.toMatchObject({
-        name: "ConfigurationError",
-      });
+      const { getR2 } = await import("@/lib/r2");
+      expect(() => getR2()).toThrow(
+        expect.objectContaining({ name: "ConfigurationError" })
+      );
     }
   );
 });

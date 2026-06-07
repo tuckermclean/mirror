@@ -51,8 +51,8 @@ vi.mock("@/lib/parsers/index", () => ({
 }));
 
 vi.mock("@/lib/r2", () => ({
-  r2: { send: mockR2Send },
-  R2_BUCKET: "test-bucket",
+  getR2: () => ({ send: mockR2Send }),
+  getR2Bucket: () => "test-bucket",
 }));
 
 vi.mock("@/lib/inngest/client", () => ({
