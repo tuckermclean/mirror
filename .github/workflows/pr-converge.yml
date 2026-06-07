@@ -95,39 +95,45 @@ jobs:
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
           rm -f .converge-final-action .converge-nits-raw
 
-      - name: "Setup — strip agent attribution from commits"
-        run: |
-          mkdir -p .git/hooks
-          cat > .git/hooks/prepare-commit-msg << 'HOOK'
-          #!/bin/sh
-          # Backstop to .claude/settings.json (includeCoAuthoredBy:false): strip any
-          # Claude/Anthropic co-author trailer and the "Generated with Claude Code" line.
-          sed -i \
-            -e '/^Co-authored-by:.*[Aa]nthropic/d' \
-            -e '/^Co-authored-by:.*[Cc]laude/d' \
-            -e '/Generated with \[Claude Code\]/d' \
-            "$1"
-          HOOK
-          chmod +x .git/hooks/prepare-commit-msg
-
-      # Stage the verdict resolver to a path outside the PR working tree, from
-      # the trusted default branch, so it (a) can't be tampered with by PR code
-      # and (b) is present even if the PR branch predates the script.
-      - name: "Setup — stage verdict resolver"
+      # Stage all converge scripts from the trusted default branch so PR code
+      # cannot tamper with them, and so they're present even on old branches.
+      # strip-attribution is also installed here rather than from the working
+      # tree — a PR that modifies it must not get code execution in CI runners.
+      - name: "Setup — stage converge scripts"
         run: |
           DEFAULT="${{ github.event.repository.default_branch }}"
-          RES="$RUNNER_TEMP/resolve-blockers.sh"
           git fetch --depth=1 origin "$DEFAULT" >/dev/null 2>&1 || true
-          if git show "origin/${DEFAULT}:scripts/converge/resolve-blockers.sh" > "$RES" 2>/dev/null; then
-            echo "resolver: origin/$DEFAULT"
-          elif cp scripts/converge/resolve-blockers.sh "$RES" 2>/dev/null; then
-            echo "resolver: working tree"
-          else
-            printf '%s\n%s\n' '#!/usr/bin/env bash' \
-              'jq -r ".blockers // \"unknown\"" "$1" 2>/dev/null || echo unknown' > "$RES"
-            echo "resolver: minimal fallback"
-          fi
-          chmod +x "$RES"
+
+          stage() {
+            local name="$1" src="$2" dst="$3" fallback="$4"
+            if git show "origin/${DEFAULT}:${src}" > "$dst" 2>/dev/null; then
+              echo "${name}: origin/$DEFAULT"
+            elif cp "${src}" "$dst" 2>/dev/null; then
+              echo "${name}: working tree"
+            else
+              printf '%s\n' "$fallback" > "$dst"
+              echo "${name}: minimal fallback"
+            fi
+            chmod +x "$dst"
+          }
+
+          stage resolve-blockers \
+            scripts/converge/resolve-blockers.sh \
+            "$RUNNER_TEMP/resolve-blockers.sh" \
+            $'#!/usr/bin/env bash\njq -r ".blockers // \"unknown\"" "$1" 2>/dev/null || echo unknown'
+
+          stage decide-round \
+            scripts/converge/decide-round.sh \
+            "$RUNNER_TEMP/decide-round.sh" \
+            $'#!/usr/bin/env bash\necho "fix"'
+
+          stage strip-attribution \
+            scripts/git/strip-attribution.sh \
+            "$RUNNER_TEMP/strip-attribution.sh" \
+            '#!/bin/sh'
+
+      - name: "Setup — strip agent attribution from commits"
+        run: bash "$RUNNER_TEMP/strip-attribution.sh" --install
 
       # ── Round 1 ─────────────────────────────────────────────────────────────
 
@@ -207,15 +213,18 @@ jobs:
         run: |
           BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r1.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r1.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r1_ci.outputs.ci_green }}"
+          CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
           echo "$NITS" >> .converge-nits-raw
-          if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then
+          ACTION=$(ROUND=1 BLOCKERS="$BLOCKERS" CI_GREEN="${{ steps.r1_ci.outputs.ci_green }}" \
+            PREV_SIGS="[]" CURR_SIGS="$CURR_SIGS" \
+            bash "$RUNNER_TEMP/decide-round.sh")
+          if [ "$ACTION" = "approve" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
-            echo "approve" > .converge-final-action
+            echo "$ACTION" > .converge-final-action
             echo "Converged after round 1."
           else
             echo "done=false" >> $GITHUB_OUTPUT
-            echo "Blockers: $BLOCKERS, CI green: $CI_GREEN — proceeding to fix."
+            echo "Blockers: $BLOCKERS, CI green: ${{ steps.r1_ci.outputs.ci_green }} — proceeding to fix."
           fi
 
       - name: "R1 — Fix (🔴 blockers + 🟡 suggestions)"
@@ -322,21 +331,23 @@ jobs:
         run: |
           BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r2.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r2.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r2_ci.outputs.ci_green }}"
+          PREV_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
+          CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
           echo "$NITS" >> .converge-nits-raw
-          R1_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
-          R2_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
-          if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then
+          ACTION=$(ROUND=2 BLOCKERS="$BLOCKERS" CI_GREEN="${{ steps.r2_ci.outputs.ci_green }}" \
+            PREV_SIGS="$PREV_SIGS" CURR_SIGS="$CURR_SIGS" \
+            bash "$RUNNER_TEMP/decide-round.sh")
+          if [ "$ACTION" = "approve" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
-            echo "approve" > .converge-final-action
+            echo "$ACTION" > .converge-final-action
             echo "Converged after round 2."
-          elif [ "$R1_SIGS" = "$R2_SIGS" ] && [ "$BLOCKERS" != "0" ] && [ "$BLOCKERS" != "unknown" ]; then
+          elif [ "$ACTION" != "fix" ]; then
             echo "done=true" >> $GITHUB_OUTPUT
-            echo "escalate:no-progress" > .converge-final-action
-            echo "No progress — same blockers in rounds 1 and 2. Escalating."
+            echo "$ACTION" > .converge-final-action
+            echo "Escalating after round 2: $ACTION"
           else
             echo "done=false" >> $GITHUB_OUTPUT
-            echo "Blockers: $BLOCKERS, CI green: $CI_GREEN — proceeding to round 2 fix."
+            echo "Blockers: $BLOCKERS, CI green: ${{ steps.r2_ci.outputs.ci_green }} — proceeding to round 2 fix."
           fi
 
       - name: "R2 — Fix (🔴 blockers only)"
@@ -441,29 +452,14 @@ jobs:
         run: |
           BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r3.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r3.json 2>/dev/null || echo "[]")
-          CI_GREEN="${{ steps.r3_ci.outputs.ci_green }}"
+          PREV_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
+          CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r3.json 2>/dev/null || echo "[]")
           echo "$NITS" >> .converge-nits-raw
-          R2_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
-          R3_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r3.json 2>/dev/null || echo "[]")
-          if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then
-            echo "approve" > .converge-final-action
-            echo "Converged after round 3."
-          elif [ "$BLOCKERS" = "unknown" ]; then
-            # Reviewer left no machine verdict and its comment couldn't be parsed.
-            # Escalate honestly — never claim blockers that may not exist.
-            echo "escalate:no-verdict" > .converge-final-action
-            echo "No machine-readable verdict from the final review."
-          elif [ "$BLOCKERS" = "0" ]; then
-            # Blockers cleared but a required CI check is not green.
-            echo "escalate:ci-red" > .converge-final-action
-            echo "Blockers cleared but CI is not green."
-          elif [ "$R2_SIGS" = "$R3_SIGS" ]; then
-            echo "escalate:no-progress" > .converge-final-action
-            echo "No progress — same blockers in rounds 2 and 3."
-          else
-            echo "escalate:cap-reached" > .converge-final-action
-            echo "3-round cap reached with $BLOCKERS blocker(s) remaining."
-          fi
+          ACTION=$(ROUND=3 BLOCKERS="$BLOCKERS" CI_GREEN="${{ steps.r3_ci.outputs.ci_green }}" \
+            PREV_SIGS="$PREV_SIGS" CURR_SIGS="$CURR_SIGS" \
+            bash "$RUNNER_TEMP/decide-round.sh")
+          echo "$ACTION" > .converge-final-action
+          echo "Round 3 decision: $ACTION"
 
       # ── Finalize ────────────────────────────────────────────────────────────
 

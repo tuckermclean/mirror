@@ -124,18 +124,17 @@ jobs:
 
       - name: Setup — strip agent attribution from commits
         run: |
-          mkdir -p .git/hooks
-          cat > .git/hooks/prepare-commit-msg << 'HOOK'
-          #!/bin/sh
-          # Backstop to .claude/settings.json (includeCoAuthoredBy:false): strip any
-          # Claude/Anthropic co-author trailer and the "Generated with Claude Code" line.
-          sed -i \
-            -e '/^Co-authored-by:.*[Aa]nthropic/d' \
-            -e '/^Co-authored-by:.*[Cc]laude/d' \
-            -e '/Generated with \[Claude Code\]/d' \
-            "$1"
-          HOOK
-          chmod +x .git/hooks/prepare-commit-msg
+          DEFAULT="${{ github.event.repository.default_branch }}"
+          git fetch --depth=1 origin "$DEFAULT" >/dev/null 2>&1 || true
+          STRIP="$RUNNER_TEMP/strip-attribution.sh"
+          if git show "origin/${DEFAULT}:scripts/git/strip-attribution.sh" > "$STRIP" 2>/dev/null; then
+            echo "strip-attribution: origin/$DEFAULT"
+          else
+            printf '%s\n' '#!/bin/sh' > "$STRIP"
+            echo "strip-attribution: minimal fallback (no-op)"
+          fi
+          chmod +x "$STRIP"
+          bash "$STRIP" --install
 
       - name: Find existing PR for issue
         id: existing_pr
