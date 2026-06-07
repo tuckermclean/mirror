@@ -3,15 +3,15 @@ import { eq, isNotNull, and, sql } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/db/client";
 import { generations, imports, interviews, users } from "@/db/schema";
-// `readLinkedinSnapshot` (added to pii-read.ts) and `computePromptHash`
-// (added in prompt-cache.ts) are owned by a teammate and land in separate PRs.
-// We import — never define — them here per the PII-wrapper and prompt-cache
-// architecture rules. Until both upstream PRs merge, `pnpm typecheck` reports
-// two "missing member/module" errors for exactly these symbols; they resolve
-// on merge. Tests mock both modules so the function is verified in isolation.
+// `readLinkedinSnapshot` (added to pii-read.ts) is owned by a teammate and
+// lands in a separate PR. We import — never define — it here per the
+// PII-wrapper architecture rule. Until that upstream PR merges, `pnpm
+// typecheck` reports a "missing member" error for exactly this symbol; it
+// resolves on merge. Tests mock the module so the function is verified in
+// isolation. The prompt-hash cache key is owned entirely by the POST
+// /api/generate route, so this function never computes a hash itself.
 import { readLinkedinSnapshot, readInterviewTranscript } from "@/lib/db/pii-read";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
-import { computePromptHash } from "@/lib/llm/prompt-cache";
 import { prompts } from "@/lib/prompts";
 import { MonthlyCapError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
@@ -189,15 +189,15 @@ export const runGeneration = inngest.createFunction(
     });
 
     // Step 7: Persist the result into the existing generations row.
+    // The POST /api/generate route OWNS the prompt-hash cache key: it computes
+    // the hash, performs the 24h findCachedGeneration lookup with it, and stores
+    // it on the placeholder row we update here. We MUST preserve that
+    // route-computed hash — overwriting it with a differently-shaped hash would
+    // mean the route's lookup can never hit, defeating the prompt-caching rule.
     await step.run("store-generation", async () => {
-      const promptHash = computePromptHash({
-        systemPrompt: system,
-        userMessages: [userMessage],
-        modelId: MODEL,
-      });
       await db
         .update(generations)
-        .set({ output: result.output, model: MODEL, promptHash })
+        .set({ output: result.output, model: MODEL })
         .where(eq(generations.id, generationId));
     });
 

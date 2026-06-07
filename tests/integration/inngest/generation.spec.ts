@@ -225,15 +225,24 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
     });
   });
 
-  it("updates the generations row with output, model, and promptHash", async () => {
+  it("updates the generations row with output and model, preserving the route-owned promptHash", async () => {
     await invoke();
     expect(updateSetSpy).toHaveBeenCalled();
     const payloads = updateSetSpy.mock.calls.map((c) => c[0] as Record<string, unknown>);
     const genUpdate = payloads.find((p) => "output" in p);
     expect(genUpdate).toBeDefined();
     expect(genUpdate?.["model"]).toBe(MODEL);
-    expect(genUpdate?.["promptHash"]).toBe("deadbeefhash");
     expect(genUpdate?.["output"]).toBeTruthy();
+    // The route is the OWNER of the prompt-hash cache key: it computes the hash,
+    // does the 24h cache lookup with it, and stores it on the placeholder row.
+    // The Inngest function MUST NOT overwrite it, or the cache can never hit.
+    expect(genUpdate).not.toHaveProperty("promptHash");
+  });
+
+  it("never recomputes the prompt hash (route owns the cache key)", async () => {
+    const { computePromptHash } = await import("@/lib/llm/prompt-cache");
+    await invoke();
+    expect(computePromptHash).not.toHaveBeenCalled();
   });
 
   it("emits a generation/complete event with the generationId and userId", async () => {
