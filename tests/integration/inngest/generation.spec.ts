@@ -38,6 +38,7 @@ const GENERATED_OUTPUT = '{"headline":"Engineer who ships","about":"I build thin
 // Anthropic SDK mock — streaming client
 // ---------------------------------------------------------------------------
 const finalMessageMock = vi.fn().mockResolvedValue({
+  content: [{ type: "text", text: GENERATED_OUTPUT }],
   usage: { input_tokens: 1200, output_tokens: 340 },
 });
 const streamOn = vi.fn();
@@ -169,7 +170,10 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     checkMonthlyCap.mockResolvedValue({ allowed: true });
-    finalMessageMock.mockResolvedValue({ usage: { input_tokens: 1200, output_tokens: 340 } });
+    finalMessageMock.mockResolvedValue({
+      content: [{ type: "text", text: GENERATED_OUTPUT }],
+      usage: { input_tokens: 1200, output_tokens: 340 },
+    });
     messagesStream.mockResolvedValue({
       on: streamOn,
       finalMessage: finalMessageMock,
