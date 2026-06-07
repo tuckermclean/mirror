@@ -8,6 +8,10 @@
  * Validates the full state machine:
  *   seeded import row → parse → embed → imports.voice_embedding set
  *   → users.voice_profile_id updated
+ *
+ * Invocation: InngestFunction stores the user-supplied callback as `.fn`.
+ * We call it directly with a mock `step` that executes each step.run()
+ * callback synchronously — no Inngest server needed, no silent skips.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
