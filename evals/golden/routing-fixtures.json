@@ -1,0 +1,297 @@
+[
+  {
+    "rule": 1,
+    "label": "security — auth keyword",
+    "input": "Fix the auth flow so sessions expire correctly",
+    "expected": {
+      "agent": ".agents/engineering-security-engineer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "security"
+    }
+  },
+  {
+    "rule": 1,
+    "label": "security — li_at cookie",
+    "input": "Encrypt the li_at cookie before writing it to the database",
+    "expected": {
+      "agent": ".agents/engineering-security-engineer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "security"
+    }
+  },
+  {
+    "rule": 2,
+    "label": "database — migration keyword",
+    "input": "Add a SQL migration to add a pgvector index on embeddings",
+    "expected": {
+      "agent": ".agents/engineering-database-optimizer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "db"
+    }
+  },
+  {
+    "rule": 2,
+    "label": "database — drizzle keyword",
+    "input": "Update the drizzle schema to add soft deletes to the users table",
+    "expected": {
+      "agent": ".agents/engineering-database-optimizer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "db"
+    }
+  },
+  {
+    "rule": 3,
+    "label": "architecture — adr keyword",
+    "input": "Write an ADR for the new job queue approach",
+    "expected": {
+      "agent": ".agents/engineering-software-architect.md",
+      "model": "claude-opus-4-7",
+      "taskType": "architecture"
+    }
+  },
+  {
+    "rule": 3,
+    "label": "architecture — scalability keyword",
+    "input": "Review the worker design for scalability at 10k concurrent users",
+    "expected": {
+      "agent": ".agents/engineering-software-architect.md",
+      "model": "claude-opus-4-7",
+      "taskType": "architecture"
+    }
+  },
+  {
+    "rule": 4,
+    "label": "devops — ci keyword (whole-word)",
+    "input": "Fix the CI pipeline so unit tests run in parallel",
+    "expected": {
+      "agent": ".agents/engineering-devops-automator.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 4,
+    "label": "devops — docker keyword",
+    "input": "Update the Dockerfile to use a multi-stage build",
+    "expected": {
+      "agent": ".agents/engineering-devops-automator.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 5,
+    "label": "AI engineer — prompt keyword",
+    "input": "Tune the rewrite prompt to reduce hallucinated job titles",
+    "expected": {
+      "agent": ".agents/engineering-ai-engineer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 5,
+    "label": "AI engineer — embedding keyword",
+    "input": "Switch the embedding provider from OpenAI to Voyage AI",
+    "expected": {
+      "agent": ".agents/engineering-ai-engineer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 6,
+    "label": "UI designer — tailwind keyword",
+    "input": "Refactor the card layout using Tailwind grid utilities",
+    "expected": {
+      "agent": ".agents/design-ui-designer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "design"
+    }
+  },
+  {
+    "rule": 7,
+    "label": "UX architect — user flow keyword",
+    "input": "Map out the user flow for the profile review walkthrough",
+    "expected": {
+      "agent": ".agents/design-ux-architect.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "ux"
+    }
+  },
+  {
+    "rule": 8,
+    "label": "accessibility — a11y keyword",
+    "input": "Fix a11y issues in the profile diff view",
+    "expected": {
+      "agent": ".agents/testing-accessibility-auditor.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "a11y"
+    }
+  },
+  {
+    "rule": 9,
+    "label": "brand guardian — microcopy keyword",
+    "input": "Rewrite the microcopy on the empty state screens",
+    "expected": {
+      "agent": ".agents/design-brand-guardian.md",
+      "model": "claude-haiku-4-5-20251001",
+      "taskType": "trivial"
+    }
+  },
+  {
+    "rule": 10,
+    "label": "whimsy injector — easter egg keyword",
+    "input": "Add an easter egg on the 404 error page",
+    "expected": {
+      "agent": ".agents/design-whimsy-injector.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "design"
+    }
+  },
+  {
+    "rule": 11,
+    "label": "technical writer — readme keyword",
+    "input": "Update the README with the new setup instructions",
+    "expected": {
+      "agent": ".agents/engineering-technical-writer.md",
+      "model": "claude-haiku-4-5-20251001",
+      "taskType": "docs"
+    }
+  },
+  {
+    "rule": 12,
+    "label": "onboarding engineer — explain keyword",
+    "input": "Explain how the monthly spend cap enforcement works",
+    "expected": {
+      "agent": ".agents/engineering-codebase-onboarding-engineer.md",
+      "model": "claude-haiku-4-5-20251001",
+      "taskType": "explain"
+    }
+  },
+  {
+    "rule": 13,
+    "label": "senior developer trivial — typo keyword",
+    "input": "Fix a typo in the error message on the sign-in page",
+    "expected": {
+      "agent": ".agents/engineering-senior-developer.md",
+      "model": "claude-haiku-4-5-20251001",
+      "taskType": "trivial"
+    }
+  },
+  {
+    "rule": 14,
+    "label": "rapid prototyper — spike keyword",
+    "input": "Spike a local Ollama integration for offline dev testing",
+    "expected": {
+      "agent": ".agents/engineering-rapid-prototyper.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 15,
+    "label": "code reviewer — review keyword",
+    "input": "Review the new rate-limiting middleware before merging",
+    "expected": {
+      "agent": ".agents/engineering-code-reviewer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "review"
+    }
+  },
+  {
+    "rule": 16,
+    "label": "sprint prioritizer — backlog keyword",
+    "input": "Groom the backlog for Q3 planning",
+    "expected": {
+      "agent": ".agents/product-sprint-prioritizer.md",
+      "model": "claude-haiku-4-5-20251001",
+      "taskType": "plan"
+    }
+  },
+  {
+    "rule": 17,
+    "label": "senior developer setup — pnpm add keyword",
+    "input": "pnpm add the zod library to validate API responses",
+    "expected": {
+      "agent": ".agents/engineering-senior-developer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "setup"
+    }
+  },
+  {
+    "rule": 17,
+    "label": "senior developer setup — scaffold keyword",
+    "input": "Scaffold a new Next.js route for the export feature",
+    "expected": {
+      "agent": ".agents/engineering-senior-developer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "setup"
+    }
+  },
+  {
+    "rule": 18,
+    "label": "default — generic implementation task",
+    "input": "Add pagination to the profile history list",
+    "expected": {
+      "agent": ".agents/engineering-senior-developer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": 18,
+    "label": "default — empty string",
+    "input": "",
+    "expected": {
+      "agent": ".agents/engineering-senior-developer.md",
+      "model": "claude-sonnet-4-6",
+      "taskType": "implement"
+    }
+  },
+  {
+    "rule": "cross-cutting",
+    "label": "first-match-wins: rule 2 beats rule 4 (migration + pipeline)",
+    "input": "Create a database migration for the ci pipeline config table",
+    "expected": {
+      "agent": ".agents/engineering-database-optimizer.md",
+      "note": "migration (rule 2) fires before pipeline (rule 4)"
+    }
+  },
+  {
+    "rule": "cross-cutting",
+    "label": "first-match-wins: rule 1 beats rule 5 (crypto + embedding)",
+    "input": "Encrypt the embedding vector with crypto before storage",
+    "expected": {
+      "agent": ".agents/engineering-security-engineer.md",
+      "note": "crypto (rule 1) fires before embedding (rule 5)"
+    }
+  },
+  {
+    "rule": "cross-cutting",
+    "label": "first-match-wins: rule 11 beats rule 13 (readme + typo)",
+    "input": "Fix a typo in the README",
+    "expected": {
+      "agent": ".agents/engineering-technical-writer.md",
+      "note": "readme (rule 11) fires before typo (rule 13)"
+    }
+  },
+  {
+    "rule": "cross-cutting",
+    "label": "case-insensitivity: DATABASE uppercased",
+    "input": "Optimize the DATABASE query for slow lookups",
+    "expected": {
+      "agent": ".agents/engineering-database-optimizer.md",
+      "note": "matching is case-insensitive; DATABASE === database"
+    }
+  },
+  {
+    "rule": "cross-cutting",
+    "label": "word-boundary: 'ci' does NOT match inside 'hallucinated'",
+    "input": "Tune the rewrite prompt to reduce hallucinated job titles",
+    "expected": {
+      "agent": ".agents/engineering-ai-engineer.md",
+      "note": "whole-word 'ci' does not fire on 'hallucinated'; prompt (rule 5) wins"
+    }
+  }
+]
