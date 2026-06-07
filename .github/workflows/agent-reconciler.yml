@@ -247,16 +247,19 @@ jobs:
                 # Converge workflow exited cleanly — but did it actually approve or escalate?
                 # Check for terminal labels. If the PR still has neither, converge exited on
                 # a non-terminal path (e.g. cap-reached re-dispatch) and needs re-arming.
-                HAS_TERMINAL=$(gh pr view "$PR_NUM" --repo "$REPO" \
-                  --json labels --jq '.labels[].name' 2>/dev/null \
-                  | grep -cE "^(agent:ready|needs-human)$" || echo "0")
-                [ "$HAS_TERMINAL" != "0" ] && continue
+                # Use grep -q (no output, exit code only) to avoid the grep -c || echo "0"
+                # double-output bug where $() captures "0\n0" and the comparison is always true.
+                if gh pr view "$PR_NUM" --repo "$REPO" \
+                    --json labels --jq '.labels[].name' 2>/dev/null \
+                    | grep -qE "^(agent:ready|needs-human)$"; then
+                  continue   # PR reached a terminal label — genuinely done
+                fi
                 echo "Converge exited successfully but PR #$PR_NUM has no terminal label — re-arming"
               fi
               if [ -n "$LAST_AT" ]; then
                 LAST_EPOCH=$(date -d "$LAST_AT" +%s 2>/dev/null || echo "0")
                 if [ "$(($(date +%s) - LAST_EPOCH))" -lt 300 ]; then
-                  echo "Converge finished < 5min ago — deferring re-arm for PR #$PR_NUM"
+                  echo "Converge finished < 5min ago — deferring re-arm for PR #$PR_NUM to avoid synchronize feedback loop"
                   continue
                 fi
               fi
