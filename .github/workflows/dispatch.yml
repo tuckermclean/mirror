@@ -14,6 +14,12 @@ jobs:
       (github.event_name == 'issues' && github.event.label.name == 'agent-work') ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+    # Share the converge concurrency group when acting on a PR so that an @claude
+    # comment cancels any in-progress converge run rather than racing with it.
+    # For new issue events the group key is unique (no converge running yet).
+    concurrency:
+      group: ${{ format('converge-pr-{0}', github.event.pull_request.number || github.event.issue.number) }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       id-token: write
