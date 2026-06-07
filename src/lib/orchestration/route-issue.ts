@@ -74,9 +74,12 @@ const RULES: Rule[] = [
     taskType: "db",
   },
   // Rule 3 — Architecture
+  // Note: bare "architecture" is excluded — "information architecture" (rule 7, UX) contains
+  // the word and would misroute. Use phrase forms or co-occurring context keywords instead.
   {
     keywords: [
-      "architecture",
+      "software architecture",
+      "system architecture",
       "adr",
       "system design",
       "major refactor",
