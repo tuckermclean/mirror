@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/chat": ["./src/lib/prompts/**/*"],
   },
+  // voyageai bundles @huggingface/transformers → onnxruntime-node which ships
+  // native .node binaries; webpack cannot parse them. Mark as server-external
+  // so Node.js require() handles them at runtime instead of bundling.
+  serverExternalPackages: ["voyageai", "onnxruntime-node", "@huggingface/transformers"],
 };
 
 export default nextConfig;
