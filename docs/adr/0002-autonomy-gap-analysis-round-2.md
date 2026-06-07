@@ -37,7 +37,7 @@ loop against the NEXUS doctrine in `agency-agents/strategy/`, and introducing th
 | B — make ci + coverage | Fixed false Makefile comment; added `make coverage` / `pnpm coverage`; extended `vitest.config.ts` to global src coverage config; installed missing `@vitest/coverage-v8` | — |
 | C — Routing golden-file test | `src/lib/orchestration/route-issue.ts` — deterministic TypeScript router matching the 18 keyword rules; `evals/golden/routing-fixtures.json` — 31 documented fixture cases | 76 unit tests |
 | D — Pipeline Status Report | `scripts/status/pipeline-status.sh` — markdown health snapshot (ON_TRACK / AT_RISK / BLOCKED); env-injectable for tests | 7 new infra tests |
-| E — Supply-chain pin | `agency-agents` clone pinned to SHA `4e905cff` in `dispatch.yml`, `pr-converge.yml`, `review.yml` | — |
+| E — Supply-chain pin | `agency-agents` clone pinned to SHA `d6553e26` in `dispatch.yml`, `pr-converge.yml`, `review.yml` | — |
 
 **Total new tests this round:** 140 (57 infra reconciler + 76 unit routing + 7 infra status).
 Combined with the 58 tests already in `tests/infra/` from ADR-0001 P0: **198 orchestration tests**.

@@ -58,6 +58,10 @@ describe("reconciler decide-rearm-action", () => {
     expect(decide(5, "in_progress:", 0, "")).toBe("skip-in-progress");
   });
 
+  it("skips when converge is queued (prevents duplicate-dispatch before in_progress)", () => {
+    expect(decide(5, "queued:", 0, "")).toBe("skip-in-progress");
+  });
+
   // ── Priority 3: skip-done when completed:success + terminal label ──────────
 
   it("skips as done when converge completed:success and PR has terminal label", () => {

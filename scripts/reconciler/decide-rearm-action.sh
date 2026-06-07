@@ -36,8 +36,10 @@ if [ "$ci_runs" -eq 0 ]; then
   exit 0
 fi
 
-# Priority 2: converge is currently running — leave it alone.
-if [ "$converge_state" = "in_progress:" ]; then
+# Priority 2: converge is running or queued — leave it alone.
+# GitHub emits status=queued before transitioning to in_progress; treating
+# queued the same as in_progress prevents a duplicate-dispatch feedback loop.
+if [ "$converge_state" = "in_progress:" ] || [ "$converge_state" = "queued:" ]; then
   echo "skip-in-progress"
   exit 0
 fi

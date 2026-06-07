@@ -10,7 +10,7 @@
 export type ModelId =
   | "claude-haiku-4-5-20251001"
   | "claude-sonnet-4-6"
-  | "claude-opus-4-7";
+  | "claude-opus-4-8";
 
 export type RouteDecision = {
   /** Relative path to the agent markdown file, e.g. ".agents/engineering-senior-developer.md" */
@@ -29,7 +29,7 @@ type Rule = {
 // Model alias constants
 const HAIKU: ModelId = "claude-haiku-4-5-20251001";
 const SONNET: ModelId = "claude-sonnet-4-6";
-const OPUS: ModelId = "claude-opus-4-7";
+const OPUS: ModelId = "claude-opus-4-8";
 
 /**
  * Routing rules in priority order (first match wins).

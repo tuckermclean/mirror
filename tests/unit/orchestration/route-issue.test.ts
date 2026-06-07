@@ -63,14 +63,14 @@ describe("rule 3 — architecture", () => {
   it("routes 'architecture' to software-architect on opus", () => {
     const d = routeIssue("Discuss the architecture for multi-tenant data isolation");
     expect(d.agent).toBe(".agents/engineering-software-architect.md");
-    expect(d.model).toBe("claude-opus-4-7");
+    expect(d.model).toBe("claude-opus-4-8");
     expect(d.taskType).toBe("architecture");
   });
 
   it("routes 'adr' to software-architect on opus", () => {
     const d = routeIssue("Write an ADR for the new job queue approach");
     expect(d.agent).toBe(".agents/engineering-software-architect.md");
-    expect(d.model).toBe("claude-opus-4-7");
+    expect(d.model).toBe("claude-opus-4-8");
   });
 
   it("routes 'scalability' to software-architect on opus", () => {
@@ -486,6 +486,33 @@ describe("first-match-wins", () => {
     // 'readme' (rule 11) and 'typo' (rule 13) both present
     const d = routeIssue("Fix a typo in the README");
     expect(d.agent).toBe(".agents/engineering-technical-writer.md");
+  });
+});
+
+describe("word-boundary guard — short tokens must not fire inside longer words", () => {
+  it("'hallucinated' does not trigger the 'ci' devops rule", () => {
+    const d = routeIssue("Fix hallucinated job titles in the profile output");
+    expect(d.agent).toBe(".agents/engineering-senior-developer.md");
+  });
+
+  it("'acidic' does not trigger the 'ci' devops rule", () => {
+    const d = routeIssue("Handle acidic edge cases in the parser");
+    expect(d.agent).toBe(".agents/engineering-senior-developer.md");
+  });
+
+  it("'fluid' does not trigger the 'ui' design rule", () => {
+    const d = routeIssue("Make the animation more fluid");
+    expect(d.agent).toBe(".agents/engineering-senior-developer.md");
+  });
+
+  it("'quadrant' does not trigger the 'adr' architecture rule", () => {
+    const d = routeIssue("Plot the results in a quadrant chart");
+    expect(d.agent).toBe(".agents/engineering-senior-developer.md");
+  });
+
+  it("'luxury' does not trigger the 'ux' design rule", () => {
+    const d = routeIssue("This feature has a luxury feel to it");
+    expect(d.agent).toBe(".agents/engineering-senior-developer.md");
   });
 });
 
