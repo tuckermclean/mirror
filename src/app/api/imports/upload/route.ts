@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     await inngest.send({
       name: "mirror/import.process",
-      data: { importId },
+      data: { importId, userId: internalUserId },
     });
   } catch (err) {
     logger.error("import.upload.inngest_send_failed", { importId, err });

@@ -96,8 +96,8 @@ beforeEach(() => {
   mockDbUpdateSet.mockReturnValue({ where: mockDbUpdateWhere });
   mockDbUpdate.mockReturnValue({ set: mockDbUpdateSet });
 
-  // DB select chain for userId (non-PII) lookup
-  mockDbSelectChain.limit.mockResolvedValue([{ userId: "user-uuid-1" }]);
+  // DB select chain for idempotency guard (status lookup)
+  mockDbSelectChain.limit.mockResolvedValue([{ status: "pending" }]);
   mockDbSelectChain.where.mockReturnValue({ limit: mockDbSelectChain.limit });
   mockDbSelectChain.from.mockReturnValue({ where: mockDbSelectChain.where });
   mockDbSelectChain.select.mockReturnValue({ from: mockDbSelectChain.from });
@@ -125,12 +125,12 @@ describe("status transitions", () => {
       return Promise.resolve({ Body: makeR2Body() });
     });
 
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
     expect(processingSetBefore).toBe(true);
   });
 
   it("sets status = 'done' after successful parse and persist", async () => {
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const doneCall = allSetCalls.find((c) => c[0]?.["status"] === "done");
@@ -140,7 +140,7 @@ describe("status transitions", () => {
   it("sets status = 'failed' when R2 download throws", async () => {
     mockR2Send.mockRejectedValue(new Error("R2 network error"));
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow("R2 network error");
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("R2 network error");
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
@@ -150,7 +150,7 @@ describe("status transitions", () => {
   it("sets status = 'failed' when parseAiHistory throws", async () => {
     mockParseAiHistory.mockRejectedValue(new Error("parse failed"));
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow("parse failed");
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("parse failed");
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
@@ -160,7 +160,7 @@ describe("status transitions", () => {
   it("sets status = 'failed' when pii-read throws", async () => {
     mockReadImportRawPath.mockRejectedValue(new Error("audit DB down"));
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow("audit DB down");
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("audit DB down");
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
@@ -169,7 +169,7 @@ describe("status transitions", () => {
 
   it("re-throws the error after setting status = 'failed'", async () => {
     mockR2Send.mockRejectedValue(new Error("storage failure"));
-    await expect(processImport("import-uuid-1")).rejects.toThrow("storage failure");
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("storage failure");
   });
 });
 
@@ -178,7 +178,7 @@ describe("status transitions", () => {
 // ---------------------------------------------------------------------------
 describe("PII audit (rawPath read)", () => {
   it("reads rawPath via readImportRawPath, not a direct DB select on raw_path", async () => {
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
     expect(mockReadImportRawPath).toHaveBeenCalledOnce();
     expect(mockReadImportRawPath).toHaveBeenCalledWith(
       "import-uuid-1",
@@ -190,7 +190,7 @@ describe("PII audit (rawPath read)", () => {
   it("throws and sets status = 'failed' when rawPath is null", async () => {
     mockReadImportRawPath.mockResolvedValue({ rawPath: null });
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow();
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow();
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
@@ -200,7 +200,7 @@ describe("PII audit (rawPath read)", () => {
   it("throws and sets status = 'failed' when import row does not exist", async () => {
     mockReadImportRawPath.mockResolvedValue(undefined);
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow();
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow();
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
@@ -213,7 +213,7 @@ describe("PII audit (rawPath read)", () => {
 // ---------------------------------------------------------------------------
 describe("R2 download", () => {
   it("uses r2.send() (GetObjectCommand) — not a public URL fetch", async () => {
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
     expect(mockR2Send).toHaveBeenCalledOnce();
   });
 
@@ -222,7 +222,7 @@ describe("R2 download", () => {
       rawPath: "imports/user/uuid/special-export.zip",
     });
 
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
 
     const sentCmd = mockR2Send.mock.calls[0]?.[0] as {
       input?: { Key?: string; Bucket?: string };
@@ -234,11 +234,18 @@ describe("R2 download", () => {
   it("throws StorageError and sets failed if R2 Body is absent", async () => {
     mockR2Send.mockResolvedValue({ Body: undefined });
 
-    await expect(processImport("import-uuid-1")).rejects.toThrow();
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow();
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
     expect(failedCall).toBeDefined();
+  });
+
+  it("StorageError for absent R2 Body uses importId in message, not the rawPath", async () => {
+    mockR2Send.mockResolvedValue({ Body: undefined });
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow(
+      "R2 returned empty Body for import import-uuid-1"
+    );
   });
 });
 
@@ -247,7 +254,7 @@ describe("R2 download", () => {
 // ---------------------------------------------------------------------------
 describe("parse and persist", () => {
   it("calls parseAiHistory with the downloaded bytes", async () => {
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
 
     expect(mockParseAiHistory).toHaveBeenCalledOnce();
     const arg = mockParseAiHistory.mock.calls[0]?.[0];
@@ -258,7 +265,7 @@ describe("parse and persist", () => {
     const fakeParsed = { conversations: [{ id: "c1" }] };
     mockParseAiHistory.mockResolvedValue(fakeParsed);
 
-    await processImport("import-uuid-1");
+    await processImport("import-uuid-1", "user-uuid-1");
 
     const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
     const doneCall = allSetCalls.find((c) => c[0]?.["status"] === "done");

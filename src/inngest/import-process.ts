@@ -9,13 +9,13 @@ import { StorageError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { inngest } from "@/lib/inngest/client";
 
-export async function processImport(importId: string): Promise<void> {
+export async function processImport(importId: string, userId: string): Promise<void> {
   await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
 
   try {
     const piiRow = await readImportRawPath(
       importId,
-      importId,
+      userId,
       "inngest import-process worker: download raw file for parsing"
     );
 
@@ -28,7 +28,7 @@ export async function processImport(importId: string): Promise<void> {
     );
 
     if (!Body) {
-      throw new StorageError(`R2 returned empty Body for key ${piiRow.rawPath}`);
+      throw new StorageError(`R2 returned empty Body for import ${importId}`);
     }
 
     const bytes = new Uint8Array(await Body.transformToByteArray());
@@ -48,7 +48,7 @@ export async function processImport(importId: string): Promise<void> {
 
 export const importProcess = inngest.createFunction(
   { id: "import-process", triggers: [{ event: "mirror/import.process" }] },
-  async ({ event }: { event: { data: { importId: string } } }) => {
-    await processImport(event.data.importId);
+  async ({ event }: { event: { data: { importId: string; userId: string } } }) => {
+    await processImport(event.data.importId, event.data.userId);
   }
 );
