@@ -1,0 +1,39 @@
+{
+  "source": "claude",
+  "exportedAt": "2024-11-01T00:00:00Z",
+  "totalConversations": 3,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Let's debug this Kubernetes pod that keeps OOMKilling. I've checked the resource limits and they look fine on paper, but the container's real working set is 2.3x the request."
+    },
+    {
+      "role": "assistant",
+      "content": "The gap between request and working set is the classic signal for JVM heap misconfiguration."
+    },
+    {
+      "role": "user",
+      "content": "JVM. Spring Boot. The heap is set to 512m via JAVA_OPTS but the OOM is happening in the metaspace, not heap. The pod's been running 6 days before it dies, which makes me think it's a class-loader leak, not a heap issue."
+    },
+    {
+      "role": "user",
+      "content": "MaxMetaspaceSize wasn't set. Classic. Added -XX:MaxMetaspaceSize=256m."
+    },
+    {
+      "role": "user",
+      "content": "We don't have burn rate alerts yet. Just raw latency alerts that fire when p99 > 250ms. The problem is on-call is getting paged at 3am for things that don't actually threaten the monthly error budget — false urgency everywhere. I want to fix the signal, not just the threshold."
+    },
+    {
+      "role": "user",
+      "content": "Exactly. The current setup creates toil without reducing real risk. I'd rather have two pages per month that matter than 20 that don't. Noise is a reliability problem too — on-call fatigue degrades incident response quality over time."
+    },
+    {
+      "role": "user",
+      "content": "Right. The actual trigger was an engineer running a cache flush in production to clear stale data — totally reasonable action with no runbook warning it would cause a thundering herd at peak traffic. Three independent defenses all absent."
+    },
+    {
+      "role": "user",
+      "content": "I want the action items to be actually done, not performative. In my experience, postmortems with 12 action items get 2 done. I'm going to pick the three highest-leverage items and assign owners with deadlines."
+    }
+  ]
+}
