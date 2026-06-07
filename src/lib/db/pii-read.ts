@@ -230,7 +230,7 @@ export async function readLinkedinSnapshot(
       accessorId: userId,
       tableName: "linkedin_snapshots",
       rowId: snapshotId,
-      fieldName: "raw_html",
+      fieldName: "raw_html,parsed",
       reason,
       ...(ipAddress !== undefined ? { ipAddress } : {}),
     }

@@ -85,7 +85,7 @@ describe("readLinkedinSnapshot", () => {
       expect.objectContaining({
         tableName: "linkedin_snapshots",
         rowId: SNAPSHOT_ID,
-        fieldName: "raw_html",
+        fieldName: "raw_html,parsed",
         reason: REASON,
       })
     );
