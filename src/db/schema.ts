@@ -86,7 +86,7 @@ export const imports = pgTable(
     status: text("status").notNull().default("pending").$type<ImportStatus>(),
     rawPath: text("raw_path"),
     parsed: jsonb("parsed"),
-    voiceEmbedding: vectorColumn("voice_embedding", 3072),
+    voiceEmbedding: vectorColumn("voice_embedding", 1024),
   },
   (table) => [
     index("imports_user_id_idx").on(table.userId),
@@ -201,7 +201,7 @@ export const benchmarkProfiles = pgTable(
     seniority: text("seniority").notNull(),
     publicUrl: text("public_url").notNull(),
     parsed: jsonb("parsed"),
-    embedding: vectorColumn("embedding", 3072),
+    embedding: vectorColumn("embedding", 1024),
     performanceSignals: jsonb("performance_signals"),
   },
   (_table) => [
@@ -213,11 +213,11 @@ export const benchmarkProfiles = pgTable(
     // Track: https://github.com/drizzle-team/drizzle-orm/issues/1006 (expression-index ops)
     //
     // Uses the literal column name "embedding" rather than ${table.embedding} to avoid
-    // Drizzle's serializer emitting a double-quoted identifier ("embedding"::halfvec(3072))
-    // vs the unquoted form (embedding::halfvec(3072)) in the migration SQL, which would
+    // Drizzle's serializer emitting a double-quoted identifier ("embedding"::halfvec(1024))
+    // vs the unquoted form (embedding::halfvec(1024)) in the migration SQL, which would
     // cause schema drift between db:push and db:migrate environments.
     index("benchmark_profiles_embedding_hnsw_idx")
-      .using("hnsw", sql`(embedding::halfvec(3072)) halfvec_cosine_ops`)
+      .using("hnsw", sql`(embedding::halfvec(1024)) halfvec_cosine_ops`)
       .with({ m: 16, ef_construction: 64 }),
   ]
 );

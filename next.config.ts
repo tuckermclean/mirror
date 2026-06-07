@@ -10,10 +10,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/chat": ["./src/lib/prompts/**/*"],
   },
-  // voyageai bundles @huggingface/transformers → onnxruntime-node which ships
-  // native .node binaries; webpack cannot parse them. Mark as server-external
-  // so Node.js require() handles them at runtime instead of bundling.
-  serverExternalPackages: ["voyageai", "onnxruntime-node", "@huggingface/transformers"],
+  // onnxruntime-node ships native .node binaries that webpack cannot parse.
+  // voyageai is intentionally NOT listed here: webpack must bundle it so that
+  // its internal directory imports (import './api') are resolved by webpack's
+  // enhanced-resolve rather than the Node.js ESM resolver, which rejects
+  // directory imports with ERR_UNSUPPORTED_DIR_IMPORT.
+  serverExternalPackages: ["onnxruntime-node", "@huggingface/transformers"],
 };
 
 export default nextConfig;

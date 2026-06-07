@@ -4,7 +4,8 @@ import type { VoiceCard } from "@/lib/voice/extract";
 import { ConfigurationError, ParseError } from "@/lib/errors";
 
 const EMBEDDING_MODEL = "voyage-3";
-const EMBEDDING_DIMENSIONS = 3072;
+// voyage-3 returns 1024-dimensional embeddings by default.
+const EMBEDDING_DIMENSIONS = 1024;
 
 let _client: VoyageAIClient | undefined;
 
@@ -21,7 +22,7 @@ function getClient(): VoyageAIClient {
  * Produce a voice embedding vector for an import's parsed chat history.
  *
  * Condenses the user messages and voice card signals into a single text,
- * then embeds it with Voyage AI. Returns a 3072-dimensional vector.
+ * then embeds it with Voyage AI. Returns a 1024-dimensional vector.
  */
 export async function embedVoiceProfile(
   history: ParsedChatHistory,
