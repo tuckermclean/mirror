@@ -222,15 +222,31 @@ jobs:
               # CI has run — re-arm converge if it isn't already running or completed
               # successfully. Converge handles CI failures internally; it does not need
               # CI to be green before starting.
-              LAST=$(gh run list \
+              #
+              # Fetch status AND updatedAt in one call so we can apply a 5-min recency
+              # guard: once agent pushes carry the bot token (firing synchronize), a
+              # converge fix-push can re-trigger the reconciler while converge is still
+              # finishing its next steps. The in_progress guard handles that correctly,
+              # but the recency guard provides a belt-and-suspenders buffer for races.
+              LAST_RUN=$(gh run list \
                 --repo "$REPO" \
                 --workflow pr-converge.yml \
                 --branch "$BRANCH" \
                 --limit 1 \
-                --json status,conclusion \
-                --jq '.[0] | "\(.status):\(.conclusion)"' 2>/dev/null || echo "none:none")
+                --json status,conclusion,updatedAt \
+                --jq '.[0] | {state:"\(.status):\(.conclusion)",at:.updatedAt}' \
+                2>/dev/null || echo '{"state":"none:none","at":""}')
+              LAST=$(echo "$LAST_RUN" | jq -r '.state // "none:none"')
+              LAST_AT=$(echo "$LAST_RUN" | jq -r '.at // ""')
               if [ "$LAST" = "in_progress:" ] || [ "$LAST" = "completed:success" ]; then
                 continue
+              fi
+              if [ -n "$LAST_AT" ]; then
+                LAST_EPOCH=$(date -d "$LAST_AT" +%s 2>/dev/null || echo "0")
+                if [ "$(($(date +%s) - LAST_EPOCH))" -lt 300 ]; then
+                  echo "Converge finished < 5min ago — deferring re-arm for PR #$PR_NUM to avoid synchronize feedback loop"
+                  continue
+                fi
               fi
               echo "Converge not running — re-arming converge for PR #$PR_NUM (last=$LAST)"
               gh workflow run pr-converge.yml \

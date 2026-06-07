@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { auditLog, imports, interviews } from "@/db/schema";
+import { ValidationError } from "@/lib/errors";
 
 type PiiReadParams = {
   tableName: string;
@@ -91,6 +92,43 @@ export async function writePii(
     reason: audit.reason,
     ipAddress: audit.ipAddress,
   });
+}
+
+/**
+ * Fetches the raw_path of an imports row through the PII audit wrapper.
+ *
+ * raw_path points to a user's full AI chat export in R2 — PII-adjacent
+ * (the file contains private conversation history) so every read is audit-logged.
+ * The underlying query runs first; data is returned to the caller only if the
+ * audit write also succeeds — if the audit insert throws, the read fails closed.
+ */
+export async function readImportRawPath(
+  importId: string,
+  accessorId: string,
+  reason: string,
+  ipAddress?: string
+): Promise<{ rawPath: string | null } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
+  const rows = await readPii(
+    () =>
+      db
+        .select({ rawPath: imports.rawPath })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1),
+    {
+      userId: accessorId,
+      accessorId,
+      tableName: "imports",
+      rowId: importId,
+      fieldName: "raw_path",
+      reason,
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
+    }
+  );
+  return rows[0];
 }
 
 /**

@@ -1,3 +1,16 @@
+/** Discriminated union result type — avoids naked throws in lib functions. */
+export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
+
+// ---------------------------------------------------------------------------
+// VoiceCard parse errors
+// ---------------------------------------------------------------------------
+
+import type { ZodIssue } from "zod";
+
+export type VoiceCardParseError =
+  | { kind: "invalid_json"; raw: string }
+  | { kind: "schema_mismatch"; issues: ZodIssue[] };
+
 /** Thrown when a model string is not in the known pricing table. */
 export class UnknownModelError extends Error {
   readonly model: string;
@@ -54,6 +67,11 @@ export class StorageError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "StorageError";
+/** Thrown when caller-supplied input fails a domain validation rule. */
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

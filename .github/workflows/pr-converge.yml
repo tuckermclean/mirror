@@ -53,6 +53,10 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || '' }}
+          # Bot token so agent/converge pushes carry a non-Actions identity,
+          # which makes GitHub fire pull_request:synchronize and attach CI runs
+          # as real PR checks (the default GITHUB_TOKEN suppresses synchronize).
+          token: ${{ secrets.GH_BOT_TOKEN || github.token }}
 
       - name: Setup — checkout PR branch (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
@@ -497,9 +501,24 @@ jobs:
                 SUMMARY="Escalated to human — same blockers in rounds 2 and 3, fixer is stuck. Reviewed $ROUNDS round(s)."
                 ;;
               no-verdict)
-                # Reviewer produced no machine verdict — likely a parse issue, not a real blocker.
-                gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
-                SUMMARY="Escalated to human — final review left no machine-readable verdict. Confirm and merge if CI is green. Reviewed $ROUNDS round(s)."
+                # Reviewer exhausted turns without writing a machine verdict — likely a
+                # turn-limit timeout, not genuine blockers. Auto-retry up to 2 times before
+                # escalating so a flaky reviewer doesn't permanently stall a clean PR.
+                RETRY_COUNT=$(gh pr view "$PR_NUMBER" --json comments \
+                  --jq '[.comments[] | select(.body | contains("<!-- converge-no-verdict-retry -->"))] | length' \
+                  2>/dev/null || echo "0")
+                if [ "$RETRY_COUNT" -lt 2 ]; then
+                  printf '<!-- converge-no-verdict-retry -->\n🔄 Reviewer hit turn limit (no machine verdict). Re-arming **full converge from round 1** (retry %d/2) — this starts a new convergence loop, not just a re-run of the final step.\n' \
+                    "$((RETRY_COUNT + 1))" > /tmp/no-verdict-retry.md
+                  gh pr comment "$PR_NUMBER" --body-file /tmp/no-verdict-retry.md || true
+                  gh workflow run pr-converge.yml \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --field pr_number="$PR_NUMBER" 2>/dev/null || true
+                  SUMMARY="no-verdict auto-retry $((RETRY_COUNT + 1))/2 — re-armed converge. Reviewed $ROUNDS round(s)."
+                else
+                  gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
+                  SUMMARY="Escalated to human — final review left no machine-readable verdict after 2 retries. Confirm and merge if CI is green. Reviewed $ROUNDS round(s)."
+                fi
                 ;;
               ci-red)
                 # Code-review blockers are gone but CI is not green. This is a mechanical
@@ -537,7 +556,9 @@ jobs:
                   REMAINING=$(jq -r '.blockers // "unknown"' .converge-verdict-r3.json 2>/dev/null || echo "unknown")
                   printf '@claude The 3-round convergence cap was reached on PR #%s with %s blocker(s) still open.\n\nReview the latest review comment on that PR for the specific findings, fix them, run `pnpm typecheck && pnpm lint` to confirm they pass, then call `gh pr ready %s`.\n' \
                     "$PR_NUMBER" "$REMAINING" "$PR_NUMBER" > /tmp/redispatch-comment.md
-                  gh issue comment "$ISSUE_NUM" --body-file /tmp/redispatch-comment.md || true
+                  # Use bot token so the @claude comment triggers dispatch.yml
+                  # (the Actions token cannot fire issue_comment workflow events).
+                  GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh issue comment "$ISSUE_NUM" --body-file /tmp/redispatch-comment.md || true
                   gh issue edit "$ISSUE_NUM" --add-label "agent-work" 2>/dev/null || true
                   SUMMARY="Cap reached — re-dispatched implementing agent to fix $REMAINING remaining blocker(s). Reviewed $ROUNDS round(s)."
                 else

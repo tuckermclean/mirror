@@ -1,0 +1,2 @@
+ALTER TABLE "imports" ADD COLUMN "status" text DEFAULT 'pending' NOT NULL;--> statement-breakpoint
+ALTER TABLE "imports" ADD CONSTRAINT "imports_status_check" CHECK ("imports"."status" IN ('pending', 'processing', 'done', 'failed'));
