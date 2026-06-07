@@ -9,7 +9,7 @@ import { parseClaudeExport, parsePlainTextExport } from "@/lib/parsers/claude";
 import { parseLinkedInPdf, linkedInSnapshotToHistory } from "@/lib/parsers/linkedin-pdf";
 import { extractVoiceCard } from "@/lib/voice/extract";
 import { embedVoiceProfile } from "@/lib/embeddings";
-import { ConfigurationError } from "@/lib/errors";
+import { ConfigurationError, MonthlyCapError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 
@@ -81,10 +81,23 @@ export const processImport = inngest.createFunction(
     }
 
     // Step 3: Fetch from R2 and parse.
+    // MonthlyCapError and ConfigurationError are permanent conditions that
+    // will not resolve on retry — catch them and signal a clean early exit
+    // rather than letting Inngest exhaust its retry budget on a futile loop.
     const history = await step.run("fetch-and-parse", async () => {
       const bytes = await fetchFromR2(rawPath);
       return selectParser(source, bytes, userId, importId);
+    }).catch((err: unknown) => {
+      if (err instanceof MonthlyCapError || err instanceof ConfigurationError) {
+        return null;
+      }
+      throw err;
     });
+
+    if (!history) {
+      logger.warn("process-import: permanent error in fetch-and-parse, aborting without retry", { importId });
+      return { error: "permanent_failure" };
+    }
 
     // Step 4: Store parsed chat history via PII write wrapper.
     await step.run("store-parsed", async () => {
