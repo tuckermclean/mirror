@@ -75,6 +75,20 @@ describe("parseVoiceCardOutput", () => {
     }
   });
 
+  it("returns schema_mismatch when vocabulary contains an empty string", () => {
+    const bad = { ...VALID_VOICE_CARD, vocabulary: ["authentic", ""] };
+    const result = parseVoiceCardOutput(JSON.stringify(bad));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("schema_mismatch");
+  });
+
+  it("returns schema_mismatch when emotionalRegister is empty string", () => {
+    const bad = { ...VALID_VOICE_CARD, emotionalRegister: "" };
+    const result = parseVoiceCardOutput(JSON.stringify(bad));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("schema_mismatch");
+  });
+
   it("does not throw — returns Result instead", () => {
     expect(() => parseVoiceCardOutput("totally invalid {{}}")).not.toThrow();
     expect(() => parseVoiceCardOutput("{}")).not.toThrow();
