@@ -16,10 +16,11 @@
 set -uo pipefail
 
 if [ "${1:-}" = "--install" ]; then
-  mkdir -p .git/hooks
-  cp "$0" .git/hooks/prepare-commit-msg
-  chmod +x .git/hooks/prepare-commit-msg
-  echo "strip-attribution hook installed at .git/hooks/prepare-commit-msg"
+  git_hooks="$(git rev-parse --git-dir)/hooks"
+  mkdir -p "$git_hooks"
+  cp "$0" "$git_hooks/prepare-commit-msg"
+  chmod +x "$git_hooks/prepare-commit-msg"
+  echo "strip-attribution hook installed at $git_hooks/prepare-commit-msg"
   exit 0
 fi
 

@@ -50,6 +50,11 @@ case "$CI_GREEN" in
   *) err "CI_GREEN must be 'true' or 'false' (got: $CI_GREEN)"; exit 2 ;;
 esac
 
+case "$BLOCKERS" in
+  [0-9]* | unknown) ;;
+  *) err "BLOCKERS must be a non-negative integer or 'unknown' (got: $BLOCKERS)"; exit 2 ;;
+esac
+
 # Approve when fully clear — blockers gone AND CI green.
 if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then
   echo "approve"
@@ -62,8 +67,11 @@ if [ "$ROUND" = "1" ]; then
   exit 0
 fi
 
-# Rounds 2 and 3: detect no-progress (same blocker signatures, still blocked).
-if [ "$CURR_SIGS" = "$PREV_SIGS" ] && [ "$BLOCKERS" != "0" ] && [ "$BLOCKERS" != "unknown" ]; then
+# Rounds 2 and 3: detect no-progress (same non-empty blocker signatures, still blocked).
+# Exclude the both-empty case: two reviewers both omitting blocker_signatures is not evidence
+# of being stuck — it means the reviewer didn't emit signatures, not that progress stalled.
+if [ "$CURR_SIGS" = "$PREV_SIGS" ] && [ "$CURR_SIGS" != "[]" ] && \
+   [ "$BLOCKERS" != "0" ] && [ "$BLOCKERS" != "unknown" ]; then
   echo "escalate:no-progress"
   exit 0
 fi

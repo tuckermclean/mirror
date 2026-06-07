@@ -178,4 +178,39 @@ describe("converge decide-round", () => {
       decideExit({ ROUND: "1", BLOCKERS: "1", CI_GREEN: "yes" }),
     ).toBe(2);
   });
+
+  it("exits 2 when BLOCKERS is not an integer or 'unknown'", () => {
+    expect(
+      decideExit({ ROUND: "1", BLOCKERS: "foo", CI_GREEN: "true" }),
+    ).toBe(2);
+  });
+
+  // ── Empty-signature false-positive guard ──────────────────────────────────
+  // When reviewers omit blocker_signatures entirely both arrays default to [].
+  // Two rounds of [] != "same signatures" — it means the reviewer didn't emit
+  // signatures, not that the fixer is stuck.  Must return "fix", not "escalate".
+
+  it("returns fix at R2 when both sig arrays are empty (reviewer omitted signatures)", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "2",
+        CI_GREEN: "false",
+        PREV_SIGS: "[]",
+        CURR_SIGS: "[]",
+      }),
+    ).toBe("fix");
+  });
+
+  it("still escalates no-progress at R2 when both arrays are non-empty and equal", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "1",
+        CI_GREEN: "false",
+        PREV_SIGS: '["missing-auth-check"]',
+        CURR_SIGS: '["missing-auth-check"]',
+      }),
+    ).toBe("escalate:no-progress");
+  });
 });
