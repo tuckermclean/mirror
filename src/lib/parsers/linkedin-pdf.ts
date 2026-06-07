@@ -172,7 +172,7 @@ export async function parseLinkedInPdf(
   try {
     const raw = textBlock.text.trim();
     const jsonText = raw.startsWith("```")
-      ? raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
+      ? raw.replace(/^```(?:json)?/i, "").replace(/\n?```$/, "")
       : raw;
     parsed = JSON.parse(jsonText);
   } catch {
