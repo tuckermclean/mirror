@@ -18,6 +18,7 @@ const mockReadInterviewTranscript = vi.hoisted(() => vi.fn());
 const mockPrompts = vi.hoisted(() => ({
   interviewSystem: { content: "system prompt" },
 }));
+const mockNe = vi.hoisted(() => vi.fn());
 
 const mockAnthropicStream = vi.hoisted(() => {
   const on = vi.fn();
@@ -52,6 +53,17 @@ const mockDbUpdateChain = vi.hoisted(() => {
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
 }));
+
+vi.mock("drizzle-orm", async (importActual) => {
+  const actual = await importActual<typeof import("drizzle-orm")>();
+  return {
+    ...actual,
+    ne: (...args: Parameters<typeof actual.ne>) => {
+      mockNe(...args);
+      return actual.ne(...args);
+    },
+  };
+});
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: vi.fn().mockImplementation(() => ({
@@ -101,6 +113,8 @@ vi.mock("@/db/schema", () => ({
 // ---------------------------------------------------------------------------
 import { POST } from "@/app/api/chat/route";
 import { NextRequest } from "next/server";
+import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,6 +132,7 @@ function makeRequest(messages = [{ role: "user", content: "hello" }]): NextReque
 // ---------------------------------------------------------------------------
 beforeEach(() => {
   vi.clearAllMocks();
+  mockNe.mockClear();
 
   mockAuth.mockResolvedValue({ userId: "clerk_test_user" });
 
@@ -158,11 +173,10 @@ describe("authentication", () => {
 describe("tombstone guard", () => {
   it("user lookup WHERE clause includes ne(users.plan, DELETED_PLAN)", async () => {
     await POST(makeRequest());
-    const whereArg = mockDbSelectChain.where.mock.calls[0]?.[0] as { queryChunks?: unknown[] };
-    // Condition must include the <> (not-equal) operator for the plan column
-    const serialized = JSON.stringify(whereArg?.queryChunks ?? {});
-    expect(serialized, "WHERE clause must include ne(users.plan, DELETED_PLAN)").toContain(" <> ");
-    expect(serialized, "WHERE clause must reference DELETED_PLAN sentinel value").toContain("deleted");
+    expect(mockNe, "ne() must be called with users.plan and DELETED_PLAN").toHaveBeenCalledWith(
+      users.plan,
+      DELETED_PLAN
+    );
   });
 
   it("returns 404 user_not_found when tombstone row is excluded by guard", async () => {
