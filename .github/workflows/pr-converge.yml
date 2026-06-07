@@ -508,7 +508,7 @@ jobs:
                   --jq '[.comments[] | select(.body | contains("<!-- converge-no-verdict-retry -->"))] | length' \
                   2>/dev/null || echo "0")
                 if [ "$RETRY_COUNT" -lt 2 ]; then
-                  printf '<!-- converge-no-verdict-retry -->\n🔄 Reviewer did not emit a machine verdict (likely turn-limit). Re-arming converge (retry %d/2).\n' \
+                  printf '<!-- converge-no-verdict-retry -->\n🔄 Reviewer hit turn limit (no machine verdict). Re-arming **full converge from round 1** (retry %d/2) — this starts a new convergence loop, not just a re-run of the final step.\n' \
                     "$((RETRY_COUNT + 1))" > /tmp/no-verdict-retry.md
                   gh pr comment "$PR_NUMBER" --body-file /tmp/no-verdict-retry.md || true
                   gh workflow run pr-converge.yml \
