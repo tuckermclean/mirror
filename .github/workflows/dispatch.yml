@@ -60,10 +60,25 @@ jobs:
           git -C /tmp/agency-agents checkout "$PINNED_SHA"
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
-      - name: Setup — strip agent attribution from commits
+      - name: Setup — stage contracts and scripts from default branch
         run: |
           DEFAULT="${{ github.event.repository.default_branch }}"
           git fetch --depth=1 origin "$DEFAULT" >/dev/null 2>&1 || true
+
+          # Always use the orchestrator-contract from the default branch.
+          # When the agent switches to an existing PR branch, the on-disk
+          # contract reverts to the branch version (which may be older).
+          # Staging it here means the agent always follows the latest contract
+          # regardless of which branch it works on.
+          if git show "origin/${DEFAULT}:.agents/custom/orchestrator-contract.md" \
+              > .agents/custom/orchestrator-contract.md 2>/dev/null; then
+            echo "orchestrator-contract: origin/$DEFAULT"
+          else
+            echo "orchestrator-contract: working tree (fallback)"
+          fi
+
+          # Strip-attribution hook — same trust reason: PR branches must not
+          # be able to tamper with this script.
           STRIP="$RUNNER_TEMP/strip-attribution.sh"
           if git show "origin/${DEFAULT}:scripts/git/strip-attribution.sh" > "$STRIP" 2>/dev/null; then
             echo "strip-attribution: origin/$DEFAULT"
