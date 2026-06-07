@@ -7,7 +7,7 @@ import { fetchFromR2 } from "@/lib/storage/r2";
 import { parseChatGPTExport } from "@/lib/parsers/chatgpt";
 import { parseClaudeExport, parsePlainTextExport } from "@/lib/parsers/claude";
 import { parseLinkedInPdf, linkedInSnapshotToHistory } from "@/lib/parsers/linkedin-pdf";
-import { extractVoiceCard } from "@/lib/voice/extract";
+import { extractVoiceCard } from "@/lib/voice-card";
 import { embedVoiceProfile } from "@/lib/embeddings";
 import { ConfigurationError, MonthlyCapError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
@@ -142,7 +142,7 @@ export const processImport = inngest.createFunction(
         return existingRows[0].voiceEmbedding;
       }
 
-      const voiceCard = extractVoiceCard(history);
+      const voiceCard = await extractVoiceCard(history, userId);
       return embedVoiceProfile(history, voiceCard);
     });
 

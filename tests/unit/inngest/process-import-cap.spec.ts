@@ -30,12 +30,13 @@ vi.mock("@/lib/storage/r2", () => ({
   fetchFromR2: vi.fn(),
 }));
 
-vi.mock("@/lib/voice/extract", () => ({
-  extractVoiceCard: vi.fn().mockReturnValue({
+vi.mock("@/lib/voice-card", () => ({
+  extractVoiceCard: vi.fn().mockResolvedValue({
     vocabulary: [],
-    topics: [],
-    writingStyle: "",
-    communicationPatterns: [],
+    hedgesAvoided: [],
+    sentenceLengthDistribution: { short: 34, medium: 33, long: 33 },
+    emotionalRegister: "analytical",
+    jargonHated: [],
   }),
 }));
 

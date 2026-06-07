@@ -1,6 +1,6 @@
 import type { VoyageAIClient } from "voyageai";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
-import type { VoiceCard } from "@/lib/voice/extract";
+import type { VoiceCard } from "@/lib/voice-card";
 import { ConfigurationError, ParseError } from "@/lib/errors";
 
 const EMBEDDING_MODEL = "voyage-3";
@@ -40,9 +40,19 @@ export async function embedVoiceProfile(
     .join("\n\n");
 
   const signalText = [
-    `Vocabulary: ${voiceCard.vocabulary.slice(0, 20).join(", ")}`,
-    `Topics: ${voiceCard.topics.join(", ")}`,
-    `Style: ${voiceCard.writingStyle}`,
+    voiceCard.vocabulary.length > 0
+      ? `Vocabulary: ${voiceCard.vocabulary.slice(0, 20).join(", ")}`
+      : null,
+    voiceCard.hedgesAvoided.length > 0
+      ? `Hedges avoided: ${voiceCard.hedgesAvoided.join(", ")}`
+      : null,
+    `Sentence style: ${voiceCard.sentenceLengthDistribution.short}% short, ` +
+      `${voiceCard.sentenceLengthDistribution.medium}% medium, ` +
+      `${voiceCard.sentenceLengthDistribution.long}% long`,
+    voiceCard.emotionalRegister ? `Register: ${voiceCard.emotionalRegister}` : null,
+    voiceCard.jargonHated.length > 0
+      ? `Jargon avoided: ${voiceCard.jargonHated.join(", ")}`
+      : null,
     userText.slice(0, 4000),
   ]
     .filter(Boolean)
