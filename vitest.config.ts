@@ -19,13 +19,19 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
-      include: ["src/lib/parsers/**"],
+      include: ["src/lib/parsers/**", "src/lib/voice-card/**"],
       thresholds: {
         "src/lib/parsers/**": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
+        },
+        "src/lib/voice-card/**": {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
         },
       },
     },
