@@ -74,7 +74,7 @@ vi.mock("@/db/client", () => ({
 
 vi.mock("@/db/schema", () => ({
   imports: { id: Symbol("imports.id"), userId: Symbol("imports.userId") },
-  users: { id: Symbol("users.id"), clerkId: Symbol("users.clerkId") },
+  users: { id: Symbol("users.id"), clerkId: Symbol("users.clerkId"), plan: Symbol("users.plan") },
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -370,5 +370,31 @@ describe("Inngest send failure", () => {
     const req = makeRequest(makeZipFile());
     await POST(req);
     expect(mockDbDeleteChain.deleteFrom).toHaveBeenCalledOnce();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tombstone guard — ADR-009 / issue #36
+// ---------------------------------------------------------------------------
+describe("tombstone guard", () => {
+  it("user lookup WHERE clause includes ne(users.plan, DELETED_PLAN)", async () => {
+    const req = makeRequest(makeZipFile());
+    await POST(req);
+    const whereArg = mockDbSelectChain.where.mock.calls[0]?.[0] as { queryChunks?: unknown[] };
+    // Condition must include the <> (not-equal) operator for the plan column
+    const serialized = JSON.stringify(whereArg?.queryChunks ?? {});
+    expect(serialized, "WHERE clause must include ne(users.plan, DELETED_PLAN)").toContain(" <> ");
+    expect(serialized, "WHERE clause must reference DELETED_PLAN sentinel value").toContain("deleted");
+  });
+
+  it("returns 404 user_not_found when tombstone row is excluded by guard", async () => {
+    // Simulates the tombstone guard filtering out a deleted user —
+    // the query returns [] because ne(users.plan, DELETED_PLAN) excludes the row.
+    mockDbSelectChain.limit.mockResolvedValue([]);
+    const req = makeRequest(makeZipFile());
+    const res = await POST(req);
+    expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body["error"]).toBe("user_not_found");
   });
 });
