@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
-import { getR2, getR2Bucket } from "@/lib/r2";
+import { getR2Client, getR2Bucket } from "@/lib/storage/r2";
 import { detectSourceFromBytes } from "@/lib/parsers/index";
 import { inngest } from "@/lib/inngest/client";
 import { logger } from "@/lib/logger";
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const fileId = randomUUID();
   const key = `imports/${internalUserId}/${fileId}/${sanitizeFilename(file.name)}`;
 
-  await getR2().send(
+  await getR2Client().send(
     new PutObjectCommand({
       Bucket: getR2Bucket(),
       Key: key,

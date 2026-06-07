@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const FULL_ENV = {
-  R2_ENDPOINT: "https://test.r2.cloudflarestorage.com",
+  R2_ACCOUNT_ID: "test-account-id",
   R2_ACCESS_KEY_ID: "test-access-key-id",
   R2_SECRET_ACCESS_KEY: "test-secret-access-key",
   R2_BUCKET_NAME: "test-bucket",
@@ -9,9 +9,10 @@ const FULL_ENV = {
 
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: vi.fn().mockImplementation(() => ({ _isMockS3Client: true })),
+  GetObjectCommand: vi.fn().mockImplementation((input) => ({ input })),
 }));
 
-describe("r2 module", () => {
+describe("r2 storage module", () => {
   const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
@@ -33,30 +34,36 @@ describe("r2 module", () => {
 
   it("importing the module does NOT throw when env vars are absent", async () => {
     for (const key of Object.keys(FULL_ENV)) delete process.env[key];
-    await expect(import("@/lib/r2")).resolves.toBeDefined();
+    await expect(import("@/lib/storage/r2")).resolves.toBeDefined();
   });
 
-  it("getR2() returns a non-null S3Client when all env vars are set", async () => {
+  it("getR2Client() returns a non-null S3Client when all env vars are set", async () => {
     Object.assign(process.env, FULL_ENV);
-    const { getR2 } = await import("@/lib/r2");
-    expect(getR2()).toBeDefined();
+    const { getR2Client } = await import("@/lib/storage/r2");
+    expect(getR2Client()).toBeDefined();
   });
 
   it("getR2Bucket() returns the env var value when all env vars are set", async () => {
     Object.assign(process.env, FULL_ENV);
-    const { getR2Bucket } = await import("@/lib/r2");
+    const { getR2Bucket } = await import("@/lib/storage/r2");
     expect(getR2Bucket()).toBe("test-bucket");
   });
 
   it.each(Object.keys(FULL_ENV))(
-    "getR2() throws ConfigurationError when %s is missing",
+    "getR2Client() throws ConfigurationError when %s is missing",
     async (missingKey) => {
       Object.assign(process.env, FULL_ENV);
       delete process.env[missingKey];
-      const { getR2 } = await import("@/lib/r2");
-      expect(() => getR2()).toThrow(
-        expect.objectContaining({ name: "ConfigurationError" })
-      );
+      const { getR2Client, getR2Bucket } = await import("@/lib/storage/r2");
+      if (missingKey === "R2_BUCKET_NAME") {
+        expect(() => getR2Bucket()).toThrow(
+          expect.objectContaining({ name: "ConfigurationError" })
+        );
+      } else {
+        expect(() => getR2Client()).toThrow(
+          expect.objectContaining({ name: "ConfigurationError" })
+        );
+      }
     }
   );
 });

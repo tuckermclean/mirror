@@ -41,6 +41,36 @@ export class ParseError extends Error {
   }
 }
 
+/** Thrown when an external API call fails (e.g. Anthropic SDK network or status error). */
+export class ApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/** Thrown when the monthly LLM spend cap is reached. */
+export class MonthlyCapError extends Error {
+  readonly resetsAt: string;
+
+  constructor(resetsAt: string) {
+    super(`monthly_cap_reached — resets at ${resetsAt}`);
+    this.name = "MonthlyCapError";
+    this.resetsAt = resetsAt;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/** Thrown when an object storage operation fails (R2 / S3). */
+export class StorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 /** Thrown when caller-supplied input fails a domain validation rule. */
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -50,11 +80,3 @@ export class ValidationError extends Error {
   }
 }
 
-/** Thrown when an R2 or other object-storage operation fails. */
-export class StorageError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "StorageError";
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}

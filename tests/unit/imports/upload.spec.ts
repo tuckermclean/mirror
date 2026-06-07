@@ -55,8 +55,8 @@ vi.mock("@/lib/parsers/index", () => ({
   detectSourceFromBytes: mockDetectSourceFromBytes,
 }));
 
-vi.mock("@/lib/r2", () => ({
-  getR2: () => ({ send: mockR2Send }),
+vi.mock("@/lib/storage/r2", () => ({
+  getR2Client: () => ({ send: mockR2Send }),
   getR2Bucket: () => "test-bucket",
 }));
 

@@ -17,8 +17,21 @@ const mockFrom = vi.hoisted(() => vi.fn());
 const mockWhere = vi.hoisted(() => vi.fn());
 const mockLimit = vi.hoisted(() => vi.fn());
 
+// Transaction mock: the callback receives a tx object; we invoke it synchronously
+// so tests can assert on tx.insert / tx.update calls.
+const mockTxValues = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const mockTxInsert = vi.hoisted(() => vi.fn(() => ({ values: mockTxValues })));
+const mockTxUpdateWhere = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const mockTxUpdateSet = vi.hoisted(() => vi.fn(() => ({ where: mockTxUpdateWhere })));
+const mockTxUpdate = vi.hoisted(() => vi.fn(() => ({ set: mockTxUpdateSet })));
+const mockTx = vi.hoisted(() => ({ insert: mockTxInsert, update: mockTxUpdate }));
+const mockTransaction = vi.hoisted(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  () => vi.fn(async (fn: (tx: any) => Promise<void>) => fn(mockTx))
+);
+
 vi.mock("@/db/client", () => ({
-  db: { insert: mockInsert, select: mockSelect },
+  db: { insert: mockInsert, select: mockSelect, transaction: mockTransaction },
 }));
 
 vi.mock("@/db/schema", () => ({
@@ -27,9 +40,14 @@ vi.mock("@/db/schema", () => ({
     transcript: Symbol("interviews.transcript"),
     id: Symbol("interviews.id"),
   },
+  imports: {
+    rawPath: Symbol("imports.rawPath"),
+    parsed: Symbol("imports.parsed"),
+    id: Symbol("imports.id"),
+  },
 }));
 
-import { readPii, readInterviewTranscript } from "@/lib/db/pii-read";
+import { readPii, writePii, readInterviewTranscript, readImportRawPath, readImportParsed } from "@/lib/db/pii-read";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -227,6 +245,158 @@ describe("readInterviewTranscript", () => {
   it("forwards ipAddress to the audit row when provided", async () => {
     await readInterviewTranscript("interview-1", "user-1", "test reason", "203.0.113.42");
     expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ ipAddress: "203.0.113.42" })
+    );
+  });
+});
+
+describe("readImportRawPath", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ rawPath: "imports/user-1/profile.pdf" }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns the rawPath for the given importId", async () => {
+    const result = await readImportRawPath("import-1", "user-1", "test reason");
+    expect(result).toEqual({ rawPath: "imports/user-1/profile.pdf" });
+  });
+
+  it("writes an audit_log row with correct fields", async () => {
+    await readImportRawPath("import-1", "user-1", "test reason");
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+        tableName: "imports",
+        rowId: "import-1",
+        fieldName: "raw_path",
+        reason: "test reason",
+      })
+    );
+  });
+
+  it("returns undefined when no import row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readImportRawPath("missing-id", "user-1", "test reason");
+    expect(result).toBeUndefined();
+  });
+});
+
+describe("readImportParsed", () => {
+  const parsedData = { source: "linkedin_pdf", messages: [] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ parsed: parsedData }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns the parsed field for the given importId", async () => {
+    const result = await readImportParsed("import-1", "user-1", "test reason");
+    expect(result).toEqual({ parsed: parsedData });
+  });
+
+  it("writes an audit_log row with correct fields", async () => {
+    await readImportParsed("import-1", "user-1", "test reason");
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "user-1",
+        tableName: "imports",
+        rowId: "import-1",
+        fieldName: "parsed",
+        reason: "test reason",
+      })
+    );
+  });
+
+  it("returns undefined when no import row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readImportParsed("missing-id", "user-1", "test reason");
+    expect(result).toBeUndefined();
+  });
+});
+
+const baseWriteAudit = {
+  userId: "user-uuid-1",
+  accessorId: "user-uuid-1",
+  tableName: "imports",
+  rowId: "import-uuid-1",
+  fieldName: "parsed",
+  reason: "test write",
+} as const;
+
+describe("writePii", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTxInsert.mockImplementation(() => ({ values: mockTxValues }));
+    mockTxValues.mockResolvedValue([]);
+    mockTxUpdate.mockImplementation(() => ({ set: mockTxUpdateSet }));
+    mockTxUpdateSet.mockImplementation(() => ({ where: mockTxUpdateWhere }));
+    mockTxUpdateWhere.mockResolvedValue([]);
+    mockTransaction.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (fn: (tx: any) => Promise<void>) => fn(mockTx)
+    );
+  });
+
+  it("calls the mutation with the transaction object", async () => {
+    const mutation = vi.fn().mockResolvedValue(undefined);
+    await writePii(mutation, baseWriteAudit);
+    expect(mutation).toHaveBeenCalledOnce();
+    expect(mutation).toHaveBeenCalledWith(mockTx);
+  });
+
+  it("inserts an audit_log row inside the transaction with all required fields", async () => {
+    await writePii(vi.fn().mockResolvedValue(undefined), baseWriteAudit);
+    expect(mockTxInsert).toHaveBeenCalledOnce();
+    expect(mockTxValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: baseWriteAudit.userId,
+        accessorId: baseWriteAudit.accessorId,
+        tableName: baseWriteAudit.tableName,
+        rowId: baseWriteAudit.rowId,
+        fieldName: baseWriteAudit.fieldName,
+        reason: baseWriteAudit.reason,
+      })
+    );
+  });
+
+  it("propagates an error from the mutation and does not insert the audit row", async () => {
+    const mutation = vi.fn().mockRejectedValue(new Error("mutation failed"));
+    // Make the transaction re-throw when the callback throws
+    mockTransaction.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (fn: (tx: any) => Promise<void>) => fn(mockTx)
+    );
+    await expect(writePii(mutation, baseWriteAudit)).rejects.toThrow("mutation failed");
+    expect(mockTxInsert).not.toHaveBeenCalled();
+  });
+
+  it("propagates an error from the audit insert", async () => {
+    mockTxValues.mockRejectedValueOnce(new Error("audit insert failed"));
+    await expect(
+      writePii(vi.fn().mockResolvedValue(undefined), baseWriteAudit)
+    ).rejects.toThrow("audit insert failed");
+  });
+
+  it("passes ipAddress to the audit row when provided", async () => {
+    await writePii(vi.fn().mockResolvedValue(undefined), {
+      ...baseWriteAudit,
+      ipAddress: "203.0.113.42",
+    });
+    expect(mockTxValues).toHaveBeenCalledWith(
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
   });

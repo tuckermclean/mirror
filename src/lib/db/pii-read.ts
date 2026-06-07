@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type DB } from "@/db/client";
 import { auditLog, imports, interviews } from "@/db/schema";
 import { ValidationError } from "@/lib/errors";
 
@@ -60,6 +60,43 @@ export async function readPii<T>(
     ipAddress: audit.ipAddress,
   });
   return result;
+}
+
+type WritePiiAuditParams = {
+  userId: string;
+  accessorId: string;
+  tableName: string;
+  rowId: string;
+  fieldName: string;
+  reason: string;
+  ipAddress?: string;
+};
+
+/**
+ * Executes a PII-field write inside a transaction, then writes an audit_log row.
+ *
+ * Both the mutation and the audit insert run atomically: if the audit insert
+ * fails, the mutation is rolled back — no unaudited PII writes can persist.
+ *
+ * `reason` is required by the type — omitting it is a TypeScript compile error.
+ * Use this wrapper for any mutation of PII columns (parsed, raw_path, transcript).
+ */
+export async function writePii(
+  mutation: (tx: DB) => Promise<void>,
+  audit: WritePiiAuditParams
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await mutation(tx as unknown as DB);
+    await tx.insert(auditLog).values({
+      userId: audit.userId,
+      accessorId: audit.accessorId,
+      tableName: audit.tableName,
+      rowId: audit.rowId,
+      fieldName: audit.fieldName,
+      reason: audit.reason,
+      ipAddress: audit.ipAddress,
+    });
+  });
 }
 
 /**
@@ -126,6 +163,33 @@ export async function readInterviewTranscript(
       fieldName: "transcript",
       reason,
       ...(ipAddress !== undefined ? { ipAddress } : {}),
+    }
+  );
+  return rows[0];
+}
+
+/**
+ * Fetches the parsed field of a single import row through the PII audit wrapper.
+ */
+export async function readImportParsed(
+  importId: string,
+  userId: string,
+  reason: string
+): Promise<{ parsed: unknown } | undefined> {
+  const rows = await readPii(
+    () =>
+      db
+        .select({ parsed: imports.parsed })
+        .from(imports)
+        .where(eq(imports.id, importId))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "imports",
+      rowId: importId,
+      fieldName: "parsed",
+      reason,
     }
   );
   return rows[0];

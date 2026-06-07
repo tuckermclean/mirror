@@ -46,10 +46,10 @@ describe("all 11 tables exist in the database after migration", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. vector(3072) columns on benchmark_profiles and imports
+// 2. vector(1024) columns on benchmark_profiles and imports
 // ---------------------------------------------------------------------------
-describe("vector(3072) columns", () => {
-  it("benchmark_profiles.embedding is vector(3072)", async () => {
+describe("vector(1024) columns", () => {
+  it("benchmark_profiles.embedding is vector(1024)", async () => {
     const [row] = await sql`
       SELECT format_type(a.atttypid, a.atttypmod) AS col_type
       FROM   pg_attribute a
@@ -60,10 +60,10 @@ describe("vector(3072) columns", () => {
         AND  NOT a.attisdropped
     `;
     expect(row).toBeDefined();
-    expect(row?.col_type).toBe("vector(3072)");
+    expect(row?.col_type).toBe("vector(1024)");
   });
 
-  it("imports.voice_embedding is vector(3072)", async () => {
+  it("imports.voice_embedding is vector(1024)", async () => {
     const [row] = await sql`
       SELECT format_type(a.atttypid, a.atttypmod) AS col_type
       FROM   pg_attribute a
@@ -74,7 +74,7 @@ describe("vector(3072) columns", () => {
         AND  NOT a.attisdropped
     `;
     expect(row).toBeDefined();
-    expect(row?.col_type).toBe("vector(3072)");
+    expect(row?.col_type).toBe("vector(1024)");
   });
 });
 
@@ -302,11 +302,10 @@ describe("HNSW index on benchmark_profiles.embedding", () => {
         AND  indexdef   ILIKE '%hnsw%'
     `;
     expect(rows).toHaveLength(1);
-    // pgvector 0.8.x: vector(3072) HNSW uses a halfvec cast expression
-    // to bypass the 2000-dimension limit; ops class is halfvec_cosine_ops.
+    // pgvector: embedding column uses halfvec cast + halfvec_cosine_ops for HNSW index.
     // Assert both to guard against regression to the pre-fix vector_cosine_ops form.
     expect(rows[0]?.indexdef).toContain("halfvec_cosine_ops");
-    expect(rows[0]?.indexdef).toContain("halfvec(3072)");
+    expect(rows[0]?.indexdef).toContain("halfvec(1024)");
   });
 
   it("HNSW index has m=16 and ef_construction=64", async () => {

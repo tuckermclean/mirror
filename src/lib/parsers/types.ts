@@ -9,7 +9,7 @@ export type ParsedMessage = {
 
 /** The structured output from any AI history parser. */
 export type ParsedChatHistory = {
-  source: "chatgpt" | "claude" | "plain_text";
+  source: "chatgpt" | "claude" | "plain_text" | "linkedin_pdf";
   messages: ParsedMessage[];
   exportedAt?: string;
   totalConversations?: number;
