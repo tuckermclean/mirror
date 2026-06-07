@@ -1,0 +1,54 @@
+import { eq } from "drizzle-orm";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { db } from "@/db/client";
+import { imports } from "@/db/schema";
+import { readImportRawPath } from "@/lib/db/pii-read";
+import { getR2, getR2Bucket } from "@/lib/r2";
+import { parseAiHistory } from "@/lib/parsers/index";
+import { StorageError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
+import { inngest } from "@/lib/inngest/client";
+
+export async function processImport(importId: string): Promise<void> {
+  await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
+
+  try {
+    const piiRow = await readImportRawPath(
+      importId,
+      importId,
+      "inngest import-process worker: download raw file for parsing"
+    );
+
+    if (!piiRow?.rawPath) {
+      throw new StorageError(`No raw_path found for import ${importId}`);
+    }
+
+    const { Body } = await getR2().send(
+      new GetObjectCommand({ Bucket: getR2Bucket(), Key: piiRow.rawPath })
+    );
+
+    if (!Body) {
+      throw new StorageError(`R2 returned empty Body for key ${piiRow.rawPath}`);
+    }
+
+    const bytes = new Uint8Array(await Body.transformToByteArray());
+    const parsed = await parseAiHistory(bytes);
+
+    await db
+      .update(imports)
+      .set({ parsed, status: "done" })
+      .where(eq(imports.id, importId));
+
+    logger.info("import.process.done", { importId });
+  } catch (err) {
+    await db.update(imports).set({ status: "failed" }).where(eq(imports.id, importId));
+    throw err;
+  }
+}
+
+export const importProcess = inngest.createFunction(
+  { id: "import-process", triggers: [{ event: "mirror/import.process" }] },
+  async ({ event }: { event: { data: { importId: string } } }) => {
+    await processImport(event.data.importId);
+  }
+);
