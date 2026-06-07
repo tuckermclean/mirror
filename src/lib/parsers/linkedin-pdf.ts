@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
-import { MonthlyCapError } from "@/lib/errors";
+import { ApiError, MonthlyCapError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { LinkedInSnapshot } from "@/types/linkedin";
 import type { ParsedChatHistory } from "./types";
@@ -138,7 +138,7 @@ export async function parseLinkedInPdf(
       ],
     });
   } catch (err) {
-    throw new Error(
+    throw new ApiError(
       `Anthropic API error: ${err instanceof Error ? err.message : String(err)}`
     );
   }

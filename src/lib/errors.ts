@@ -28,6 +28,15 @@ export class ParseError extends Error {
   }
 }
 
+/** Thrown when an external API call fails (e.g. Anthropic SDK network or status error). */
+export class ApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 /** Thrown when the monthly LLM spend cap is reached. */
 export class MonthlyCapError extends Error {
   readonly resetsAt: string;
