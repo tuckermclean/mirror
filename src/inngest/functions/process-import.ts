@@ -38,13 +38,18 @@ export async function selectParser(
   }
 }
 
+type ProcessImportContext = {
+  event: { data: { importId: string } };
+  step: { run: <T>(id: string, fn: () => Promise<T>) => Promise<T> };
+};
+
 export const processImport = inngest.createFunction(
   {
     id: "import-process",
     concurrency: { key: "event.data.importId", limit: 1 },
     triggers: [{ event: "mirror/import.process" }],
   },
-  async ({ event, step }: { event: { data: { importId: string } }; step: { run: <T>(id: string, fn: () => Promise<T>) => Promise<T> } }) => {
+  async ({ event, step }: ProcessImportContext) => {
     const { importId } = event.data;
 
     // Step 1: Load import row.
