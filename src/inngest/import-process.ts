@@ -17,9 +17,9 @@ export async function processImport(importId: string, userId: string): Promise<v
     .limit(1);
   if (existing?.status === "done") return;
 
-  await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
-
   try {
+    await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
+
     const piiRow = await readImportRawPath(
       importId,
       userId,
