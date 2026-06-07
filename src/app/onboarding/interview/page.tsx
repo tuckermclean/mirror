@@ -1,8 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/db/delete-user";
 import { InterviewChat } from "@/components/interview-chat";
 import { logger } from "@/lib/logger";
 
@@ -15,7 +16,7 @@ export default async function InterviewPage() {
   const existing = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.clerkId, clerkUserId))
+    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
     .limit(1);
 
   if (existing.length === 0) {
