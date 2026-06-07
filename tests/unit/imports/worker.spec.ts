@@ -113,6 +113,20 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Idempotency guard — completed imports must not be reprocessed
+// ---------------------------------------------------------------------------
+describe("idempotency guard", () => {
+  it("returns early without any DB writes when status is already 'done'", async () => {
+    mockDbSelectChain.limit.mockResolvedValueOnce([{ status: "done" }]);
+
+    await processImport("import-uuid-1", "user-uuid-1");
+
+    expect(mockDbUpdateSet).not.toHaveBeenCalled();
+    expect(mockReadImportRawPath).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Status transitions
 // ---------------------------------------------------------------------------
 describe("status transitions", () => {
