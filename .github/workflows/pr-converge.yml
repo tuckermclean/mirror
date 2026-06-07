@@ -95,42 +95,45 @@ jobs:
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
           rm -f .converge-final-action .converge-nits-raw
 
-      - name: "Setup — strip agent attribution from commits"
-        run: bash scripts/git/strip-attribution.sh --install
-
-      # Stage the verdict resolver to a path outside the PR working tree, from
-      # the trusted default branch, so it (a) can't be tampered with by PR code
-      # and (b) is present even if the PR branch predates the script.
+      # Stage all converge scripts from the trusted default branch so PR code
+      # cannot tamper with them, and so they're present even on old branches.
+      # strip-attribution is also installed here rather than from the working
+      # tree — a PR that modifies it must not get code execution in CI runners.
       - name: "Setup — stage converge scripts"
         run: |
           DEFAULT="${{ github.event.repository.default_branch }}"
           git fetch --depth=1 origin "$DEFAULT" >/dev/null 2>&1 || true
 
-          # resolve-blockers: staged outside the PR working tree so a malicious
-          # PR cannot tamper with it, and so it's present even on old branches.
-          RES="$RUNNER_TEMP/resolve-blockers.sh"
-          if git show "origin/${DEFAULT}:scripts/converge/resolve-blockers.sh" > "$RES" 2>/dev/null; then
-            echo "resolve-blockers: origin/$DEFAULT"
-          elif cp scripts/converge/resolve-blockers.sh "$RES" 2>/dev/null; then
-            echo "resolve-blockers: working tree"
-          else
-            printf '%s\n%s\n' '#!/usr/bin/env bash' \
-              'jq -r ".blockers // \"unknown\"" "$1" 2>/dev/null || echo unknown' > "$RES"
-            echo "resolve-blockers: minimal fallback"
-          fi
-          chmod +x "$RES"
+          stage() {
+            local name="$1" src="$2" dst="$3" fallback="$4"
+            if git show "origin/${DEFAULT}:${src}" > "$dst" 2>/dev/null; then
+              echo "${name}: origin/$DEFAULT"
+            elif cp "${src}" "$dst" 2>/dev/null; then
+              echo "${name}: working tree"
+            else
+              printf '%s\n' "$fallback" > "$dst"
+              echo "${name}: minimal fallback"
+            fi
+            chmod +x "$dst"
+          }
 
-          # decide-round: same tamper-proof staging pattern.
-          DEC="$RUNNER_TEMP/decide-round.sh"
-          if git show "origin/${DEFAULT}:scripts/converge/decide-round.sh" > "$DEC" 2>/dev/null; then
-            echo "decide-round: origin/$DEFAULT"
-          elif cp scripts/converge/decide-round.sh "$DEC" 2>/dev/null; then
-            echo "decide-round: working tree"
-          else
-            printf '%s\n' '#!/usr/bin/env bash' 'echo "fix"' > "$DEC"
-            echo "decide-round: minimal fallback (always fix)"
-          fi
-          chmod +x "$DEC"
+          stage resolve-blockers \
+            scripts/converge/resolve-blockers.sh \
+            "$RUNNER_TEMP/resolve-blockers.sh" \
+            $'#!/usr/bin/env bash\njq -r ".blockers // \"unknown\"" "$1" 2>/dev/null || echo unknown'
+
+          stage decide-round \
+            scripts/converge/decide-round.sh \
+            "$RUNNER_TEMP/decide-round.sh" \
+            $'#!/usr/bin/env bash\necho "fix"'
+
+          stage strip-attribution \
+            scripts/git/strip-attribution.sh \
+            "$RUNNER_TEMP/strip-attribution.sh" \
+            '#!/bin/sh'
+
+      - name: "Setup — strip agent attribution from commits"
+        run: bash "$RUNNER_TEMP/strip-attribution.sh" --install
 
       # ── Round 1 ─────────────────────────────────────────────────────────────
 

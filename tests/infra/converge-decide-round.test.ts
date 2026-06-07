@@ -75,6 +75,22 @@ describe("converge decide-round", () => {
     expect(decide({ ROUND: "1", BLOCKERS: "0", CI_GREEN: "false" })).toBe("fix");
   });
 
+  it("returns fix at R1 when blockers=unknown (unknown bypasses integer check, never approves)", () => {
+    expect(decide({ ROUND: "1", BLOCKERS: "unknown", CI_GREEN: "false" })).toBe("fix");
+  });
+
+  it("returns fix at R2 when blockers=unknown (no-progress guard excludes unknown)", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "unknown",
+        CI_GREEN: "false",
+        PREV_SIGS: '["some-sig"]',
+        CURR_SIGS: '["some-sig"]',
+      }),
+    ).toBe("fix");
+  });
+
   it("returns fix at R2 when blockers differ from R1 (progress detected)", () => {
     expect(
       decide({

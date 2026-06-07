@@ -87,9 +87,12 @@ if [ "$BLOCKERS" = "unknown" ]; then
   # Reviewer wrote no machine verdict and the comment couldn't be parsed.
   # Escalate honestly — never claim blockers that may not exist.
   echo "escalate:no-verdict"
+  exit 0
 elif [ "$BLOCKERS" = "0" ]; then
   # Blockers cleared but CI is not green (would have approved above if both clear).
   echo "escalate:ci-red"
+  exit 0
 else
   echo "escalate:cap-reached"
+  exit 0
 fi

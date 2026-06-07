@@ -33,7 +33,20 @@ jobs:
         name: Install dependencies (skip native builds)
 
       - name: Setup — strip agent attribution from commits
-        run: bash scripts/git/strip-attribution.sh --install
+        run: |
+          DEFAULT="${{ github.event.repository.default_branch }}"
+          git fetch --depth=1 origin "$DEFAULT" >/dev/null 2>&1 || true
+          STRIP="$RUNNER_TEMP/strip-attribution.sh"
+          if git show "origin/${DEFAULT}:scripts/git/strip-attribution.sh" > "$STRIP" 2>/dev/null; then
+            echo "strip-attribution: origin/$DEFAULT"
+          elif cp scripts/git/strip-attribution.sh "$STRIP" 2>/dev/null; then
+            echo "strip-attribution: working tree"
+          else
+            printf '%s\n' '#!/bin/sh' > "$STRIP"
+            echo "strip-attribution: minimal fallback (no-op)"
+          fi
+          chmod +x "$STRIP"
+          bash "$STRIP" --install
 
       - uses: anthropics/claude-code-action@v1
         with:
