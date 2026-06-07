@@ -91,6 +91,23 @@ Everything else is auto-recovered by `agent-reconciler.yml`.
 
 ---
 
+## Gate-Keeper Map
+
+Every transition in the state machine has a named gate-keeper responsible for the pass/fail
+decision. Gates are not aspirational — if a gate is listed here it must actually fire.
+
+| Transition | Gate | Gate-Keeper | Evidence Required |
+|---|---|---|---|
+| Issue → Dispatch | Route gate | `receptionist-dispatcher.md` (Haiku, ≤5 turns) | `.dispatch.json` written; routing comment posted |
+| Dispatch → Implementation | Tooling gate | `make typecheck && make lint` in implementation contract | Zero TS errors; zero lint warnings |
+| Implementation → Converge | PR gate | `implementation-contract.md` | Draft PR → `gh pr ready`; exit sentinel ✅/⏸ posted |
+| Converge R1/R2 → Fix | Review gate | `engineering-code-reviewer.md` + `converge-orchestrator.md` | `.converge-verdict.json` written; 🔴/🟡/💭 counts in comment footer |
+| Converge → Approve | CI gate | `ci.yml` (6 blocking checks) | Type Check + Lint + Integration + Docker + Helm Lint + Helm Kubeconform all green |
+| Approve → Human merge | Final gate | Human (Tucker) | PR labeled `agent:ready`; human reviews and merges |
+| Any → needs-human | Escalation gate | `pr-converge.yml` / `agent-reconciler.yml` | One of the 4 legitimate triggers; typed escalation reason in comment |
+
+---
+
 ## Blocking CI Checks
 
 The following six checks must be green for a PR to converge. These are the gates
@@ -161,6 +178,32 @@ Changes to these paths require explicit human review and an ADR.
 
 ---
 
+## Pipeline Status
+
+Run `scripts/status/pipeline-status.sh <repo>` at any time to get a live health snapshot:
+
+```bash
+bash scripts/status/pipeline-status.sh msitarzewski/mirror
+```
+
+Output (markdown, to stdout):
+```
+## Mirror Pipeline Status
+| Label | Count |
+|-------|-------|
+| 🔨 agent:implementing | 2 |
+| 🔄 converge | 1 |
+| ✅ agent:ready | 3 |
+| ⚠️ needs-human | 0 |
+
+Stale drafts (>20 min, no CI): 0
+Pipeline health: ON_TRACK
+```
+
+Health logic: `BLOCKED` if `needs-human > 0`; `AT_RISK` if `converge + implementing ≥ 5`; `ON_TRACK` otherwise.
+
+---
+
 ## Local Development
 
 ```bash
@@ -181,3 +224,20 @@ The model for orchestration scripts is `scripts/converge/resolve-blockers.sh`:
 - Vitest test in `tests/infra/` via `execFileSync("bash", [script, ...])`
 
 Every new orchestration decision should be extracted to a script matching this pattern.
+
+---
+
+## Orchestration Scripts Reference
+
+| Script | Purpose | Inputs | Output tokens |
+|---|---|---|---|
+| `scripts/converge/resolve-blockers.sh` | Resolve effective blocker count from verdict JSON or comment | `<verdict.json> <pr-number>` (env: `CONVERGE_COMMENT_BODY`) | Integer or `unknown` |
+| `scripts/converge/decide-round.sh` | Decide converge loop action for one round | Env: `ROUND`, `BLOCKERS`, `CI_GREEN`, `PREV_SIGS`, `CURR_SIGS` | `approve`, `fix`, `escalate:*` |
+| `scripts/reconciler/decide-stale-action.sh` | Stale draft recovery action | `<redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue>` | `escalate`, `trigger-ci`, `mark-ready`, `mark-ready-and-converge`, `redispatch`, `needs-human` |
+| `scripts/reconciler/decide-conflict-action.sh` | Merge-conflict escalation decision | `<mergeable> <already_needs_human>` | `escalate`, `skip` |
+| `scripts/reconciler/decide-rearm-action.sh` | Converge re-arm decision | `<ci_runs> <converge_state> <has_terminal_label> <seconds_since_last_run>` | `trigger-ci`, `skip-in-progress`, `skip-done`, `skip-recent`, `rearm` |
+| `scripts/reconciler/decide-redispatch-action.sh` | Orphaned-issue re-dispatch decision | `<has_open_pr> <seconds_since_last_activity> <redispatch_count>` | `skip-has-pr`, `skip-recent`, `escalate`, `redispatch` |
+| `scripts/status/pipeline-status.sh` | Live pipeline health snapshot | `<repo>` (env: `PIPELINE_PR_JSON`) | Markdown report to stdout |
+| `scripts/git/strip-attribution.sh` | Strip agent attribution from commits | `--install` or used as prepare-commit-msg hook | Exit 0/1 |
+
+All scripts: `set -uo pipefail`, args + exit-2 usage guard, env-injectable for tests, tested in `tests/infra/`.
