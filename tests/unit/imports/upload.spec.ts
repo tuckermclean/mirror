@@ -41,6 +41,11 @@ const mockDbInsertChain = vi.hoisted(() => {
   const insert = vi.fn(() => ({ values }));
   return { insert, values, returning };
 });
+const mockDbDeleteChain = vi.hoisted(() => {
+  const where = vi.fn().mockResolvedValue({ count: 1 });
+  const deleteFrom = vi.fn(() => ({ where }));
+  return { deleteFrom, where };
+});
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
@@ -63,6 +68,7 @@ vi.mock("@/db/client", () => ({
   db: {
     select: mockDbSelectChain.select,
     insert: mockDbInsertChain.insert,
+    delete: mockDbDeleteChain.deleteFrom,
   },
 }));
 
@@ -313,5 +319,26 @@ describe("success", () => {
     const event = mockInngestSend.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(event?.["name"]).toBe("mirror/import.process");
     expect((event?.["data"] as Record<string, unknown>)?.["importId"]).toBe("import-uuid-1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Inngest failure — rollback and 503
+// ---------------------------------------------------------------------------
+describe("Inngest send failure", () => {
+  it("returns 503 when Inngest send fails", async () => {
+    mockInngestSend.mockRejectedValue(new Error("Inngest unreachable"));
+    const req = makeRequest(makeZipFile());
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body["error"]).toBe("service_unavailable");
+  });
+
+  it("deletes the import row when Inngest send fails", async () => {
+    mockInngestSend.mockRejectedValue(new Error("Inngest unreachable"));
+    const req = makeRequest(makeZipFile());
+    await POST(req);
+    expect(mockDbDeleteChain.deleteFrom).toHaveBeenCalledOnce();
   });
 });

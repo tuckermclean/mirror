@@ -115,11 +115,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const importId = inserted[0]!.id;
 
-  // Enqueue async processing
-  await inngest.send({
-    name: "mirror/import.process",
-    data: { importId },
-  });
+  // Enqueue async processing — rollback DB row on failure so it doesn't linger
+  try {
+    await inngest.send({
+      name: "mirror/import.process",
+      data: { importId },
+    });
+  } catch (err) {
+    logger.error("import.upload.inngest_send_failed", { importId, err });
+    await db.delete(imports).where(eq(imports.id, importId));
+    return NextResponse.json(
+      { error: "service_unavailable" },
+      { status: 503, headers: { "Retry-After": "30" } }
+    );
+  }
 
   logger.info("import.upload.queued", { importId, source });
 
