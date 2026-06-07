@@ -182,7 +182,7 @@ describe("PII audit (rawPath read)", () => {
     expect(mockReadImportRawPath).toHaveBeenCalledOnce();
     expect(mockReadImportRawPath).toHaveBeenCalledWith(
       "import-uuid-1",
-      expect.any(String),
+      "user-uuid-1",
       expect.any(String)
     );
   });
