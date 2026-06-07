@@ -24,6 +24,7 @@ function isLinkedInSnapshot(value: unknown): value is LinkedInSnapshot {
   if (!Array.isArray(v["experience"])) return false;
   if (!Array.isArray(v["education"])) return false;
   if (!Array.isArray(v["skills"])) return false;
+  if (!(v["skills"] as unknown[]).every((s) => typeof s === "string")) return false;
   return true;
 }
 
