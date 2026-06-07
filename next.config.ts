@@ -17,10 +17,12 @@ const nextConfig: NextConfig = {
   // binary files, causing "Module parse failed" for .node binaries.
   //
   // Adding voyageai here makes webpack emit require('voyageai') instead of
-  // bundling it. Node.js resolves this through voyageai's CJS build
-  // (package.json "type": "commonjs", main: dist/cjs/extended/index.js).
-  // CJS require() handles directory imports (require('./api') → ./api/index.js)
-  // unlike the ESM loader, so ERR_UNSUPPORTED_DIR_IMPORT is not a concern here.
+  // bundling it — this resolves the webpack compile phase. However, during
+  // Next.js "Collecting page data" the route modules are evaluated in a Node.js
+  // ESM context, which picks up voyageai's ESM build and hits
+  // ERR_UNSUPPORTED_DIR_IMPORT on its bare directory imports (e.g. './api').
+  // The real fix is the dynamic import in src/lib/embeddings/index.ts, which
+  // defers voyageai loading to Inngest function call time and skips this phase.
   //
   // For Vitest, voyageai is still inlined (see vitest.config.ts server.deps.inline)
   // so that Vite's bundler resolves its ESM directory imports during test runs.

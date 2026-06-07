@@ -1,4 +1,4 @@
-import { VoyageAIClient } from "voyageai";
+import type { VoyageAIClient } from "voyageai";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 import type { VoiceCard } from "@/lib/voice/extract";
 import { ConfigurationError, ParseError } from "@/lib/errors";
@@ -9,10 +9,15 @@ const EMBEDDING_DIMENSIONS = 1024;
 
 let _client: VoyageAIClient | undefined;
 
-function getClient(): VoyageAIClient {
+async function getClient(): Promise<VoyageAIClient> {
   if (!_client) {
     const apiKey = process.env["VOYAGE_API_KEY"];
     if (!apiKey) throw new ConfigurationError("VOYAGE_API_KEY is required for embeddings");
+    // Dynamic import defers voyageai ESM resolution to call time (inside Inngest
+    // functions), so it is never evaluated during Next.js page-data collection.
+    // A static top-level import triggers ERR_UNSUPPORTED_DIR_IMPORT in the ESM
+    // loader even when voyageai is listed in serverExternalPackages.
+    const { VoyageAIClient } = await import("voyageai");
     _client = new VoyageAIClient({ apiKey });
   }
   return _client;
@@ -43,7 +48,7 @@ export async function embedVoiceProfile(
     .filter(Boolean)
     .join("\n\n");
 
-  const client = getClient();
+  const client = await getClient();
   const result = await client.embed({
     model: EMBEDDING_MODEL,
     input: [signalText],

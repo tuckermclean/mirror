@@ -25,8 +25,8 @@ function getClient(): S3Client {
 }
 
 function getBucket(): string {
-  const bucket = process.env["R2_BUCKET"];
-  if (!bucket) throw new ConfigurationError("R2_BUCKET is required");
+  const bucket = process.env["R2_BUCKET_NAME"];
+  if (!bucket) throw new ConfigurationError("R2_BUCKET_NAME is required");
   return bucket;
 }
 

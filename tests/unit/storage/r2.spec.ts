@@ -13,7 +13,7 @@ describe("fetchFromR2", () => {
     process.env["R2_ACCOUNT_ID"] = "test-account";
     process.env["R2_ACCESS_KEY_ID"] = "test-key-id";
     process.env["R2_SECRET_ACCESS_KEY"] = "test-secret";
-    process.env["R2_BUCKET"] = "test-bucket";
+    process.env["R2_BUCKET_NAME"] = "test-bucket";
     mockSend.mockResolvedValue({
       Body: { transformToByteArray: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])) },
     });
@@ -41,8 +41,8 @@ describe("fetchFromR2", () => {
     await expect(fetchFromR2("any/key")).rejects.toThrow(ConfigurationError);
   });
 
-  it("throws ConfigurationError when R2_BUCKET is missing", async () => {
-    delete process.env["R2_BUCKET"];
+  it("throws ConfigurationError when R2_BUCKET_NAME is missing", async () => {
+    delete process.env["R2_BUCKET_NAME"];
     vi.resetModules();
     const { fetchFromR2 } = await import("@/lib/storage/r2");
     const { ConfigurationError } = await import("@/lib/errors");
