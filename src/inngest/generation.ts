@@ -123,9 +123,29 @@ async function streamGeneration(
   };
 }
 
-/** Build the user message that pairs the snapshot with the voice samples. */
-function buildUserMessage(snapshot: string, voiceSamples: string): string {
-  return `Rewrite this LinkedIn profile in the user's voice: ${snapshot} ${voiceSamples}`;
+/**
+ * Build the user message sent to the LLM.
+ *
+ * `transcript` is a first-class parameter so it appears as a clearly-labelled
+ * section in the prompt, separate from `voiceSamples` which only carries
+ * voice-embedding metadata (e.g. vector count).
+ */
+function buildUserMessage(
+  snapshot: string,
+  transcript: string,
+  voiceSamples: string
+): string {
+  return [
+    "Rewrite this LinkedIn profile in the user's voice.",
+    "",
+    "Profile:",
+    snapshot,
+    "",
+    "Interview transcript:",
+    transcript,
+    "",
+    `Voice samples: ${voiceSamples}`,
+  ].join("\n");
 }
 
 export const runGeneration = inngest.createFunction(
@@ -157,9 +177,9 @@ export const runGeneration = inngest.createFunction(
       loadVoiceEmbeddings(userId)
     );
 
-    const voiceSamples = `${transcript} [voice vectors: ${voiceEmbeddings.length}]`;
+    const voiceSamples = `[voice vectors: ${voiceEmbeddings.length}]`;
     const system = prompts.profileGeneration.content;
-    const userMessage = buildUserMessage(snapshot, voiceSamples);
+    const userMessage = buildUserMessage(snapshot, transcript, voiceSamples);
 
     // Step 4: Enforce the monthly spend cap BEFORE the Anthropic call.
     await step.run("check-monthly-cap", async () => {
