@@ -39,8 +39,6 @@ jobs:
           STRIP="$RUNNER_TEMP/strip-attribution.sh"
           if git show "origin/${DEFAULT}:scripts/git/strip-attribution.sh" > "$STRIP" 2>/dev/null; then
             echo "strip-attribution: origin/$DEFAULT"
-          elif cp scripts/git/strip-attribution.sh "$STRIP" 2>/dev/null; then
-            echo "strip-attribution: working tree"
           else
             printf '%s\n' '#!/bin/sh' > "$STRIP"
             echo "strip-attribution: minimal fallback (no-op)"
