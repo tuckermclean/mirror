@@ -161,6 +161,8 @@ jobs:
 
             Review PR #${{ env.PR_NUMBER }}.
 
+            BUILD PROVENANCE: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'agent:orchestrated') && 'specialist-swarm — each domain was built by a dedicated specialist agent. Expect domain-expert-quality work per area. Flag cross-domain SEAMS as 🔴 blockers: type mismatches at module boundaries, duplicated logic across domains, inconsistent error handling or naming conventions between specialist outputs.' || 'single-agent' }}
+
             DELIVERABLE ORDER (durability — do this even if you run out of turns):
             1. Post an initial placeholder comment FIRST:
                  gh pr comment ${{ env.PR_NUMBER }} --body "🔄 Round 1 of 3 — review in progress…"
