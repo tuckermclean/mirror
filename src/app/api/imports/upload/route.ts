@@ -14,6 +14,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 100 * 1024 * 1024;
+const FILENAME_SAFE_RE = /[^a-zA-Z0-9._-]/g;
+const FILENAME_MAX_LEN = 64;
+
+function sanitizeFilename(name: string): string {
+  return name.replace(FILENAME_SAFE_RE, "_").slice(0, FILENAME_MAX_LEN) || "upload";
+}
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04] as const;
 const ALLOWED_TYPES = new Set([
   "application/zip",
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Upload to R2
   const fileId = randomUUID();
-  const key = `imports/${internalUserId}/${fileId}/${file.name}`;
+  const key = `imports/${internalUserId}/${fileId}/${sanitizeFilename(file.name)}`;
 
   await getR2().send(
     new PutObjectCommand({

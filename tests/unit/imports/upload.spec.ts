@@ -323,6 +323,34 @@ describe("success", () => {
 });
 
 // ---------------------------------------------------------------------------
+// R2 key sanitization
+// ---------------------------------------------------------------------------
+describe("R2 key sanitization", () => {
+  it("strips path-traversal chars from file.name in the R2 key", async () => {
+    const dangerousFile = new File([ZIP_MAGIC], "../evil/path.zip", {
+      type: "application/zip",
+    });
+    const req = makeRequest(dangerousFile);
+    await POST(req);
+    const putCmd = mockR2Send.mock.calls[0]?.[0] as { input?: { Key?: string } };
+    const key = putCmd?.input?.["Key"] ?? "";
+    const filename = key.split("/").pop() ?? "";
+    expect(filename).toMatch(/^[a-zA-Z0-9._-]+$/);
+  });
+
+  it("caps file.name at 64 chars in the R2 key", async () => {
+    const longName = "a".repeat(200) + ".zip";
+    const file = new File([ZIP_MAGIC], longName, { type: "application/zip" });
+    const req = makeRequest(file);
+    await POST(req);
+    const putCmd = mockR2Send.mock.calls[0]?.[0] as { input?: { Key?: string } };
+    const key = putCmd?.input?.["Key"] ?? "";
+    const filename = key.split("/").pop() ?? "";
+    expect(filename.length).toBeLessThanOrEqual(64);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Inngest failure — rollback and 503
 // ---------------------------------------------------------------------------
 describe("Inngest send failure", () => {
