@@ -89,6 +89,12 @@ describe("parseVoiceCardOutput", () => {
     if (!result.ok) expect(result.error.kind).toBe("schema_mismatch");
   });
 
+  it("returns invalid_json for a fenced block with empty body", () => {
+    const result = parseVoiceCardOutput("```json\n\n```");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("invalid_json");
+  });
+
   it("does not throw — returns Result instead", () => {
     expect(() => parseVoiceCardOutput("totally invalid {{}}")).not.toThrow();
     expect(() => parseVoiceCardOutput("{}")).not.toThrow();
