@@ -33,19 +33,7 @@ jobs:
         name: Install dependencies (skip native builds)
 
       - name: Setup — strip agent attribution from commits
-        run: |
-          mkdir -p .git/hooks
-          cat > .git/hooks/prepare-commit-msg << 'HOOK'
-          #!/bin/sh
-          # Backstop to .claude/settings.json (includeCoAuthoredBy:false): strip any
-          # Claude/Anthropic co-author trailer and the "Generated with Claude Code" line.
-          sed -i \
-            -e '/^Co-authored-by:.*[Aa]nthropic/d' \
-            -e '/^Co-authored-by:.*[Cc]laude/d' \
-            -e '/Generated with \[Claude Code\]/d' \
-            "$1"
-          HOOK
-          chmod +x .git/hooks/prepare-commit-msg
+        run: bash scripts/git/strip-attribution.sh --install
 
       - uses: anthropics/claude-code-action@v1
         with:
