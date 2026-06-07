@@ -310,6 +310,24 @@ describe("parseLinkedInPdf — core behaviors", () => {
     await expect(parseLinkedInPdf(bytes, "user-x")).rejects.toThrow("monthly_cap_reached");
   });
 
+  it("sets partial=true when skills array contains non-strings", async () => {
+    const snap = { name: "Test", headline: "H", experience: [], education: [], skills: [1, 2, 3] };
+    vi.doMock("@anthropic-ai/sdk", () => ({
+      default: vi.fn().mockImplementation(() => ({
+        messages: {
+          create: vi.fn().mockResolvedValue({
+            content: [{ type: "text", text: JSON.stringify(snap) }],
+            usage: { input_tokens: 100, output_tokens: 20 },
+          }),
+        },
+      })),
+    }));
+    const { parseLinkedInPdf } = await import("@/lib/parsers/linkedin-pdf");
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    const { partial } = await parseLinkedInPdf(bytes, "user-x");
+    expect(partial).toBe(true);
+  });
+
   it("records LLM spend after a successful parse", async () => {
     currentMockSnapshot = { name: "Test", headline: "Engineer", experience: [], education: [], skills: [] };
     const recordLlmSpend = vi.fn().mockResolvedValue(undefined);

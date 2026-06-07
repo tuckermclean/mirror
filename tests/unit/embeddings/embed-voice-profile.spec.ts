@@ -29,14 +29,14 @@ describe("embedVoiceProfile", () => {
     mockEmbed.mockClear();
     process.env["VOYAGE_API_KEY"] = "test-voyage-key";
     mockEmbed.mockResolvedValue({
-      data: [{ embedding: new Array(3072).fill(0.1) }],
+      data: [{ embedding: new Array(1024).fill(0.1) }],
     });
   });
 
-  it("returns a 3072-dimensional embedding vector", async () => {
+  it("returns a 1024-dimensional embedding vector", async () => {
     const { embedVoiceProfile } = await import("@/lib/embeddings");
     const result = await embedVoiceProfile(baseHistory, baseVoiceCard);
-    expect(result).toHaveLength(3072);
+    expect(result).toHaveLength(1024);
     expect(result.every((v) => typeof v === "number")).toBe(true);
   });
 
