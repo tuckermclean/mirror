@@ -1,0 +1,99 @@
+name: "Probe: Agent tool availability"
+
+# Manual trigger only — run once, inspect chore/agent-tool-probe branch, then delete this file.
+# Purpose: verify the Task/Agent tool (and worktree/background options) are available inside
+# claude-code-action@v1 with --dangerously-skip-permissions before we build the orchestrator
+# swarm on top of it.
+#
+# Run:  gh workflow run "Probe: Agent tool availability" --ref chore/agent-tool-probe
+# Read: gh api repos/<owner>/mirror/contents/agent-tool-verified.txt?ref=chore/agent-tool-probe
+#
+# Pass criteria:  agent-tool-verified.txt contains "sub-agent-ok"
+# Fail criteria:  contains "AGENT-TOOL-UNAVAILABLE" or step errors
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          ref: chore/agent-tool-probe
+          token: ${{ secrets.GH_BOT_TOKEN || github.token }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 20"
+          prompt: |
+            ## Agent Tool Probe — record results carefully
+
+            This workflow tests whether the Agent tool (Task tool / sub-agent spawning) works
+            inside claude-code-action@v1. Follow each step exactly and record every result.
+
+            ### Step 1 — Basic sub-agent spawn
+            Use the Agent tool to spawn ONE sub-agent:
+              subagent_type: "general-purpose"
+              prompt: "Write the exact string 'sub-agent-ok' to /tmp/subagent-test.txt and return 'done'."
+
+            After it completes, read /tmp/subagent-test.txt.
+            Record result as either:
+              SPAWN_BASIC=ok      (file contains 'sub-agent-ok')
+              SPAWN_BASIC=fail    (file missing or wrong content)
+              SPAWN_BASIC=no-tool (Agent tool not available — record the error)
+
+            ### Step 2 — Worktree isolation
+            Use the Agent tool with isolation="worktree":
+              subagent_type: "general-purpose"
+              isolation: "worktree"
+              prompt: "Write 'worktree-ok' to /tmp/worktree-test.txt and return 'done'."
+
+            Record:
+              SPAWN_WORKTREE=ok      (succeeded)
+              SPAWN_WORKTREE=unsupported (parameter not accepted)
+              SPAWN_WORKTREE=fail    (other error)
+
+            ### Step 3 — Background spawn
+            Use the Agent tool with run_in_background=true:
+              subagent_type: "general-purpose"
+              run_in_background: true
+              prompt: "Write 'background-ok' to /tmp/background-test.txt and return 'done'."
+
+            Wait for the background agent to complete. Then read /tmp/background-test.txt.
+            Record:
+              SPAWN_BACKGROUND=ok          (file contains 'background-ok')
+              SPAWN_BACKGROUND=unsupported (parameter not accepted)
+              SPAWN_BACKGROUND=fail        (other error)
+
+            ### Step 4 — Write results
+            Write a file `agent-tool-verified.txt` in the repo root with this exact format:
+            ```
+            SPAWN_BASIC=<result>
+            SPAWN_WORKTREE=<result>
+            SPAWN_BACKGROUND=<result>
+            NOTES=<one line describing anything unexpected>
+            ```
+
+            Then commit and push it:
+            ```
+            git add agent-tool-verified.txt
+            git commit -m "chore(probe): record agent-tool capability results"
+            git push origin chore/agent-tool-probe
+            ```
+
+            If the Agent tool is not available at all, write:
+            ```
+            SPAWN_BASIC=AGENT-TOOL-UNAVAILABLE: <error message>
+            SPAWN_WORKTREE=skipped
+            SPAWN_BACKGROUND=skipped
+            NOTES=<error details>
+            ```
+            and still commit + push so the result is visible.
