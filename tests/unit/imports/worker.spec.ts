@@ -143,6 +143,16 @@ describe("status transitions", () => {
     expect(processingSetBefore).toBe(true);
   });
 
+  it("sets status = 'failed' when the initial processing write throws", async () => {
+    mockDbUpdateWhere.mockRejectedValueOnce(new Error("DB write failed"));
+
+    await expect(processImport("import-uuid-1", "user-uuid-1")).rejects.toThrow("DB write failed");
+
+    const allSetCalls = mockDbUpdateSet.mock.calls as Array<[Record<string, unknown>]>;
+    const failedCall = allSetCalls.find((c) => c[0]?.["status"] === "failed");
+    expect(failedCall).toBeDefined();
+  });
+
   it("sets status = 'done' after successful parse and persist", async () => {
     await processImport("import-uuid-1", "user-uuid-1");
 
