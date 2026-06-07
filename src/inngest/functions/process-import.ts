@@ -65,6 +65,11 @@ export const processImport = inngest.createFunction(
     const { userId } = importRow;
     const source = importRow.source as ImportSource;
 
+    // Mark processing now that we have a confirmed import row.
+    await step.run("mark-processing", async () => {
+      await db.update(imports).set({ status: "processing" }).where(eq(imports.id, importId));
+    });
+
     // Step 2: Read raw_path through PII wrapper.
     const rawPath = await step.run("load-raw-path", async () => {
       const row = await readImportRawPath(
@@ -87,7 +92,8 @@ export const processImport = inngest.createFunction(
     const history = await step.run("fetch-and-parse", async () => {
       const bytes = await fetchFromR2(rawPath);
       return selectParser(source, bytes, userId, importId);
-    }).catch((err: unknown) => {
+    }).catch(async (err: unknown) => {
+      await db.update(imports).set({ status: "failed" }).where(eq(imports.id, importId));
       if (err instanceof MonthlyCapError || err instanceof ConfigurationError) {
         return null;
       }
@@ -146,6 +152,11 @@ export const processImport = inngest.createFunction(
         .update(users)
         .set({ voiceProfileId: importId })
         .where(eq(users.id, userId));
+    });
+
+    // Mark done after all steps complete successfully.
+    await step.run("mark-done", async () => {
+      await db.update(imports).set({ status: "done" }).where(eq(imports.id, importId));
     });
 
     logger.info("process-import: completed", { importId, userId, source });
