@@ -125,7 +125,7 @@ jobs:
           stage decide-round \
             scripts/converge/decide-round.sh \
             "$RUNNER_TEMP/decide-round.sh" \
-            $'#!/usr/bin/env bash\necho "fix"'
+            $'#!/usr/bin/env bash\n# Minimal fallback: approve when clear, fix otherwise.\n[ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ] && echo approve && exit 0\necho fix'
 
           stage strip-attribution \
             scripts/git/strip-attribution.sh \
