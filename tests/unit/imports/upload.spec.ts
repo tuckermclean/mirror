@@ -110,7 +110,6 @@ function makeOctetFile(bytes: Uint8Array, name = "export.bin"): File {
 function _makeTextFile(content = "chat history", name = "export.txt"): File {
   return new File([content], name, { type: "text/plain" });
 }
-void _makeTextFile; // exported for future text/plain tests
 
 function makeRequest(file: File): NextRequest {
   const formData = new FormData();

@@ -17,6 +17,10 @@ type PiiReadParams = {
  *
  * @deprecated Use `readPii()` instead — it provides a richer audit row (userId)
  * and returns the data only after the audit write succeeds (fail-safe).
+ *
+ * **Migration:** Replace calls with `readPii(() => yourQuery(), { userId, accessorId, ... })`.
+ * `readPii` returns the query result directly, so no separate data-fetch is needed.
+ * Planned removal: v0.5.0.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({
@@ -141,12 +145,16 @@ export async function readImportRawPath(
  *
  * Callers in other modules should use this rather than referencing
  * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ *
+ * Pass `accessorId` to distinguish service-account reads from user self-reads
+ * in the audit log (defaults to `userId` when omitted).
  */
 export async function readInterviewTranscript(
   interviewId: string,
   userId: string,
   reason: string,
-  ipAddress?: string
+  ipAddress?: string,
+  accessorId?: string
 ): Promise<{ transcript: unknown } | undefined> {
   const rows = await readPii(
     () =>
@@ -157,7 +165,7 @@ export async function readInterviewTranscript(
         .limit(1),
     {
       userId,
-      accessorId: userId,
+      accessorId: accessorId ?? userId,
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",

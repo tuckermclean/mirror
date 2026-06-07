@@ -171,6 +171,9 @@ export async function parseLinkedInPdf(
   let parsed: unknown;
   try {
     const raw = textBlock.text.trim();
+    // The prompt instructs Claude to return bare JSON (no fences), but we strip
+    // defensively in case the model adds them anyway — a known occurrence under
+    // certain sampling temperatures.
     const jsonText = raw.startsWith("```")
       ? raw.replace(/^```(?:json)?/i, "").replace(/\n?```$/, "")
       : raw;

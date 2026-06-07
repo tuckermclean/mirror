@@ -9,7 +9,7 @@ prompts:
   - file://helpers/voice-extraction-messages.json
 
 providers:
-  - id: anthropic:messages:claude-sonnet-4-6
+  - id: "anthropic:messages:{{env.EVAL_MODEL or 'claude-sonnet-4-6'}}"
     config:
       temperature: 0
 
