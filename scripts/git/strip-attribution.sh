@@ -31,8 +31,10 @@ if [ -z "${1:-}" ]; then
   exit 2
 fi
 
-sed -i \
-  -e '/^Co-authored-by:.*[Aa]nthropic/d' \
-  -e '/^Co-authored-by:.*[Cc]laude/d' \
-  -e '/Generated with \[Claude Code\]/d' \
+# perl -i is portable across GNU/Linux and macOS (BSD sed -i requires an
+# extension argument; GNU sed does not — using perl avoids the divergence).
+perl -i -ne 'print unless
+  /^Co-authored-by:.*[Aa]nthropic/ ||
+  /^Co-authored-by:.*[Cc]laude/    ||
+  /Generated with \[Claude Code\]/' \
   "$1"

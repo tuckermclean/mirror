@@ -185,6 +185,12 @@ describe("converge decide-round", () => {
     ).toBe(2);
   });
 
+  it("exits 2 when BLOCKERS starts with a digit but is not a pure integer", () => {
+    expect(
+      decideExit({ ROUND: "1", BLOCKERS: "1foo", CI_GREEN: "true" }),
+    ).toBe(2);
+  });
+
   // ── Empty-signature false-positive guard ──────────────────────────────────
   // When reviewers omit blocker_signatures entirely both arrays default to [].
   // Two rounds of [] != "same signatures" — it means the reviewer didn't emit

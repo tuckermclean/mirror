@@ -50,10 +50,10 @@ case "$CI_GREEN" in
   *) err "CI_GREEN must be 'true' or 'false' (got: $CI_GREEN)"; exit 2 ;;
 esac
 
-case "$BLOCKERS" in
-  [0-9]* | unknown) ;;
-  *) err "BLOCKERS must be a non-negative integer or 'unknown' (got: $BLOCKERS)"; exit 2 ;;
-esac
+if [[ "$BLOCKERS" != "unknown" ]] && ! [[ "$BLOCKERS" =~ ^[0-9]+$ ]]; then
+  err "BLOCKERS must be a non-negative integer or 'unknown' (got: $BLOCKERS)"
+  exit 2
+fi
 
 # Approve when fully clear — blockers gone AND CI green.
 if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then

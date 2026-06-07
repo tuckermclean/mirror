@@ -33,9 +33,11 @@ function strip(content: string): string {
 }
 
 describe("strip-attribution", () => {
-  it("removes Co-authored-by line with 'Anthropic'", () => {
-    const result = strip("feat: add thing\n\nCo-authored-by: Claude <noreply@anthropic.com>\n");
-    expect(result).not.toContain("Co-authored-by: Claude");
+  it("removes Co-authored-by line matching 'Anthropic' in the email domain", () => {
+    // Input has 'Anthropic' in the domain but NOT 'Claude' in the name,
+    // so only the Anthropic pattern fires — isolates that pattern.
+    const result = strip("feat: add thing\n\nCo-authored-by: Bot <noreply@anthropic.com>\n");
+    expect(result).not.toContain("Co-authored-by: Bot");
     expect(result).toContain("feat: add thing");
   });
 
