@@ -1,12 +1,12 @@
 description: "Voice Card extraction eval — deterministic schema/structural assertions (B2)"
 
+# Use a top-level file:// reference so promptfoo's processJsonFile path resolves
+# the nested file:// reference in the system message content via maybeLoadConfigFromExternalFile.
+# A raw: block with an inline JSON string does NOT expand file:// in message content
+# (maybeFilePath returns false for multi-line strings), so the LLM would receive the
+# literal path string instead of the prompt text.
 prompts:
-  - id: voice-extraction
-    raw: |
-      [
-        {"role": "system", "content": "file://../src/lib/prompts/voice_extraction.md"},
-        {"role": "user", "content": "Here is the chat history transcript to analyze:\n\n{{transcript}}\n\nExtract the Voice Card JSON now."}
-      ]
+  - file://helpers/voice-extraction-messages.json
 
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
