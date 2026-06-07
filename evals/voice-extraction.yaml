@@ -1,0 +1,58 @@
+description: "Voice Card extraction eval — deterministic schema/structural assertions (B2)"
+
+# Use a top-level file:// reference so promptfoo's processJsonFile path resolves
+# the nested file:// reference in the system message content via maybeLoadConfigFromExternalFile.
+# A raw: block with an inline JSON string does NOT expand file:// in message content
+# (maybeFilePath returns false for multi-line strings), so the LLM would receive the
+# literal path string instead of the prompt text.
+prompts:
+  - file://helpers/voice-extraction-messages.json
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+
+defaultTest:
+  vars:
+    transcript: "file://./fixtures/voice-extraction.txt"
+
+tests:
+  - description: "VoiceCard schema — all structural assertions against one model output"
+    assert:
+      - type: javascript
+        value: |
+          const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+          const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
+          try { JSON.parse(stripped); return true; } catch { return false; }
+
+      - type: javascript
+        value: "file://./helpers/assert-voice-card-schema.cjs"
+
+      - type: javascript
+        value: |
+          try {
+            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
+            const parsed = JSON.parse(stripped);
+            const dist = parsed.sentenceLengthDistribution;
+            if (!dist || typeof dist !== "object") return false;
+            const { short, medium, long } = dist;
+            if (typeof short !== "number" || typeof medium !== "number" || typeof long !== "number") return false;
+            const sum = short + medium + long;
+            return sum >= 90 && sum <= 110;
+          } catch {
+            return false;
+          }
+
+      - type: javascript
+        value: |
+          try {
+            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
+            const parsed = JSON.parse(stripped);
+            const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
+            return len >= 1 && len <= 30;
+          } catch {
+            return false;
+          }

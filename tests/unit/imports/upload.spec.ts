@@ -312,13 +312,15 @@ describe("success", () => {
     expect(insertValues?.["status"]).toBe("pending");
   });
 
-  it("enqueues mirror/import.process Inngest event with importId", async () => {
+  it("enqueues mirror/import.process Inngest event with importId and userId", async () => {
     const req = makeRequest(makeZipFile());
     await POST(req);
     expect(mockInngestSend).toHaveBeenCalledOnce();
     const event = mockInngestSend.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(event?.["name"]).toBe("mirror/import.process");
-    expect((event?.["data"] as Record<string, unknown>)?.["importId"]).toBe("import-uuid-1");
+    const data = event?.["data"] as Record<string, unknown>;
+    expect(data?.["importId"]).toBe("import-uuid-1");
+    expect(data?.["userId"]).toBe("internal-user-uuid");
   });
 });
 

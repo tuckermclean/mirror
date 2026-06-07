@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "file://../src/lib/prompts/voice_extraction.md"
+  },
+  {
+    "role": "user",
+    "content": "Here is the chat history transcript to analyze:\n\n{{transcript}}\n\nExtract the Voice Card JSON now."
+  }
+]
