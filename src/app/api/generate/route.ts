@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { generations, users } from "@/db/schema";
+import { generations, linkedinSnapshots, users } from "@/db/schema";
 import { DELETED_PLAN } from "@/lib/db/delete-user";
 import { checkMonthlyCap } from "@/lib/llm/cost-guard";
 import { computePromptHash, findCachedGeneration } from "@/lib/llm/prompt-cache";
@@ -56,6 +56,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const internalUserId = await resolveActiveUserId(clerkUserId);
   if (!internalUserId) {
     return NextResponse.json({ error: "user_not_found" }, { status: 404 });
+  }
+
+  // 3b. Verify snapshot ownership — UUIDs are not access credentials.
+  const snapshotRow = await db
+    .select({ id: linkedinSnapshots.id })
+    .from(linkedinSnapshots)
+    .where(and(eq(linkedinSnapshots.id, snapshotId), eq(linkedinSnapshots.userId, internalUserId)))
+    .limit(1);
+  if (!snapshotRow[0]) {
+    return NextResponse.json({ error: "snapshot_not_found" }, { status: 404 });
   }
 
   // 4. Monthly spend cap — enforced before any generation work.

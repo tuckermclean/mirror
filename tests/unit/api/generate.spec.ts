@@ -5,6 +5,7 @@
  *  - 401 when unauthenticated.
  *  - 400 on invalid/missing snapshotId.
  *  - 404 when no active user row (tombstone guard).
+ *  - 404 snapshot_not_found when snapshot does not belong to the requesting user (IDOR guard).
  *  - 402 monthly_cap_reached when the spend cap is hit (cap checked BEFORE work).
  *  - Prompt-hash cache hit: returns the cached generationId with cached:true,
  *    and does NOT call Anthropic or Inngest.
@@ -80,6 +81,10 @@ vi.mock("@/db/schema", () => ({
     clerkId: Symbol("users.clerkId"),
     plan: Symbol("users.plan"),
   },
+  linkedinSnapshots: {
+    id: Symbol("linkedinSnapshots.id"),
+    userId: Symbol("linkedinSnapshots.userId"),
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -106,6 +111,9 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   mockAuth.mockResolvedValue({ userId: "clerk_test_user" });
+  // Default: all db.select().from().where().limit() calls return the user row.
+  // This covers both user resolution (first call) and snapshot ownership check
+  // (second call — any non-empty array satisfies the ownership guard).
   mockDbSelectChain.limit.mockResolvedValue([{ id: "internal-user-uuid" }]);
   mockCheckMonthlyCap.mockResolvedValue({ allowed: true });
   mockComputePromptHash.mockReturnValue("hash-deadbeef");
@@ -164,6 +172,32 @@ describe("user resolution", () => {
     mockDbSelectChain.limit.mockResolvedValue([]);
     const res = await POST(makeRequest());
     expect(res.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot ownership (IDOR guard — step 3b)
+// ---------------------------------------------------------------------------
+describe("snapshot ownership", () => {
+  it("returns 404 snapshot_not_found when the snapshot does not belong to the user", async () => {
+    // User resolution succeeds, but snapshot lookup returns no row.
+    mockDbSelectChain.limit
+      .mockResolvedValueOnce([{ id: "internal-user-uuid" }]) // user found
+      .mockResolvedValueOnce([]); // snapshot not owned by this user
+    const res = await POST(makeRequest({ snapshotId: "other-users-snap" }));
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["error"]).toBe("snapshot_not_found");
+  });
+
+  it("does not proceed to cap check or generation when snapshot ownership fails", async () => {
+    mockDbSelectChain.limit
+      .mockResolvedValueOnce([{ id: "internal-user-uuid" }]) // user found
+      .mockResolvedValueOnce([]); // snapshot not owned
+    await POST(makeRequest({ snapshotId: "other-users-snap" }));
+    expect(mockCheckMonthlyCap).not.toHaveBeenCalled();
+    expect(mockDbInsertChain.insert).not.toHaveBeenCalled();
+    expect(mockInngestSend).not.toHaveBeenCalled();
   });
 });
 
