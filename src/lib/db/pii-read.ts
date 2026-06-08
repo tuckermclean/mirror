@@ -16,7 +16,7 @@ type PiiReadParams = {
  * Records a PII field access in the audit_log table.
  *
  * @deprecated Superseded by `readPii()` — scheduled for removal in the Week 6
- * milestone (see issue #128). New callers must not use this function.
+ * milestone (see issue #158). New callers must not use this function.
  *
  * This helper logs an access *after the fact* and cannot guarantee the read was
  * actually audited (the read can succeed while a later `recordPiiRead` is
@@ -199,6 +199,9 @@ export async function readInterviewTranscript(
   reason: string,
   options: ReadInterviewTranscriptOptions = {}
 ): Promise<{ transcript: unknown } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
   const { ipAddress, accessorId = userId } = options;
   const rows = await readPii(
     () =>
@@ -228,6 +231,9 @@ export async function readImportParsed(
   userId: string,
   reason: string
 ): Promise<{ parsed: unknown } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
   const rows = await readPii(
     () =>
       db

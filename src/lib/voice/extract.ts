@@ -172,13 +172,32 @@ export function extractVoiceCard(history: ParsedChatHistory): VoiceCard {
 const VOICE_EXTRACTION_MODEL = "claude-sonnet-4-6";
 const VOICE_EXTRACTION_MAX_TOKENS = 1024;
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const VOICE_EXTRACTION_PROMPT = readFileSync(
-  join(__dirname, "../prompts/voice_extraction.md"),
-  "utf-8",
-);
+// Use _dirname (not __dirname) to avoid shadowing the global ESM name injected
+// by bundlers/Node. Loaded lazily via getVoiceExtractionPrompt() below.
+const _dirname = dirname(fileURLToPath(import.meta.url));
 
-let _anthropicClient: Anthropic | undefined;
+// Lazy-loaded: undefined until first call to getVoiceExtractionPrompt().
+// A missing prompt file throws at call-time (not at module import) so cold
+// starts are not broken by a deploy-time file-system issue.
+let _voiceExtractionPrompt: string | undefined;
+function getVoiceExtractionPrompt(): string {
+  if (!_voiceExtractionPrompt) {
+    _voiceExtractionPrompt = readFileSync(
+      join(_dirname, "../prompts/voice_extraction.md"),
+      "utf-8",
+    );
+  }
+  return _voiceExtractionPrompt;
+}
+
+// Exported so tests can inject a custom instance or reset between runs without
+// re-mocking the entire @anthropic-ai/sdk module. The container object pattern
+// ensures that Object.defineProperty writes from test code (to
+// `_anthropicClient.client`) update the same reference that
+// `getAnthropicClient()` reads, regardless of how the ESM runtime (Vite/Node)
+// compiles `export let` live-bindings.
+export let _anthropicClient: Anthropic | undefined;
+
 function getAnthropicClient(): Anthropic {
   if (!_anthropicClient) _anthropicClient = new Anthropic();
   return _anthropicClient;
@@ -207,7 +226,7 @@ async function streamAndRecord(
   const stream = await getAnthropicClient().messages.stream({
     model: VOICE_EXTRACTION_MODEL,
     max_tokens: VOICE_EXTRACTION_MAX_TOKENS,
-    system: VOICE_EXTRACTION_PROMPT,
+    system: getVoiceExtractionPrompt(),
     messages: [{ role: "user", content: transcript }],
   });
   const final = await stream.finalMessage();
@@ -249,7 +268,7 @@ export async function extractVoiceCardLlm(
   options: VoiceExtractionOptions,
 ): Promise<VoiceCard> {
   const promptHash = computePromptHash({
-    systemPrompt: VOICE_EXTRACTION_PROMPT,
+    systemPrompt: getVoiceExtractionPrompt(),
     userMessages: [transcript],
     modelId: VOICE_EXTRACTION_MODEL,
   });

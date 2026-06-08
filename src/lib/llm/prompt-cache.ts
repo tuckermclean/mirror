@@ -87,7 +87,7 @@ export async function recordGeneration(params: RecordGenerationParams): Promise<
       userId: params.userId,
       model: params.model,
       promptHash: params.promptHash,
-      output: params.output as Record<string, unknown>,
+      output: params.output as unknown,
     })
     .returning({ id: generations.id });
   return { id: rows[0]!.id };
