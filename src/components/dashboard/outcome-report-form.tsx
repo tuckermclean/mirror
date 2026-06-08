@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { buildReportPayload, type ReportFormFields } from "@/lib/outcomes/report-form";
+import { buildReportPayload, getSubmitButtonProps, type ReportFormFields } from "@/lib/outcomes/report-form";
 
 interface OutcomeReportFormProps {
   /** Default ISO week (YYYY-MM-DD) — typically the current week's Monday. */
@@ -115,14 +115,19 @@ export function OutcomeReportForm({ defaultWeek }: OutcomeReportFormProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              size="sm"
-              data-testid="outcome-report-submit"
-              disabled={submitting}
-            >
-              {submitting ? "Saving…" : "Save this week"}
-            </Button>
+            {(() => {
+              const btnProps = getSubmitButtonProps({ submitting, submitted });
+              return (
+                <Button
+                  type="submit"
+                  size="sm"
+                  data-testid="outcome-report-submit"
+                  disabled={btnProps.disabled}
+                >
+                  {btnProps.label}
+                </Button>
+              );
+            })()}
             {submitted ? (
               <motion.span
                 data-testid="outcome-report-success"
@@ -132,8 +137,21 @@ export function OutcomeReportForm({ defaultWeek }: OutcomeReportFormProps) {
                 transition={{ duration: 0.25 }}
                 className="text-sm text-green-600"
               >
-                Saved
+                Saved ✓
               </motion.span>
+            ) : null}
+            {submitted ? (
+              <motion.button
+                type="button"
+                data-testid="outcome-report-update"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.25, delay: 0.1 }}
+                className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={() => setSubmitted(false)}
+              >
+                Update this week?
+              </motion.button>
             ) : null}
           </div>
         </form>

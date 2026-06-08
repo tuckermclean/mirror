@@ -67,6 +67,33 @@ export function buildReportPayload(
   return { ok: true, value: result.data };
 }
 
+export interface SubmitButtonProps {
+  disabled: boolean;
+  label: string;
+}
+
+/**
+ * Derive the submit button's disabled state and label from the current form
+ * states. Extracted as a pure function so it can be unit-tested without a DOM
+ * runner.
+ *
+ * Priority:
+ *  - `submitting` → disabled, "Saving…"
+ *  - `submitted`  → disabled, "Saved ✓"
+ *  - default      → enabled,  "Save this week"
+ */
+export function getSubmitButtonProps({
+  submitting,
+  submitted,
+}: {
+  submitting: boolean;
+  submitted: boolean;
+}): SubmitButtonProps {
+  if (submitting) return { disabled: true, label: "Saving…" };
+  if (submitted) return { disabled: true, label: "Saved ✓" };
+  return { disabled: false, label: "Save this week" };
+}
+
 /** The Monday (ISO week start) of the given date, as a YYYY-MM-DD string. */
 export function isoWeekStart(date: Date): string {
   const d = new Date(
