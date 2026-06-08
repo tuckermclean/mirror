@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, type DB } from "@/db/client";
 import { auditLog, imports, interviews, linkedinSnapshots } from "@/db/schema";
 import { ValidationError } from "@/lib/errors";
@@ -223,7 +223,7 @@ export async function readLinkedinSnapshot(
           parsed: linkedinSnapshots.parsed,
         })
         .from(linkedinSnapshots)
-        .where(eq(linkedinSnapshots.id, snapshotId))
+        .where(and(eq(linkedinSnapshots.id, snapshotId), eq(linkedinSnapshots.userId, userId)))
         .limit(1),
     {
       userId,
