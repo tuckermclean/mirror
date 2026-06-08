@@ -65,10 +65,6 @@ function payloadFor(system: unknown): string {
     ? RATIONALE_OUTPUT
     : GENERATED_OUTPUT;
 }
-const finalMessageMock = vi.fn().mockResolvedValue({
-  content: [{ type: "text", text: GENERATED_OUTPUT }],
-  usage: { input_tokens: 1200, output_tokens: 340 },
-});
 const streamOn = vi.fn();
 const messagesStream = vi.fn().mockImplementation(async (params: { system?: unknown }) => ({
   on: streamOn,
@@ -205,10 +201,6 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
     // Reset the select call counter so each test starts at call #1 = interviews lookup.
     selectCall = 0;
     checkMonthlyCap.mockResolvedValue({ allowed: true });
-    finalMessageMock.mockResolvedValue({
-      content: [{ type: "text", text: GENERATED_OUTPUT }],
-      usage: { input_tokens: 1200, output_tokens: 340 },
-    });
     // Re-establish the per-call payload impl after clearAllMocks(). finalMessage
     // is always set so awaiting it resolves cleanly.
     messagesStream.mockImplementation(async (params: { system?: unknown }) => ({
@@ -247,9 +239,8 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
       };
     });
     await invoke();
-    // Cap is always checked before its corresponding stream call.
-    expect(order[0]).toBe("cap");
-    expect(order[1]).toBe("stream");
+    // Cap is always checked before its corresponding stream call (generation + rationale).
+    expect(order).toEqual(["cap", "stream", "cap", "stream"]);
   });
 
   it("throws NonRetriableError wrapping MonthlyCapError when the cap is reached", async () => {
