@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { NonRetriableError } from "inngest";
 import { eq, isNotNull, and, sql } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/db/client";
@@ -182,11 +183,16 @@ export const runGeneration = inngest.createFunction(
     const userMessage = buildUserMessage(snapshot, transcript, voiceSamples);
 
     // Step 4: Enforce the monthly spend cap BEFORE the Anthropic call.
+    // Use NonRetriableError so Inngest stops retrying immediately — a
+    // depleted monthly cap will not resolve within the retry window.
     await step.run("check-monthly-cap", async () => {
       const cap = await checkMonthlyCap();
       if (!cap.allowed) {
         logger.warn("generation: monthly cap reached, aborting", { generationId, userId });
-        throw new MonthlyCapError(cap.resets_at);
+        throw new NonRetriableError(
+          `Monthly LLM spend cap reached; resets at ${cap.resets_at}`,
+          { cause: new MonthlyCapError(cap.resets_at) }
+        );
       }
     });
 
