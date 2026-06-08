@@ -61,6 +61,12 @@ describe("POST /api/outcomes/consent — grant", () => {
     expect(body.consented).toBe(true);
     expect(mockGrant).toHaveBeenCalledWith("internal-user-uuid");
   });
+
+  it("does not expose consentedAt timestamp in the response (minimise data in transit)", async () => {
+    const res = await POST();
+    const body = await res.json();
+    expect(body).not.toHaveProperty("consentedAt");
+  });
 });
 
 describe("DELETE /api/outcomes/consent — revoke", () => {

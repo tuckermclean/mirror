@@ -6,11 +6,12 @@
  *
  * Covers:
  *  - 401 when unauthenticated (FIRST-line auth rule).
- *  - 400 on invalid input.
+ *  - 400 on invalid input — sanitised { field, message } pairs (no raw Zod internals).
  *  - 404 when no active user row (tombstone guard).
  *  - 403 when consent has not been granted (revoke must stop collection).
- *  - 201 on a successful self-report.
+ *  - 200 on a successful self-report upsert (idempotent — conflict → update).
  *  - 200 with aggregated series on GET.
+ *  - Consent check is performed inside a DB transaction (TOCTOU guard).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -31,10 +32,22 @@ const mockDbSelectChain = vi.hoisted(() => {
 
 const mockDbInsertChain = vi.hoisted(() => {
   const returning = vi.fn();
-  const values = vi.fn(() => ({ returning }));
+  const onConflictDoUpdate = vi.fn(() => ({ returning }));
+  const values = vi.fn(() => ({ onConflictDoUpdate }));
   const insert = vi.fn(() => ({ values }));
-  return { insert, values, returning };
+  return { insert, values, onConflictDoUpdate, returning };
 });
+
+// Transaction mock: runs the callback with a tx object that has the same shape
+// as the db mock, so the production code can call tx.insert(...) inside the txn.
+const mockTransaction = vi.hoisted(() =>
+  vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
+    const tx = {
+      insert: mockDbInsertChain.insert,
+    };
+    return cb(tx);
+  })
+);
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 
@@ -50,6 +63,7 @@ vi.mock("@/db/client", () => ({
   db: {
     select: mockDbSelectChain.select,
     insert: mockDbInsertChain.insert,
+    transaction: mockTransaction,
   },
 }));
 
@@ -95,6 +109,16 @@ beforeEach(() => {
   mockHasConsent.mockResolvedValue(true);
   mockDbInsertChain.returning.mockResolvedValue([{ id: "outcome-uuid-1" }]);
   mockDbSelectChain.orderBy.mockResolvedValue([]);
+
+  // Default transaction: run the callback with the tx object
+  mockTransaction.mockImplementation(
+    async (cb: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        insert: mockDbInsertChain.insert,
+      };
+      return cb(tx);
+    }
+  );
 });
 
 afterEach(() => {
@@ -133,6 +157,27 @@ describe("POST /api/outcomes — validation", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
+
+  it("returns sanitised { field, message } pairs — no raw Zod internals", async () => {
+    const res = await POST(postRequest({ ...validBody, profileViews: -1 }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("validation_error");
+    expect(Array.isArray(body.issues)).toBe(true);
+    // Each issue must only have field + message — no code, no minimum, etc.
+    for (const issue of body.issues) {
+      expect(Object.keys(issue).sort()).toEqual(["field", "message"]);
+    }
+  });
+
+  it("does not expose numeric bounds or constraint codes in validation errors", async () => {
+    const res = await POST(postRequest({ ...validBody, profileViews: -1 }));
+    const body = await res.json();
+    const serialised = JSON.stringify(body);
+    expect(serialised).not.toContain('"code"');
+    expect(serialised).not.toContain('"minimum"');
+    expect(serialised).not.toContain('"type"');
+  });
 });
 
 describe("POST /api/outcomes — tombstone guard", () => {
@@ -146,6 +191,13 @@ describe("POST /api/outcomes — tombstone guard", () => {
 describe("POST /api/outcomes — consent gate", () => {
   it("returns 403 when consent has not been granted", async () => {
     mockHasConsent.mockResolvedValue(false);
+    // Transaction runs the callback; hasConsent returns false → null returned from txn
+    mockTransaction.mockImplementation(
+      async (cb: (tx: unknown) => Promise<unknown>) => {
+        const tx = { insert: mockDbInsertChain.insert };
+        return cb(tx);
+      }
+    );
     const res = await POST(postRequest(validBody));
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("consent_required");
@@ -158,10 +210,14 @@ describe("POST /api/outcomes — consent gate", () => {
   });
 });
 
-describe("POST /api/outcomes — happy path", () => {
-  it("returns 201 with { outcomeId } and stores source self_report", async () => {
+describe("POST /api/outcomes — happy path (upsert)", () => {
+  it("returns 200 (not 201) because the operation is an upsert", async () => {
     const res = await POST(postRequest(validBody));
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
+  });
+
+  it("returns { outcomeId } and stores source self_report", async () => {
+    const res = await POST(postRequest(validBody));
     expect((await res.json()).outcomeId).toBe("outcome-uuid-1");
     expect(mockDbInsertChain.values).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -171,6 +227,16 @@ describe("POST /api/outcomes — happy path", () => {
         source: "self_report",
       })
     );
+  });
+
+  it("uses onConflictDoUpdate so duplicate week/source rows are updated", async () => {
+    await POST(postRequest(validBody));
+    expect(mockDbInsertChain.onConflictDoUpdate).toHaveBeenCalled();
+  });
+
+  it("wraps consent check and insert in a DB transaction (TOCTOU guard)", async () => {
+    await POST(postRequest(validBody));
+    expect(mockTransaction).toHaveBeenCalled();
   });
 });
 
