@@ -14,12 +14,13 @@ jobs:
       (github.event_name == 'issues' && github.event.label.name == 'agent-work') ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-    # Share the converge concurrency group when acting on a PR so that an @claude
-    # comment cancels any in-progress converge run rather than racing with it.
-    # For new issue events the group key is unique (no converge running yet).
+    # For PR comment events: share the converge concurrency group so an @claude
+    # comment cancels any stale in-progress converge run on that PR.
+    # For issue (labeled) events: use a unique per-run group so the reconciler's
+    # re-dispatch @claude comment never cancels the original in-flight Opus dispatch.
     concurrency:
-      group: ${{ format('converge-pr-{0}', github.event.pull_request.number || github.event.issue.number) }}
-      cancel-in-progress: true
+      group: ${{ github.event_name == 'issues' && format('dispatch-issue-{0}-{1}', github.event.issue.number, github.run_id) || format('converge-pr-{0}', github.event.pull_request.number || github.event.issue.number) }}
+      cancel-in-progress: ${{ github.event_name != 'issues' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write

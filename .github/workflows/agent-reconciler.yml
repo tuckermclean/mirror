@@ -298,8 +298,11 @@ jobs:
               # or nudged in the last ~15 min. A global in-flight dispatch for a different
               # issue must not starve a brand-new issue that was never dispatched (e.g. one
               # created by the Claude bot, whose labeled event GitHub silently drops).
+              # Patterns that indicate a dispatch is in-flight or recently completed.
+              # Keep in sync with dispatch.yml — any new notice comment added there
+              # must be added to this filter so the freshness guard fires correctly.
               LAST_ACTIVITY=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json comments \
-                --jq '[.comments[] | select(.body | test("Routing to|reconciler re-dispatch")) | .createdAt] | last // ""' \
+                --jq '[.comments[] | select(.body | test("Routing to|🐙 Orchestrating|reconciler re-dispatch|⚠️ Agent exited")) | .createdAt] | last // ""' \
                 2>/dev/null || echo "")
               SECS_SINCE_ACTIVITY=""
               if [ -n "$LAST_ACTIVITY" ]; then
