@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Marketing Manager",
+    "seniority": "mid",
+    "industry": "B2B SaaS",
+    "region": "US",
+    "yoe": 5,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["pipeline", "demand gen", "conversion", "ICP", "campaign", "attribution", "content"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "basically"],
+    "sentenceLengthDistribution": { "short": 32, "medium": 53, "long": 15 },
+    "emotionalRegister": "energetic, data-backed, story-driven",
+    "jargonHated": ["synergy", "disruptive", "leverage", "low-hanging fruit", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Demand Generation Manager at Clearbit | B2B · ABM · HubSpot",
+    "about": "I build demand-generation programs that fill pipeline and close revenue. Five years in B2B SaaS marketing — always with one eye on the funnel and the other on the attribution model.",
+    "experience": [
+      {
+        "title": "Demand Generation Manager",
+        "company": "Clearbit",
+        "bullets": [
+          "Grew MQL volume by 65% in 18 months through a mix of paid search, intent data, and webinar programs",
+          "Built ABM campaign targeting 300 named accounts; influenced 22% of new ARR in FY24",
+          "Established marketing attribution model in HubSpot that gave sales clear pipeline source visibility"
+        ]
+      },
+      {
+        "title": "Marketing Specialist",
+        "company": "Lattice HQ",
+        "bullets": [
+          "Managed paid LinkedIn and Google campaigns with $40K/month budget; maintained 3.2x ROAS",
+          "Produced 12 gated content assets per year that collectively generated 1,800 leads"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["marketing", "demand gen"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

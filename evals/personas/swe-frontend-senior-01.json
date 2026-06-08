@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Frontend Engineer",
+    "seniority": "senior",
+    "industry": "Consumer tech",
+    "region": "US",
+    "yoe": 7,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["performance", "accessibility", "component", "design system", "bundle size", "UX", "React"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I suppose"],
+    "sentenceLengthDistribution": { "short": 45, "medium": 40, "long": 15 },
+    "emotionalRegister": "precise, user-focused, quality-driven",
+    "jargonHated": ["synergy", "rockstar", "move the needle", "game changer", "thought leader"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Frontend Engineer at Luma Health | React · Accessibility · Performance",
+    "about": "I build interfaces that are fast, accessible, and maintainable. Seven years of React, with a deep focus on WCAG compliance and Core Web Vitals.",
+    "experience": [
+      {
+        "title": "Senior Frontend Engineer",
+        "company": "Luma Health",
+        "bullets": [
+          "Reduced Largest Contentful Paint from 4.2s to 1.1s on the patient portal used by 800K monthly users",
+          "Designed and documented a shared component library (42 components) adopted by five product teams",
+          "Led WCAG AA remediation initiative; achieved zero critical accessibility violations in Axe audits"
+        ]
+      },
+      {
+        "title": "Frontend Engineer",
+        "company": "Cartograph",
+        "bullets": [
+          "Built interactive map visualization layer using D3 and React; handled 100K+ simultaneous data points",
+          "Mentored two junior engineers through code reviews and weekly pair-programming sessions"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["frontend", "engineer"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

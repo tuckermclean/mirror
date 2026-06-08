@@ -6,14 +6,15 @@ import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
-// TODO(security): When initializing PostHog, require: no_capture_hashed_urls: true,
-// explicit PII scrubbing (see THREAT_MODEL.md), and a CSP connect-src entry.
+// NOTE(security): PostHog is initialized in PostHogProvider with PII scrubbing
+// per THREAT_MODEL.md (maskAllInputs:true, sanitize_properties, no session replay
+// by default). CSP connect-src entries for PostHog are in src/middleware.ts.
 // When wiring Stripe, never expose the secret key in client-side code — only the
 // publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) may reach the browser.
-// Both integrations need a focused security review before going to production.
 
 export const metadata: Metadata = {
   title: "Mirror — Rewrite Your LinkedIn in Your Voice",
@@ -38,10 +39,12 @@ export default async function RootLayout({
           {/* ThemeProvider must wrap the subtree so useTheme() in sonner.tsx
               can resolve the active theme; without it the Toaster always
               falls back to "system". */}
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
-            <Toaster />
-          </ThemeProvider>
+          <PostHogProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </PostHogProvider>
         </body>
       </html>
     </ClerkProvider>

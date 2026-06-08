@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "VP of Sales",
+    "seniority": "senior",
+    "industry": "Enterprise SaaS",
+    "region": "US",
+    "yoe": 15,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["ARR", "quota", "GTM", "territory", "team build", "forecast", "win rate"],
+    "hedgesAvoided": ["maybe", "I think", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 48, "medium": 40, "long": 12 },
+    "emotionalRegister": "commanding, direct, growth-obsessed",
+    "jargonHated": ["synergy", "leverage", "circle back", "low-hanging fruit", "disruptive"]
+  },
+  "currentLinkedIn": {
+    "headline": "VP of Sales at Ironclad | $0→$60M ARR | Enterprise · GTM · Team Builder",
+    "about": "I build enterprise sales machines. Fifteen years growing revenue teams from zero — I've taken two SaaS companies through $50M+ ARR milestones and I run lean, accountable teams that consistently exceed quota.",
+    "experience": [
+      {
+        "title": "VP of Sales",
+        "company": "Ironclad",
+        "bullets": [
+          "Grew enterprise ARR from $8M to $60M over three years; built sales team from 4 to 32 reps",
+          "Designed and implemented sales methodology that increased win rate from 18% to 31%",
+          "Closed three landmark Fortune 100 accounts worth $4.5M in combined ACV"
+        ]
+      },
+      {
+        "title": "Director of Sales",
+        "company": "Clio",
+        "bullets": [
+          "Scaled North American sales from $5M to $25M ARR in 18 months; hired and ramped 15 AEs",
+          "Built SDR-to-AE pipeline programme that became company's standard GTM playbook"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["VP", "sales", "revenue"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 4
+  }
+}

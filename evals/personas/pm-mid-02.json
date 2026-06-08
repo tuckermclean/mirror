@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "cluster": "Mid-Level Product Manager",
+    "seniority": "mid",
+    "industry": "Enterprise software",
+    "region": "EU",
+    "yoe": 4,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["backlog", "sprint", "user story", "acceptance criteria", "release", "feedback loop", "metrics"],
+    "hedgesAvoided": ["sort of", "I guess", "basically"],
+    "sentenceLengthDistribution": { "short": 30, "medium": 55, "long": 15 },
+    "emotionalRegister": "collaborative, analytical, process-oriented",
+    "jargonHated": ["rockstar", "ninja", "game changer", "leverage", "synergy"]
+  },
+  "currentLinkedIn": {
+    "headline": "Product Manager at Meridian Systems | Berlin",
+    "about": "I bridge engineering and business goals by keeping the backlog honest and the metrics visible. Based in Berlin, working across European enterprise clients.",
+    "experience": [
+      {
+        "title": "Product Manager",
+        "company": "Meridian Systems",
+        "bullets": [
+          "Managed a 60-item backlog for a compliance automation product serving 200+ EU enterprise clients",
+          "Coordinated quarterly releases across three engineering teams in Berlin, Warsaw, and Lisbon"
+        ]
+      },
+      {
+        "title": "Associate Product Manager",
+        "company": "DataBridge GmbH",
+        "bullets": [
+          "Wrote user stories and acceptance criteria for a data-integration platform used by 50 mid-market companies",
+          "Facilitated bi-weekly stakeholder reviews; maintained product changelog and release notes"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["product", "manager"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

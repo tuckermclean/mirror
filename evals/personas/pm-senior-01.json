@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "cluster": "Senior Product Manager",
+    "seniority": "senior",
+    "industry": "B2B SaaS startup",
+    "region": "US",
+    "yoe": 8,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["roadmap", "OKR", "discovery", "north star", "stakeholder", "ship", "outcome"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 35, "medium": 50, "long": 15 },
+    "emotionalRegister": "confident, strategic, customer-centric",
+    "jargonHated": ["synergy", "disruptive", "pivot", "low-hanging fruit", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Product Manager at Helios Labs",
+    "about": "I turn messy problems into shipped products. Eight years helping teams build things people actually use.",
+    "experience": [
+      {
+        "title": "Senior Product Manager",
+        "company": "Helios Labs",
+        "bullets": [
+          "Owned the core onboarding funnel; improved activation rate from 34% to 61% in two quarters",
+          "Led cross-functional team of 12 to launch AI-assisted search, driving 28% lift in session length"
+        ]
+      },
+      {
+        "title": "Product Manager",
+        "company": "Torchlight Analytics",
+        "bullets": [
+          "Defined and shipped three major dashboard features now used by 4,000+ enterprise accounts",
+          "Ran weekly discovery interviews with customers; maintained a living insight repository"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["product", "PM"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

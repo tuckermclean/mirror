@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Data Scientist",
+    "seniority": "senior",
+    "industry": "Retail / E-commerce",
+    "region": "US",
+    "yoe": 8,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["model", "feature", "training", "uplift", "precision", "recall", "experiment"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 35, "medium": 50, "long": 15 },
+    "emotionalRegister": "analytical, rigorous, impact-driven",
+    "jargonHated": ["synergy", "disruptive", "move the needle", "leverage", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Data Scientist at CartCo | Recommender Systems · Causal Inference · Python",
+    "about": "I build ML models that drive measurable revenue impact. Eight years translating business questions into experiments, and experiments into shipped features.",
+    "experience": [
+      {
+        "title": "Senior Data Scientist",
+        "company": "CartCo",
+        "bullets": [
+          "Redesigned product recommendation engine using two-tower neural net; lifted add-to-cart rate by 18% ($24M ARR impact)",
+          "Ran 40+ A/B experiments end-to-end including power analysis, instrumentation, and stakeholder readout",
+          "Mentored a team of three data scientists on causal inference methods and experiment design"
+        ]
+      },
+      {
+        "title": "Data Scientist",
+        "company": "PricePulse",
+        "bullets": [
+          "Built dynamic pricing model for 500K SKUs using gradient boosting; increased gross margin by 3.2pp",
+          "Established a feature store shared across five ML projects, cutting feature development time by 40%"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["data scientist", "data science"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 4
+  }
+}

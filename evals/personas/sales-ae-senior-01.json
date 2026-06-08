@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Account Executive",
+    "seniority": "senior",
+    "industry": "Enterprise SaaS",
+    "region": "US",
+    "yoe": 9,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["quota", "close", "pipeline", "champion", "executive sponsor", "deal", "renewal"],
+    "hedgesAvoided": ["maybe", "I think", "sort of", "I suppose"],
+    "sentenceLengthDistribution": { "short": 45, "medium": 42, "long": 13 },
+    "emotionalRegister": "assertive, relationship-driven, results-oriented",
+    "jargonHated": ["synergy", "leverage", "circle back", "low-hanging fruit", "disruptive"]
+  },
+  "currentLinkedIn": {
+    "headline": "Enterprise Account Executive at Vanta | Closing $500K–$2M Deals | 140% of Quota FY24",
+    "about": "I sell enterprise security software to the CISO and the CFO. Nine years of enterprise SaaS — I've closed over $18M in new ARR and built a playbook that works in complex, multi-stakeholder deals.",
+    "experience": [
+      {
+        "title": "Enterprise Account Executive",
+        "company": "Vanta",
+        "bullets": [
+          "Closed $7.2M in new ARR in FY24 against a $5.2M quota — 138% attainment",
+          "Landed three Fortune 500 accounts by orchestrating executive-alignment sessions with CISO, CFO, and CTO",
+          "Expanded an existing $200K account to $1.1M through a multi-year, multi-product renewal"
+        ]
+      },
+      {
+        "title": "Account Executive",
+        "company": "Drata",
+        "bullets": [
+          "Achieved 120% quota attainment for three consecutive years selling to mid-market compliance buyers",
+          "Reduced average sales cycle from 110 days to 72 days by introducing proof-of-value workshops"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["account executive", "AE", "sales"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 4
+  }
+}

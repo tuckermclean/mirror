@@ -3,14 +3,14 @@
     "cluster": "Senior SRE / Platform Engineer",
     "seniority": "senior",
     "industry": "Series B-D infra-heavy startup",
-    "region": "US/EU",
+    "region": "US",
     "yoe": 9,
-    "status": "placeholder — replace with real fixture in Wk 4"
+    "status": "active"
   },
   "voiceCard": {
     "vocabulary": ["reliability", "toil", "SLO", "error budget", "on-call", "platform", "invisible infra"],
     "hedgesAvoided": ["I think", "sort of", "maybe", "just"],
-    "sentenceLengthDistribution": { "short": 0.4, "medium": 0.45, "long": 0.15 },
+    "sentenceLengthDistribution": { "short": 40, "medium": 45, "long": 15 },
     "emotionalRegister": "direct, technical, dry humor",
     "jargonHated": ["synergy", "leverage", "move the needle", "rockstar"]
   },
@@ -21,7 +21,7 @@
       {
         "title": "Senior SRE",
         "company": "Synthwave Systems",
-        "bullets": ["Reduced MTTR", "Implemented observability"]
+        "bullets": ["Reduced MTTR by 40% through structured incident post-mortems", "Implemented observability stack (Prometheus + Grafana + Loki) across 12 microservices"]
       }
     ]
   },

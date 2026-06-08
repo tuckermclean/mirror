@@ -94,3 +94,12 @@ export class ValidationError extends Error {
   }
 }
 
+/** Thrown when cookie encryption/decryption fails (bad key, tampered ciphertext, etc.). */
+export class CookieEncryptionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CookieEncryptionError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+

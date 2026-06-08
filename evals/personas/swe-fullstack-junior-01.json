@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "cluster": "Junior Fullstack Engineer",
+    "seniority": "junior",
+    "industry": "Early-stage startup",
+    "region": "EU",
+    "yoe": 2,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["feature", "deploy", "PR", "code review", "test", "fix", "learn"],
+    "hedgesAvoided": ["sort of", "I suppose", "basically"],
+    "sentenceLengthDistribution": { "short": 50, "medium": 38, "long": 12 },
+    "emotionalRegister": "eager, growth-oriented, collaborative",
+    "jargonHated": ["synergy", "rockstar", "guru", "thought leader"]
+  },
+  "currentLinkedIn": {
+    "headline": "Full-Stack Developer at Sprig | TypeScript · Next.js · Postgres | Amsterdam",
+    "about": "Two years into my career building full-stack features at a Series A startup. I care about shipping quality code, learning fast, and being someone my team can rely on.",
+    "experience": [
+      {
+        "title": "Full-Stack Developer",
+        "company": "Sprig",
+        "bullets": [
+          "Shipped 30+ features across the React front end and Node.js API in the past year",
+          "Wrote unit and integration tests for the billing module that caught three production-blocking bugs"
+        ]
+      },
+      {
+        "title": "Software Engineering Intern",
+        "company": "CleanMetric",
+        "bullets": [
+          "Built a CSV import pipeline for energy data consumed by the analytics dashboard",
+          "Fixed 12 accessibility issues flagged in quarterly audit; merged all PRs within one sprint"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["developer", "engineer", "fullstack"],
+    "aboutMinWords": 50,
+    "voiceFidelityMinScore": 3,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

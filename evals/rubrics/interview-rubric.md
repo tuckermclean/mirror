@@ -148,7 +148,7 @@ assert:
       Fail if the response ignores the emotional signal or immediately changes subject.
 ```
 
-**Test fixture requirement:** The interview fixture used with this rubric must include at least 3 user turns that contain clear emotional content (pride, regret, or energized engagement) so this dimension can be exercised. See `evals/personas/interview-fixture.json`.
+**Test fixture requirement:** The interview fixture used with this rubric must include at least 3 user turns that contain clear emotional content (pride, regret, or energized engagement) so this dimension can be exercised. See `evals/fixtures/interview-fixture.json`.
 
 ---
 

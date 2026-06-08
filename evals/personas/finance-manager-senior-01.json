@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Finance Manager / FP&A",
+    "seniority": "senior",
+    "industry": "SaaS",
+    "region": "US",
+    "yoe": 8,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["ARR", "unit economics", "forecast", "variance", "headcount", "EBITDA", "model"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "basically"],
+    "sentenceLengthDistribution": { "short": 35, "medium": 50, "long": 15 },
+    "emotionalRegister": "precise, structured, business-partnering",
+    "jargonHated": ["synergy", "disruptive", "game changer", "circle back", "rockstar"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Finance Manager, FP&A at Notion | SaaS Metrics · Board Reporting · Excel Pro",
+    "about": "I translate numbers into decisions. Eight years in FP&A at high-growth SaaS companies — I own the financial model, the board deck, and the headcount forecast.",
+    "experience": [
+      {
+        "title": "Senior Finance Manager, FP&A",
+        "company": "Notion",
+        "bullets": [
+          "Owned integrated financial model across P&L, balance sheet, and cash flow for a $200M ARR business",
+          "Built bottom-up headcount forecast used in Series D fundraise; actual vs. plan variance under 3%",
+          "Partnered with Sales and Marketing to redesign CAC and LTV reporting; improved payback period visibility"
+        ]
+      },
+      {
+        "title": "Financial Analyst",
+        "company": "Brex",
+        "bullets": [
+          "Delivered monthly budget vs. actuals analysis for 15 cost centers and presented findings to VPs",
+          "Automated recurring FP&A reports in Python; saved 12 hours per month of manual spreadsheet work"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["finance", "FP&A"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

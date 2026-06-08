@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Academic Researcher / Postdoc",
+    "seniority": "senior",
+    "industry": "Academia / NLP Research",
+    "region": "APAC",
+    "yoe": 8,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["benchmark", "ablation", "baseline", "citation", "peer-reviewed", "methodology", "corpus"],
+    "hedgesAvoided": ["I think", "sort of", "basically", "I suppose"],
+    "sentenceLengthDistribution": { "short": 25, "medium": 55, "long": 20 },
+    "emotionalRegister": "academic, precise, intellectually curious",
+    "jargonHated": ["synergy", "disruptive", "move the needle", "leverage", "pivot"]
+  },
+  "currentLinkedIn": {
+    "headline": "Research Scientist at NUS | NLP · Multilingual Models · 40+ Publications | Singapore",
+    "about": "I study how large language models process low-resource languages. Eight years in NLP research — I have 40+ peer-reviewed publications and collaborate with industry labs to bridge research and deployment.",
+    "experience": [
+      {
+        "title": "Research Scientist",
+        "company": "National University of Singapore",
+        "bullets": [
+          "Led research programme on cross-lingual transfer learning covering 14 Southeast Asian languages",
+          "Published 12 first-author papers at ACL, EMNLP, and NAACL; work cited 1,400+ times",
+          "Supervised 6 PhD students and managed a lab of 18 researchers and engineers"
+        ]
+      },
+      {
+        "title": "Postdoctoral Researcher",
+        "company": "Tsinghua University",
+        "bullets": [
+          "Developed a multilingual benchmark for evaluating zero-shot transfer in 30 languages",
+          "Collaborated with Google Research on a joint publication on efficient multilingual fine-tuning"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["researcher", "scientist", "NLP"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

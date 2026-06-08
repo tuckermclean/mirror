@@ -1,33 +1,78 @@
-// Playwright scraper worker — Inngest function host
-// Wk 1 stub: starts the process and exposes a /healthz endpoint.
-// Full implementation ships in Wk 2 (LinkedIn ingestion layer).
+/**
+ * worker/index.js — Mirror Playwright worker entry point (Wk 2)
+ *
+ * Hosts:
+ *   - /healthz            — HTTP health probe (Docker/Kubernetes)
+ *   - /api/inngest        — Inngest function serving endpoint
+ *
+ * The worker decrypts LinkedIn session cookies and runs Playwright scrapes
+ * in response to `mirror/linkedin.scrape.requested` Inngest events.
+ */
 
 import { createServer } from "node:http";
+import { serve } from "inngest/node";
+import { inngest } from "./inngest-client.js";
+import { scrapeLinkedInProfileFn } from "./inngest-functions.js";
 
-console.log("worker: starting mirror playwright worker (Wk 1 stub)");
+// ---------------------------------------------------------------------------
+// Structured logger — JSON to stdout (no console.log in production)
+// ---------------------------------------------------------------------------
 
-// Minimal HTTP health server so the Docker/Kubernetes healthcheck has a real
-// probe target rather than a no-op node -e process.exit(0).
-const server = createServer((req, res) => {
-  if (req.url === "/healthz") {
+function log(level, msg, meta = {}) {
+  process.stdout.write(JSON.stringify({ level, msg, ...meta }) + "\n");
+}
+
+log("info", "worker: mirror playwright worker ready (Wk 2)");
+
+// ---------------------------------------------------------------------------
+// Inngest serve handler — registered at /api/inngest
+// ---------------------------------------------------------------------------
+
+const inngestHandler = serve({
+  client: inngest,
+  functions: [scrapeLinkedInProfileFn],
+});
+
+// ---------------------------------------------------------------------------
+// HTTP server — handles both /healthz and /api/inngest
+// ---------------------------------------------------------------------------
+
+const server = createServer(async (req, res) => {
+  if (req.url === "/healthz" && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
-  } else {
-    res.writeHead(404);
-    res.end();
+    res.end(JSON.stringify({ status: "ok", worker: "mirror-playwright-wk2" }));
+    return;
   }
+
+  if (req.url?.startsWith("/api/inngest")) {
+    // Delegate to Inngest's serve handler
+    try {
+      await inngestHandler(req, res);
+    } catch (err) {
+      log("error", "worker: inngest handler error", { err: String(err) });
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end();
+      }
+    }
+    return;
+  }
+
+  res.writeHead(404);
+  res.end();
 });
 
 server.listen(2112, () => {
-  console.log("worker: health server listening on :2112/healthz");
+  log("info", "worker: health server listening on :2112/healthz");
+  log("info", "worker: inngest endpoint at :2112/api/inngest");
 });
 
 process.on("SIGTERM", () => {
-  console.log("worker: received SIGTERM, shutting down");
+  log("info", "worker: received SIGTERM, shutting down");
   server.close(() => process.exit(0));
 });
 
 process.on("SIGINT", () => {
-  console.log("worker: received SIGINT, shutting down");
+  log("info", "worker: received SIGINT, shutting down");
   server.close(() => process.exit(0));
 });

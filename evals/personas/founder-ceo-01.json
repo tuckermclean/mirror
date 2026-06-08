@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Founder / CEO",
+    "seniority": "senior",
+    "industry": "Climate tech startup",
+    "region": "EU",
+    "yoe": 12,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["mission", "impact", "team", "traction", "capital", "build", "climate"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 50, "medium": 38, "long": 12 },
+    "emotionalRegister": "visionary, mission-driven, candid",
+    "jargonHated": ["synergy", "pivot", "disruptive", "low-hanging fruit", "rockstar"]
+  },
+  "currentLinkedIn": {
+    "headline": "Co-founder & CEO at Verdant Energy | Decarbonising Industrial Heat | €12M Raised",
+    "about": "We're making industrial heat clean. Verdant deploys electrothermal storage at factories to cut Scope 1 emissions — we've avoided 18,000 tonnes of CO₂ so far. I've been building in climate for 12 years and I'm not done.",
+    "experience": [
+      {
+        "title": "Co-founder & CEO",
+        "company": "Verdant Energy",
+        "bullets": [
+          "Founded company in 2021; raised €12M seed and Series A from Breakthrough Energy and EQT",
+          "Signed first 10 industrial customers across Germany, Netherlands, and Sweden",
+          "Built team of 28 from zero; established culture of radical transparency and scientific rigour"
+        ]
+      },
+      {
+        "title": "Director of Product",
+        "company": "Sunfire GmbH",
+        "bullets": [
+          "Led product strategy for electrolysis systems; contributed to €100M Series D fundraise materials",
+          "Managed relationships with strategic customers including Shell and Covestro"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["founder", "CEO", "co-founder"],
+    "aboutMinWords": 65,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 4
+  }
+}

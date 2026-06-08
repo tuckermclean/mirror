@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Legal / Compliance Counsel",
+    "seniority": "senior",
+    "industry": "Fintech / Payments",
+    "region": "EU",
+    "yoe": 11,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["regulatory", "GDPR", "risk", "compliance framework", "AML", "licensing", "policy"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 28, "medium": 55, "long": 17 },
+    "emotionalRegister": "measured, precise, risk-aware",
+    "jargonHated": ["synergy", "disruptive", "move the needle", "low-hanging fruit", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Head of Legal & Compliance at Solaris SE | Fintech · PSD2 · GDPR | Frankfurt",
+    "about": "I build compliance programmes that enable business growth rather than block it. Eleven years in fintech legal — from startup licensing to enterprise regulatory frameworks across 12 EU jurisdictions.",
+    "experience": [
+      {
+        "title": "Head of Legal & Compliance",
+        "company": "Solaris SE",
+        "bullets": [
+          "Led regulatory strategy for EU Banking-as-a-Service platform operating across 12 EEA markets",
+          "Secured PSD2 payment institution licence in Germany, Ireland, and the Netherlands within 14 months",
+          "Designed GDPR compliance programme covering 8M+ data subjects; passed BaFin audit with zero findings"
+        ]
+      },
+      {
+        "title": "Senior Legal Counsel",
+        "company": "Wirecard (pre-insolvency)",
+        "bullets": [
+          "Drafted and negotiated 200+ commercial agreements with banks, card networks, and technology partners",
+          "Advised C-suite on AML obligations across 40 operating entities in 26 countries"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["legal", "compliance", "counsel"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}
