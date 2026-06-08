@@ -2,14 +2,12 @@
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
 // ---------------------------------------------------------------------------
-// VoiceCard parse errors
+// VoiceCard parse errors — defined in src/lib/voice-card/errors.ts and
+// re-exported here so existing consumers importing from `@/lib/errors`
+// (e.g. parse.ts) keep working unchanged.
 // ---------------------------------------------------------------------------
 
-import type { ZodIssue } from "zod";
-
-export type VoiceCardParseError =
-  | { kind: "invalid_json"; raw: string }
-  | { kind: "schema_mismatch"; issues: ZodIssue[] };
+export type { VoiceCardParseError } from "@/lib/voice-card/errors";
 
 /** Thrown when a model string is not in the known pricing table. */
 export class UnknownModelError extends Error {
