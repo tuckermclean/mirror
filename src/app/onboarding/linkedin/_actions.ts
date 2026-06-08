@@ -22,9 +22,6 @@ export async function submitLinkedInForm(
 
   const profileUrl = (formData.get("profileUrl") as string | null)?.trim() ?? "";
   const rawCookie = (formData.get("sessionCookie") as string | null)?.trim() ?? "";
-  // PDF file is accepted but handed off to a separate upload flow — the
-  // Inngest function receives the encrypted cookie and profile URL; file
-  // storage goes through the existing import pipeline.
 
   if (!profileUrl) {
     return { success: false, error: "LinkedIn profile URL is required." };
