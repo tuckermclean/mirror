@@ -237,6 +237,11 @@ describe("POST /api/outcomes — happy path (upsert)", () => {
   it("wraps consent check and insert in a DB transaction (TOCTOU guard)", async () => {
     await POST(postRequest(validBody));
     expect(mockTransaction).toHaveBeenCalled();
+    // Consent SELECT must be routed through tx, not the module-level db pool.
+    expect(mockHasConsent).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      expect.objectContaining({ insert: expect.any(Function) })
+    );
   });
 });
 
