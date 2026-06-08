@@ -13,14 +13,7 @@ import { createServer } from "node:http";
 import { serve } from "inngest/node";
 import { inngest } from "./inngest-client.js";
 import { scrapeLinkedInProfileFn } from "./inngest-functions.js";
-
-// ---------------------------------------------------------------------------
-// Structured logger — JSON to stdout (no console.log in production)
-// ---------------------------------------------------------------------------
-
-function log(level, msg, meta = {}) {
-  process.stdout.write(JSON.stringify({ level, msg, ...meta }) + "\n");
-}
+import { log } from "./logger.js";
 
 log("info", "worker: mirror playwright worker ready (Wk 2)");
 
