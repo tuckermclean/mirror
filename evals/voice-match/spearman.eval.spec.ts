@@ -42,8 +42,8 @@ function loadFixture(): Fixture {
 describe("Voice Match Score eval — Spearman vs. human labels", () => {
   const fixture = loadFixture();
 
-  it("has a non-trivial labeled set (>= 12 pairs)", () => {
-    expect(fixture.pairs.length).toBeGreaterThanOrEqual(12);
+  it("has a non-trivial labeled set (>= 50 pairs)", () => {
+    expect(fixture.pairs.length).toBeGreaterThanOrEqual(50);
   });
 
   it("ranks candidates in agreement with human voice-fidelity labels (Spearman >= 0.7)", () => {
