@@ -70,6 +70,22 @@ describe("generatedProfileSchema", () => {
     };
     expect(generatedProfileSchema.safeParse(snapshotParsed).success).toBe(true);
   });
+
+  it("strips extra keys the LLM may output (featured, inline rationale) — these fields have no consumer", () => {
+    // The generation prompt must NOT ask the LLM to output `featured` or an
+    // inline `rationale` object: Zod silently strips unknown keys, so they
+    // would be wasted tokens that never reach storage. This test documents the
+    // schema as the source of truth — the prompt must match it.
+    const withExtras = {
+      ...validProfile,
+      featured: ["My cool project"],
+      rationale: { headline: "because it's good", about: "voice match" },
+    };
+    const result = generatedProfileSchema.parse(withExtras);
+    expect(result).not.toHaveProperty("featured");
+    expect(result).not.toHaveProperty("rationale");
+    expect(Object.keys(result)).toEqual(["headline", "about", "experience", "education", "skills"]);
+  });
 });
 
 describe("rationaleBundleSchema", () => {
