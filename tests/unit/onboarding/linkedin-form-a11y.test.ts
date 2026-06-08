@@ -41,15 +41,16 @@ describe("AnimatePresence key prop (Blocker 11)", () => {
   });
 });
 
-describe("PDF upload user expectation (Blocker 12)", () => {
-  it("includes copy that explains the PDF will be processed after LinkedIn connection", () => {
-    // Check for some indication the PDF is a separate/later flow
-    const hasClarification =
-      formSrc.includes("processed after") ||
-      formSrc.includes("separate upload") ||
-      formSrc.includes("after LinkedIn") ||
-      formSrc.includes("processed separately");
-    expect(hasClarification).toBe(true);
+describe("PDF upload field removed (Blocker 12)", () => {
+  it("does not contain a pdfUpload input field", () => {
+    // The PDF field was removed because it silently dropped uploaded files —
+    // the pipeline code was never implemented. A follow-up PR will add it
+    // properly. Until then the field must not exist in the form.
+    expect(formSrc).not.toContain('name="pdfUpload"');
+  });
+
+  it("does not contain misleading copy about PDF processing", () => {
+    expect(formSrc).not.toContain("processed after LinkedIn connection");
   });
 });
 
