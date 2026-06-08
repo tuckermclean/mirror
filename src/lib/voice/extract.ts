@@ -1,5 +1,14 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 import type { VoiceCard } from "@/lib/voice-card/schema";
+import { parseVoiceCardOutput } from "@/lib/voice-card/parse";
+import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { computePromptHash, findCachedGeneration } from "@/lib/llm/prompt-cache";
+import { MonthlyCapError, GenerationSchemaError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 const HEDGE_WORDS = [
   "I think",
@@ -149,4 +158,104 @@ export function extractVoiceCard(history: ParsedChatHistory): VoiceCard {
     emotionalRegister: detectEmotionalRegister(allText),
     jargonHated: detectJargonHated(allText),
   };
+}
+
+// ---------------------------------------------------------------------------
+// LLM-backed extraction
+//
+// The heuristic `extractVoiceCard` above is the cheap, deterministic default.
+// `extractVoiceCardLlm` wires the `voice_extraction.md` prompt to Anthropic for
+// a higher-fidelity Voice Card, honouring the AGENTS.md LLM rules: monthly cap
+// check first, 24h prompt-hash cache, streaming API, actual-usage spend record.
+// ---------------------------------------------------------------------------
+
+const VOICE_EXTRACTION_MODEL = "claude-sonnet-4-6";
+const VOICE_EXTRACTION_MAX_TOKENS = 1024;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const VOICE_EXTRACTION_PROMPT = readFileSync(
+  join(__dirname, "../prompts/voice_extraction.md"),
+  "utf-8",
+);
+
+let _anthropicClient: Anthropic | undefined;
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) _anthropicClient = new Anthropic();
+  return _anthropicClient;
+}
+
+/** Concatenate the text content of a finished Anthropic message. */
+function extractText(message: Anthropic.Message): string {
+  return message.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
+
+export type VoiceExtractionOptions = { userId: string };
+
+/**
+ * Extract a Voice Card from a transcript using the `voice_extraction.md` prompt.
+ *
+ * Throws {@link MonthlyCapError} if the platform spend cap is reached and
+ * {@link GenerationSchemaError} if the model output fails the VoiceCard schema.
+ */
+export async function extractVoiceCardLlm(
+  transcript: string,
+  options: VoiceExtractionOptions,
+): Promise<VoiceCard> {
+  const promptHash = computePromptHash({
+    systemPrompt: VOICE_EXTRACTION_PROMPT,
+    userMessages: [transcript],
+    modelId: VOICE_EXTRACTION_MODEL,
+  });
+
+  const cached = await findCachedGeneration(promptHash);
+  if (cached) {
+    const parsed = parseVoiceCardOutput(JSON.stringify(cached.output));
+    if (parsed.ok) return parsed.value;
+    logger.warn("voice-extraction: cached output failed schema, regenerating", {
+      userId: options.userId,
+    });
+  }
+
+  const cap = await checkMonthlyCap();
+  if (!cap.allowed) {
+    logger.warn("voice-extraction: monthly cap reached", { userId: options.userId });
+    throw new MonthlyCapError(cap.resets_at);
+  }
+
+  const stream = await getAnthropicClient().messages.stream({
+    model: VOICE_EXTRACTION_MODEL,
+    max_tokens: VOICE_EXTRACTION_MAX_TOKENS,
+    system: VOICE_EXTRACTION_PROMPT,
+    messages: [{ role: "user", content: transcript }],
+  });
+  const final = await stream.finalMessage();
+
+  await recordLlmSpend({
+    userId: options.userId,
+    model: VOICE_EXTRACTION_MODEL,
+    inputTokens: final.usage.input_tokens,
+    outputTokens: final.usage.output_tokens,
+    costUsd: computeCostUsd(
+      VOICE_EXTRACTION_MODEL,
+      final.usage.input_tokens,
+      final.usage.output_tokens,
+    ),
+  });
+
+  const parsed = parseVoiceCardOutput(extractText(final));
+  if (!parsed.ok) {
+    const detail =
+      parsed.error.kind === "invalid_json"
+        ? "model did not return JSON"
+        : JSON.stringify(parsed.error.issues);
+    logger.warn("voice-extraction: output failed schema validation", {
+      userId: options.userId,
+      detail,
+    });
+    throw new GenerationSchemaError(detail);
+  }
+  return parsed.value;
 }
