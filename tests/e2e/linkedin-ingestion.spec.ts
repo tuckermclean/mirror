@@ -1,4 +1,3 @@
-// RED: app does not exist yet — fails until Wk 2
 import { test, expect } from "@playwright/test";
 
 test.describe("LinkedIn ingestion", () => {

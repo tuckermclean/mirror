@@ -1,4 +1,3 @@
-// RED: app doesn't exist yet — fails until Wk 3
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 

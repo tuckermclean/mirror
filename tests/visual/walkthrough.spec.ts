@@ -1,4 +1,4 @@
-// RED: no golden screenshots yet + app doesn't exist — fails until Wk 3
+// NEEDS GOLDEN SCREENSHOTS: run `pnpm test:visual --update-snapshots` against a running app to capture baselines
 import { test, expect } from "@playwright/test";
 
 test.describe("Walkthrough visual regression", () => {

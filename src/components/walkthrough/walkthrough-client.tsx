@@ -4,6 +4,7 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { Download, GitCommitVertical, Lock } from "lucide-react"
 import { toast } from "sonner"
+import posthog from "posthog-js"
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -31,11 +32,15 @@ function initialDecisions(): Record<ProfileSection, SectionDecision> {
 }
 
 /**
- * Telemetry sink for the scroll-unlock event. PostHog is not wired yet, so we
- * emit a structured logger event; swap to posthog.capture when available.
+ * Telemetry sink for the scroll-unlock event.
+ * Fires a PostHog capture when PostHog is initialized; always emits a
+ * structured logger event as a fallback for server-side log aggregation.
  */
 function trackScrollUnlock(generationId: string): void {
   logger.info("walkthrough_scroll_unlocked", { generationId })
+  if (posthog.__loaded) {
+    posthog.capture("walkthrough_scroll_unlocked", { generationId })
+  }
 }
 
 export function WalkthroughClient({ data }: { data: WalkthroughData }) {
