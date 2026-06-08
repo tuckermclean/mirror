@@ -201,6 +201,64 @@ describe("readPii", () => {
       `Expected PII lint error but got messages: ${JSON.stringify(messages.map((m) => m.message))}`
     ).toBeGreaterThanOrEqual(1);
   });
+
+  it("flags ALIASED PII imports (e.g. interviews as ivs) — bypass prevention", async () => {
+    const { ESLint } = await import("eslint");
+    const cwd = process.cwd();
+    const eslint = new ESLint({ cwd });
+
+    // An attacker-style bypass: alias the PII table on import so the literal
+    // binding-name selector (object.name='interviews') no longer matches.
+    const fixture = [
+      'import { db } from "@/db/client";',
+      'import { interviews as ivs } from "@/db/schema";',
+      "export async function bad() {",
+      "  return db.select({ transcript: ivs.transcript }).from(ivs);",
+      "}",
+    ].join("\n");
+
+    const results = await eslint.lintText(fixture, {
+      filePath: path.join(cwd, "src", "lib", "pii-alias-fixture.ts"),
+    });
+
+    const messages = results[0]?.messages ?? [];
+    const piiErrors = messages.filter((m) =>
+      m.message.includes("Aliased import of PII table")
+    );
+    expect(
+      piiErrors.length,
+      `Aliased PII import must still be flagged; got: ${JSON.stringify(messages.map((m) => m.message))}`
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("flags aliased imports.rawPath / linkedinSnapshots.rawHtml access", async () => {
+    const { ESLint } = await import("eslint");
+    const cwd = process.cwd();
+    const eslint = new ESLint({ cwd });
+
+    const fixture = [
+      'import { db } from "@/db/client";',
+      'import { imports as imp, linkedinSnapshots as snaps } from "@/db/schema";',
+      "export async function bad() {",
+      "  const a = db.select({ p: imp.rawPath }).from(imp);",
+      "  const b = db.select({ h: snaps.rawHtml }).from(snaps);",
+      "  return [a, b];",
+      "}",
+    ].join("\n");
+
+    const results = await eslint.lintText(fixture, {
+      filePath: path.join(cwd, "src", "lib", "pii-alias-fixture2.ts"),
+    });
+
+    const messages = results[0]?.messages ?? [];
+    const piiErrors = messages.filter((m) =>
+      m.message.includes("Aliased import of PII table")
+    );
+    expect(
+      piiErrors.length,
+      `Aliased imports/snapshots PII reads must be flagged; got: ${JSON.stringify(messages.map((m) => m.message))}`
+    ).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe("readInterviewTranscript", () => {
