@@ -9,6 +9,7 @@ import {
   date,
   customType,
   index,
+  uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -197,7 +198,23 @@ export const outcomes = pgTable(
     postImpressions: integer("post_impressions").notNull().default(0),
     source: text("source").notNull(),
   },
-  (table) => [index("outcomes_user_id_idx").on(table.userId)]
+  (table) => [
+    // Composite index replaces the single-column outcomes_user_id_idx:
+    // satisfies the FK backing-index requirement (leading column = user_id)
+    // while also covering the common (user_id, week_of) filter pattern.
+    index("outcomes_user_id_week_of_idx").on(table.userId, table.weekOf),
+    // Prevents duplicate rows for the same user/week/source combination.
+    uniqueIndex("outcomes_user_week_source_idx").on(
+      table.userId,
+      table.weekOf,
+      table.source
+    ),
+    // Guard against unknown source values at the DB layer.
+    check(
+      "outcomes_source_check",
+      sql`${table.source} IN ('self_report', 'extension')`
+    ),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -210,7 +227,7 @@ export const benchmarkProfiles = pgTable(
     industry: text("industry").notNull(),
     role: text("role").notNull(),
     seniority: text("seniority").notNull(),
-    publicUrl: text("public_url").notNull(),
+    publicUrl: text("public_url").notNull().unique(),
     parsed: jsonb("parsed"),
     embedding: vectorColumn("embedding", 1024),
     performanceSignals: jsonb("performance_signals"),

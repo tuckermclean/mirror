@@ -17,6 +17,11 @@ export const dynamic = "force-dynamic";
  *
  * Gated on outcome-tracking consent (revoke stops collection). Stores
  * `source: 'self_report'`. Auth is the FIRST line per AGENTS.md.
+ *
+ * The consent check and INSERT are wrapped in a single transaction to
+ * prevent a TOCTOU race where consent is revoked between the check and
+ * the write. The INSERT uses onConflictDoUpdate so that re-submitting
+ * the same week is idempotent (upsert).
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId: clerkUserId } = await auth();
@@ -34,7 +39,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = selfReportSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "validation_error", issues: parsed.error.issues },
+      {
+        error: "validation_error",
+        issues: parsed.error.issues.map((i) => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+      },
       { status: 400 }
     );
   }
@@ -44,30 +55,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "user_not_found" }, { status: 404 });
   }
 
-  // Consent gate — capture is only lawful while consent is held.
-  if (!(await hasOutcomeTrackingConsent(internalUserId))) {
+  const r = parsed.data;
+
+  // Wrap the consent check and INSERT in a transaction to prevent a TOCTOU
+  // race where the user revokes consent between the check and the write.
+  const inserted = await db.transaction(async (tx) => {
+    const hasConsent = await hasOutcomeTrackingConsent(internalUserId);
+    if (!hasConsent) return null;
+
+    return tx
+      .insert(outcomes)
+      .values({
+        userId: internalUserId,
+        weekOf: r.weekOf,
+        profileViews: r.profileViews,
+        searchAppearances: r.searchAppearances,
+        recruiterMsgs: r.recruiterMsgs,
+        postImpressions: r.postImpressions,
+        source: "self_report",
+      })
+      .onConflictDoUpdate({
+        target: [outcomes.userId, outcomes.weekOf, outcomes.source],
+        set: {
+          profileViews: r.profileViews,
+          searchAppearances: r.searchAppearances,
+          recruiterMsgs: r.recruiterMsgs,
+          postImpressions: r.postImpressions,
+        },
+      })
+      .returning({ id: outcomes.id });
+  });
+
+  if (!inserted) {
     return NextResponse.json({ error: "consent_required" }, { status: 403 });
   }
 
-  const r = parsed.data;
-  const inserted = await db
-    .insert(outcomes)
-    .values({
-      userId: internalUserId,
-      weekOf: r.weekOf,
-      profileViews: r.profileViews,
-      searchAppearances: r.searchAppearances,
-      recruiterMsgs: r.recruiterMsgs,
-      postImpressions: r.postImpressions,
-      source: "self_report",
-    })
-    .returning({ id: outcomes.id });
-
-  return NextResponse.json({ outcomeId: inserted[0]!.id }, { status: 201 });
+  return NextResponse.json({ outcomeId: inserted[0]!.id }, { status: 200 });
 }
 
 /**
  * GET /api/outcomes — read the caller's aggregated weekly outcome series.
+ *
+ * GDPR Art. 15 right-of-access: historical data remains readable after consent
+ * revocation. Collection is blocked (POST gated on consent), but the user
+ * retains access to their own stored records. See COMPLIANCE.md.
  */
 export async function GET(): Promise<NextResponse> {
   const { userId: clerkUserId } = await auth();

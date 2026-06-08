@@ -37,11 +37,8 @@ export async function POST(): Promise<NextResponse> {
   const resolved = await resolveUserOr401Or404();
   if (!resolved.ok) return resolved.response;
 
-  const consentedAt = await grantOutcomeTrackingConsent(resolved.userId);
-  return NextResponse.json(
-    { consented: true, consentedAt: consentedAt.toISOString() },
-    { status: 200 }
-  );
+  await grantOutcomeTrackingConsent(resolved.userId);
+  return NextResponse.json({ consented: true }, { status: 200 });
 }
 
 /** DELETE /api/outcomes/consent — revoke consent (stops collection). */
