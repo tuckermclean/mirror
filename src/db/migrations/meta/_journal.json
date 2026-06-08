@@ -50,6 +50,13 @@
       "when": 1780925147342,
       "tag": "0006_brainy_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780927203290,
+      "tag": "0007_many_azazel",
+      "breakpoints": true
     }
   ]
 }

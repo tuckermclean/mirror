@@ -34,12 +34,18 @@ export type SeedOptions = {
   embed?: EmbedFn;
 };
 
+/** Shape returned by loadAllFixtures — profiles plus the number of files read. */
+export type LoadAllFixturesResult = {
+  profiles: BenchmarkFixtureProfile[];
+  fileCount: number;
+};
+
 const DEFAULT_DIR = join(process.cwd(), "fixtures", "benchmark-profiles");
 
 /** Read and validate every `*.json` fixture in `dir` into one flat list. */
 export function loadAllFixtures(
   dir: string
-): Result<BenchmarkFixtureProfile[], ParseError> {
+): Result<LoadAllFixturesResult, ParseError> {
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
   const all: BenchmarkFixtureProfile[] = [];
   for (const file of files) {
@@ -49,7 +55,7 @@ export function loadAllFixtures(
     }
     all.push(...res.value);
   }
-  return { ok: true, value: all };
+  return { ok: true, value: { profiles: all, fileCount: files.length } };
 }
 
 /**
@@ -62,10 +68,9 @@ export async function seedBenchmarkCorpus(
   const dir = opts.fixturesDir ?? DEFAULT_DIR;
   const embed = opts.embed ?? embedBenchmarkText;
 
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
   const loaded = loadAllFixtures(dir);
   if (!loaded.ok) return loaded;
-  const profiles = loaded.value;
+  const { profiles, fileCount } = loaded.value;
 
   const existingUrls = await findExistingUrls(profiles.map((p) => p.publicUrl));
   const collected = await collectBenchmarkRows(profiles, { embed, existingUrls });
@@ -76,7 +81,7 @@ export async function seedBenchmarkCorpus(
   return {
     ok: true,
     value: {
-      filesRead: files.length,
+      filesRead: fileCount,
       parsed: profiles.length,
       embedded: collected.value.rows.length,
       inserted,

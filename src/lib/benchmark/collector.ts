@@ -102,16 +102,19 @@ export async function upsertBenchmarkRows(rows: BenchmarkRow[]): Promise<number>
   const existing = await findExistingUrls(rows.map((r) => r.publicUrl));
   const fresh = rows.filter((r) => !existing.has(r.publicUrl));
   if (fresh.length === 0) return 0;
-  await db.insert(benchmarkProfiles).values(
-    fresh.map((r) => ({
-      industry: r.industry,
-      role: r.role,
-      seniority: r.seniority,
-      publicUrl: r.publicUrl,
-      parsed: r.parsed,
-      embedding: r.embedding,
-      performanceSignals: r.performanceSignals,
-    }))
-  );
+  await db
+    .insert(benchmarkProfiles)
+    .values(
+      fresh.map((r) => ({
+        industry: r.industry,
+        role: r.role,
+        seniority: r.seniority,
+        publicUrl: r.publicUrl,
+        parsed: r.parsed,
+        embedding: r.embedding,
+        performanceSignals: r.performanceSignals,
+      }))
+    )
+    .onConflictDoNothing();
   return fresh.length;
 }
