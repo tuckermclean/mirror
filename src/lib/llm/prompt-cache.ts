@@ -66,3 +66,37 @@ export async function findCachedGeneration(
   if (!row) return null;
   return { id: row.id, output: row.output };
 }
+
+export type RecordGenerationParams = {
+  userId: string;
+  model: string;
+  promptHash: string;
+  output: unknown;
+};
+
+/**
+ * Insert a completed generation into the cache so subsequent calls with the
+ * same prompt hash can return the cached result within 24h (AGENTS.md prompt-
+ * caching rule). The caller is responsible for writing the spend-ledger row
+ * separately via `recordLlmSpend`.
+ */
+export async function recordGeneration(params: RecordGenerationParams): Promise<{ id: string }> {
+  const rows = await db
+    .insert(generations)
+    .values({
+      userId: params.userId,
+      model: params.model,
+      promptHash: params.promptHash,
+      output: params.output as Record<string, unknown>,
+    })
+    .returning({ id: generations.id });
+  return { id: rows[0]!.id };
+}
+
+/**
+ * Delete a generation row by id. Used to evict invalid cached entries so future
+ * calls do not re-validate a known-bad row before falling through to the LLM.
+ */
+export async function evictGeneration(id: string): Promise<void> {
+  await db.delete(generations).where(eq(generations.id, id));
+}

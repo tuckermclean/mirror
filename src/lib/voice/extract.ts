@@ -6,7 +6,7 @@ import type { ParsedChatHistory } from "@/lib/parsers/types";
 import type { VoiceCard } from "@/lib/voice-card/schema";
 import { parseVoiceCardOutput } from "@/lib/voice-card/parse";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
-import { computePromptHash, findCachedGeneration } from "@/lib/llm/prompt-cache";
+import { computePromptHash, findCachedGeneration, recordGeneration, evictGeneration } from "@/lib/llm/prompt-cache";
 import { MonthlyCapError, GenerationSchemaError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
@@ -217,6 +217,8 @@ export async function extractVoiceCardLlm(
     logger.warn("voice-extraction: cached output failed schema, regenerating", {
       userId: options.userId,
     });
+    // Evict the invalid row so future calls skip re-validation overhead.
+    await evictGeneration(cached.id);
   }
 
   const cap = await checkMonthlyCap();
@@ -257,5 +259,14 @@ export async function extractVoiceCardLlm(
     });
     throw new GenerationSchemaError(detail);
   }
+
+  // Cache the successful result so subsequent identical calls hit the cache.
+  await recordGeneration({
+    userId: options.userId,
+    model: VOICE_EXTRACTION_MODEL,
+    promptHash,
+    output: parsed.value,
+  });
+
   return parsed.value;
 }
