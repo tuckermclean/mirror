@@ -31,6 +31,9 @@ export function clampEfSearch(n: number): number {
  * clamped to an integer in [1, 1000] before interpolation.
  */
 export function efSearchStatement(n: number): SQL {
+  // Postgres SET statements do not accept bind parameters — the GUC value must
+  // be a literal in the SQL text. The value is clamped to [1, 1000] before
+  // interpolation so there is no injection risk.
   return sql.raw(`SET hnsw.ef_search = ${clampEfSearch(n)}`);
 }
 
@@ -46,6 +49,11 @@ export function efSearchLocalStatement(n: number): SQL {
 /**
  * Apply `hnsw.ef_search` at the session level for subsequent queries on the
  * current pooled connection.
+ *
+ * @deprecated Prefer {@link withEfSearch} for transaction-scoped tuning.
+ *   Session-level SET persists on pooled connections: the GUC remains elevated
+ *   for unrelated queries on the same connection after this call returns.
+ *   Only use this function in non-pooled contexts (e.g., migration scripts).
  */
 export async function setEfSearch(n: number): Promise<void> {
   await db.execute(efSearchStatement(n));
