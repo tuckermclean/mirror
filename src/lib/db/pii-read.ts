@@ -161,7 +161,7 @@ export async function readImportRawPath(
       db
         .select({ rawPath: imports.rawPath })
         .from(imports)
-        .where(eq(imports.id, importId))
+        .where(and(eq(imports.id, importId), eq(imports.userId, accessorId)))
         .limit(1),
     {
       userId: accessorId,
@@ -205,7 +205,7 @@ export async function readInterviewTranscript(
       db
         .select({ transcript: interviews.transcript })
         .from(interviews)
-        .where(eq(interviews.id, interviewId))
+        .where(and(eq(interviews.id, interviewId), eq(interviews.userId, userId)))
         .limit(1),
     {
       userId,
@@ -233,7 +233,7 @@ export async function readImportParsed(
       db
         .select({ parsed: imports.parsed })
         .from(imports)
-        .where(eq(imports.id, importId))
+        .where(and(eq(imports.id, importId), eq(imports.userId, userId)))
         .limit(1),
     {
       userId,

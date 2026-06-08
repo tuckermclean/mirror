@@ -40,10 +40,13 @@ COMBINED=$(( E1 | E2 ))
 # or authentication issues ("Please go to Plans & Billing …").  We treat this
 # as a skip rather than a hard failure so that credit exhaustion in a shared CI
 # key does not block merges.
+#
+# Each billing exit (100) is normalised to 0 independently, so that a real
+# assertion failure (exit 1) in the *other* eval is still propagated.
+E1_FINAL=$(( E1 == 100 ? 0 : E1 ))
+E2_FINAL=$(( E2 == 100 ? 0 : E2 ))
 if [[ "${E1}" -eq 100 || "${E2}" -eq 100 ]]; then
-  echo "[eval-prompts] Anthropic API returned a billing/auth error (exit 100)." >&2
-  echo "[eval-prompts] Prompt evals skipped — add credits or set a valid ANTHROPIC_API_KEY to run them." >&2
-  exit 0
+  echo "[eval-prompts] billing/auth error (exit 100) on at least one eval — that eval was skipped." >&2
 fi
 
-exit "${COMBINED}"
+exit $(( E1_FINAL | E2_FINAL ))
