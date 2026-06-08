@@ -25,38 +25,16 @@ tests:
   - description: "VoiceCard schema — all structural assertions against one model output"
     assert:
       - type: javascript
-        value: |
-          const { stripFence } = require("./evals/helpers/strip-fence.cjs");
-          try { JSON.parse(stripFence(output)); return true; } catch { return false; }
+        value: "file://./helpers/assert-json-parseable.cjs"
 
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
       - type: javascript
-        value: |
-          const { stripFence } = require("./evals/helpers/strip-fence.cjs");
-          try {
-            const parsed = JSON.parse(stripFence(output));
-            const dist = parsed.sentenceLengthDistribution;
-            if (!dist || typeof dist !== "object") return false;
-            const { short, medium, long } = dist;
-            if (typeof short !== "number" || typeof medium !== "number" || typeof long !== "number") return false;
-            const sum = short + medium + long;
-            return sum >= 90 && sum <= 110;
-          } catch {
-            return false;
-          }
+        value: "file://./helpers/assert-sentence-length-distribution.cjs"
 
       - type: javascript
-        value: |
-          const { stripFence } = require("./evals/helpers/strip-fence.cjs");
-          try {
-            const parsed = JSON.parse(stripFence(output));
-            const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
-            return len >= 1 && len <= 30;
-          } catch {
-            return false;
-          }
+        value: "file://./helpers/assert-vocabulary-length.cjs"
 
       - type: llm-rubric
         value: "Output does NOT invent job titles, companies, or skills not present in input. Pass/fail."
