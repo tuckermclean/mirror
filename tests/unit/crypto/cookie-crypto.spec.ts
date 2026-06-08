@@ -1,7 +1,13 @@
-// RED: @/lib/crypto/cookie does not exist yet — fails until Wk 2 (LinkedIn ingestion)
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
+
+// 32-byte test key, hex-encoded (64 chars) — used only in unit tests.
+const TEST_KEY_HEX = "a".repeat(64);
 
 describe("LinkedIn cookie encryption (libsodium)", () => {
+  beforeAll(() => {
+    process.env.COOKIE_ENCRYPTION_KEY = TEST_KEY_HEX;
+  });
+
   it("encrypt → decrypt round-trip recovers the original cookie string", async () => {
     const { encryptCookie, decryptCookie } = await import("@/lib/crypto/cookie");
     const original = "li_at=AQEDATxxxxxxxxxxxxxx";
