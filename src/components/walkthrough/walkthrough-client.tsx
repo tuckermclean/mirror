@@ -88,10 +88,17 @@ export function WalkthroughClient({ data }: { data: WalkthroughData }) {
     toast.info(`Inline editing for ${section} is coming soon.`)
   }, [])
 
-  // Plain derived value — cheap to compute each render, so no memoization needed.
-  const acceptedFields = Object.fromEntries(
-    SECTIONS.map((s) => [s, decisions[s] === "accept"])
-  ) as Record<ProfileSection, boolean>
+  // Memoize so the object reference is stable between renders when decisions
+  // has not changed. Without this, handleCommit's useCallback dep array would
+  // receive a new acceptedFields reference on every render, causing it to
+  // recreate on every render and defeating its memoization benefit.
+  const acceptedFields = React.useMemo(
+    () =>
+      Object.fromEntries(
+        SECTIONS.map((s) => [s, decisions[s] === "accept"])
+      ) as Record<ProfileSection, boolean>,
+    [decisions]
+  )
 
   const handleExport = React.useCallback(() => {
     const text = buildExportText(data.before, data.after, decisions)
