@@ -1,0 +1,247 @@
+[
+  {
+    "id": "pm-bench-01",
+    "industry": "tech",
+    "role": "Product Manager",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/pm-bench-01",
+    "headline": "Senior PM at Figma | 0→1 Products · Design Systems · PLG",
+    "about": "I turn fuzzy customer problems into products people love. Eight years in product, the last three building collaboration features used by millions of designers daily.",
+    "experience": [
+      {
+        "title": "Senior Product Manager",
+        "company": "Figma",
+        "startDate": "2021-02",
+        "endDate": null,
+        "bullets": [
+          "Led 0→1 launch of FigJam, reaching 2M weekly active users in 14 months",
+          "Drove product-led growth experiments that lifted free-to-paid conversion by 23%",
+          "Defined the design-systems roadmap adopted by 40+ enterprise customers"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 5400, "recruiterMessages": 21 }
+  },
+  {
+    "id": "pm-bench-02",
+    "industry": "tech",
+    "role": "Product Manager",
+    "seniority": "lead",
+    "publicUrl": "https://linkedin.test/in/pm-bench-02",
+    "headline": "Group PM at Stripe | Payments Infrastructure · API Strategy",
+    "about": "I build the financial primitives other companies build on. A decade in fintech product, leading teams that ship payment APIs handling billions in volume.",
+    "experience": [
+      {
+        "title": "Group Product Manager",
+        "company": "Stripe",
+        "startDate": "2019-08",
+        "endDate": null,
+        "bullets": [
+          "Owned the Payments API roadmap processing $200B+ annual volume",
+          "Grew the PM team from 2 to 9 across three product lines",
+          "Shipped adaptive checkout that increased authorization rates by 4.1%"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 7100, "recruiterMessages": 29 }
+  },
+  {
+    "id": "ds-bench-01",
+    "industry": "tech",
+    "role": "Data Scientist",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/ds-bench-01",
+    "headline": "Senior Data Scientist at Netflix | Causal Inference · Experimentation",
+    "about": "I help product teams know what actually works. Seven years turning experiments and observational data into decisions that move retention.",
+    "experience": [
+      {
+        "title": "Senior Data Scientist",
+        "company": "Netflix",
+        "startDate": "2020-05",
+        "endDate": null,
+        "bullets": [
+          "Built the causal-inference framework used to evaluate 300+ product experiments per quarter",
+          "Reduced experiment analysis turnaround from 5 days to 4 hours via automated pipelines",
+          "Identified a retention lever worth an estimated $40M ARR through churn modeling"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 4800, "recruiterMessages": 19 }
+  },
+  {
+    "id": "ds-bench-02",
+    "industry": "tech",
+    "role": "Data Scientist",
+    "seniority": "mid",
+    "publicUrl": "https://linkedin.test/in/ds-bench-02",
+    "headline": "Data Scientist at Spotify | Recommender Systems · A/B Testing",
+    "about": "I tune the models that decide what you hear next. Four years in ML, focused on ranking and personalization at streaming scale.",
+    "experience": [
+      {
+        "title": "Data Scientist",
+        "company": "Spotify",
+        "startDate": "2021-09",
+        "endDate": null,
+        "bullets": [
+          "Improved Discover Weekly engagement by 8% through a new candidate-generation model",
+          "Designed offline/online evaluation harness now standard for the recommendations org"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 3300, "recruiterMessages": 11 }
+  },
+  {
+    "id": "des-bench-01",
+    "industry": "tech",
+    "role": "Product Designer",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/des-bench-01",
+    "headline": "Senior Product Designer at Airbnb | End-to-end · Design Systems",
+    "about": "I sweat the details that make an interface feel inevitable. Nine years designing flows people use without thinking.",
+    "experience": [
+      {
+        "title": "Senior Product Designer",
+        "company": "Airbnb",
+        "startDate": "2018-03",
+        "endDate": null,
+        "bullets": [
+          "Redesigned the booking flow, lifting completion rate by 6.5%",
+          "Co-authored the design-system contribution model adopted across 5 product teams"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 4100, "recruiterMessages": 16 }
+  },
+  {
+    "id": "mkt-bench-01",
+    "industry": "marketing",
+    "role": "Growth Marketer",
+    "seniority": "lead",
+    "publicUrl": "https://linkedin.test/in/mkt-bench-01",
+    "headline": "Head of Growth at Notion | Lifecycle · Paid Acquisition · PLG",
+    "about": "I find the loops that compound. Ten years building growth engines for product-led companies, from seed to IPO.",
+    "experience": [
+      {
+        "title": "Head of Growth",
+        "company": "Notion",
+        "startDate": "2020-01",
+        "endDate": null,
+        "bullets": [
+          "Scaled activated workspaces from 1M to 20M through onboarding and referral loops",
+          "Built a lifecycle program that cut churn 18% in the SMB segment"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 6200, "recruiterMessages": 24 }
+  },
+  {
+    "id": "eng-bench-01",
+    "industry": "tech",
+    "role": "Software Engineer",
+    "seniority": "staff",
+    "publicUrl": "https://linkedin.test/in/eng-bench-01",
+    "headline": "Staff Engineer at Datadog | Distributed Systems · Observability",
+    "about": "I build the boring infrastructure that lets everyone else move fast. Eleven years across backend and platform engineering.",
+    "experience": [
+      {
+        "title": "Staff Software Engineer",
+        "company": "Datadog",
+        "startDate": "2019-06",
+        "endDate": null,
+        "bullets": [
+          "Architected the metrics ingestion path handling 20M datapoints/second",
+          "Led migration to a cell-based architecture that contained blast radius of outages"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 5900, "recruiterMessages": 25 }
+  },
+  {
+    "id": "sales-bench-01",
+    "industry": "sales",
+    "role": "Account Executive",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/sales-bench-01",
+    "headline": "Enterprise AE at Snowflake | 7-figure Deals · Net-new Logos",
+    "about": "I sell platforms, not features. Eight years closing complex enterprise data deals with multi-stakeholder buying committees.",
+    "experience": [
+      {
+        "title": "Enterprise Account Executive",
+        "company": "Snowflake",
+        "startDate": "2020-04",
+        "endDate": null,
+        "bullets": [
+          "Closed $14M in net-new ARR over two years at 142% of quota",
+          "Landed three Fortune 100 logos through multi-threaded executive engagement"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 3900, "recruiterMessages": 13 }
+  },
+  {
+    "id": "pmm-bench-01",
+    "industry": "marketing",
+    "role": "Product Marketer",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/pmm-bench-01",
+    "headline": "Senior PMM at Atlassian | Positioning · GTM · Competitive",
+    "about": "I make complex products easy to say yes to. Seven years owning positioning and launches for developer tools.",
+    "experience": [
+      {
+        "title": "Senior Product Marketing Manager",
+        "company": "Atlassian",
+        "startDate": "2019-11",
+        "endDate": null,
+        "bullets": [
+          "Led the GTM for a new DevOps product that hit $30M ARR in year one",
+          "Rebuilt competitive positioning that improved win rate against the category leader by 11 points"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 4300, "recruiterMessages": 17 }
+  },
+  {
+    "id": "em-bench-01",
+    "industry": "tech",
+    "role": "Engineering Manager",
+    "seniority": "lead",
+    "publicUrl": "https://linkedin.test/in/em-bench-01",
+    "headline": "Engineering Manager at Shopify | Platform Teams · Org Design",
+    "about": "I build teams that ship and stay. Twelve years in engineering, the last six leading platform organizations through hypergrowth.",
+    "experience": [
+      {
+        "title": "Engineering Manager",
+        "company": "Shopify",
+        "startDate": "2018-08",
+        "endDate": null,
+        "bullets": [
+          "Grew and led a 24-person platform org across three teams",
+          "Cut deploy lead time from days to under an hour through CI/CD investment"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 5200, "recruiterMessages": 20 }
+  },
+  {
+    "id": "ux-bench-01",
+    "industry": "tech",
+    "role": "UX Researcher",
+    "seniority": "senior",
+    "publicUrl": "https://linkedin.test/in/ux-bench-01",
+    "headline": "Senior UX Researcher at Google | Mixed Methods · Research Ops",
+    "about": "I make sure we build the right thing before we build it. Eight years running research that changes roadmaps.",
+    "experience": [
+      {
+        "title": "Senior UX Researcher",
+        "company": "Google",
+        "startDate": "2019-02",
+        "endDate": null,
+        "bullets": [
+          "Ran the foundational research that reframed a flagship product's onboarding strategy",
+          "Built a research-ops practice that doubled study throughput without adding headcount"
+        ]
+      }
+    ],
+    "performanceSignals": { "profileViews": 3600, "recruiterMessages": 12 }
+  }
+]
