@@ -3,30 +3,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { inngest } from "@/lib/inngest/client";
 import { logger } from "@/lib/logger";
-import { ValidationError } from "@/lib/errors";
 
-// TODO: swap this stub to `import { encryptCookie } from "@/lib/crypto/cookie"`
-// once the security specialist ships that module.
-// The stub lives in a separate file so it is easily replaced without touching
-// this server action.
-type EncryptCookieFn = (cookie: string) => Promise<string>;
-
-/**
- * Returns the real encryptCookie implementation when available, or throws a
- * ValidationError so we never silently store the session cookie in plaintext.
- *
- * Importing via a stub wrapper insulates this file from TS2307 until
- * @/lib/crypto/cookie is created.
- */
-async function getEncryptCookie(): Promise<EncryptCookieFn> {
-  // The crypto module is not yet in the codebase — this import will be
-  // replaced with a real one once @/lib/crypto/cookie ships.
-  // Intentionally never silently fall back to storing the raw cookie.
-  throw new ValidationError(
-    "Encryption module unavailable — cannot safely store session cookie. " +
-    "Replace this stub with `import { encryptCookie } from '@/lib/crypto/cookie'`."
-  );
-}
+/** Matches https://www.linkedin.com/in/<slug> — rejects arbitrary URLs. */
+const LINKEDIN_PROFILE_REGEX = /^https:\/\/www\.linkedin\.com\/in\/[A-Za-z0-9_%-]+\/?$/;
 
 export type LinkedInActionResult =
   | { success: true }
@@ -35,9 +14,10 @@ export type LinkedInActionResult =
 export async function submitLinkedInForm(
   formData: FormData
 ): Promise<LinkedInActionResult> {
+  // Auth guard — AGENTS.md: return { success: false } if !userId (never throw)
   const { userId } = await auth();
   if (!userId) {
-    throw new ValidationError("Unauthenticated");
+    return { success: false, error: "Unauthenticated" };
   }
 
   const profileUrl = (formData.get("profileUrl") as string | null)?.trim() ?? "";
@@ -50,11 +30,20 @@ export async function submitLinkedInForm(
     return { success: false, error: "LinkedIn profile URL is required." };
   }
 
+  // Suggestion 2: reject non-LinkedIn /in/ URLs before dispatching a scrape
+  if (!LINKEDIN_PROFILE_REGEX.test(profileUrl)) {
+    return {
+      success: false,
+      error: "Profile URL must match https://www.linkedin.com/in/<slug>.",
+    };
+  }
+
   let encryptedCookie: string | null = null;
 
   if (rawCookie) {
     try {
-      const encryptCookie = await getEncryptCookie();
+      // Blocker 2: use the real crypto module (shipped in this PR)
+      const { encryptCookie } = await import("@/lib/crypto/cookie");
       encryptedCookie = await encryptCookie(rawCookie);
       // rawCookie intentionally never logged, never returned, never stored
       // unencrypted. Only encryptedCookie leaves this function.
