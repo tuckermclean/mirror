@@ -84,7 +84,7 @@ export function LinkedInForm() {
           id="sessionCookie"
           name="sessionCookie"
           type="password"
-          placeholder="li_at=..."
+          placeholder="AQEDATexample…"
           data-testid="session-cookie-input"
           autoComplete="off"
           disabled={status === "loading" || status === "success"}
@@ -94,28 +94,6 @@ export function LinkedInForm() {
         <p className="text-xs text-muted-foreground">
           Paste your <code className="font-mono">li_at</code> cookie for richer
           data. Stored encrypted; never returned to the browser.
-        </p>
-      </div>
-
-      {/* PDF resume — Tier B fallback */}
-      <div className="space-y-1.5">
-        <Label htmlFor="pdfUpload">
-          LinkedIn PDF export{" "}
-          <span className="font-normal text-muted-foreground">(optional)</span>
-        </Label>
-        <Input
-          id="pdfUpload"
-          name="pdfUpload"
-          type="file"
-          accept=".pdf"
-          data-testid="pdf-upload"
-          disabled={status === "loading" || status === "success"}
-          className="cursor-pointer file:mr-2 file:cursor-pointer file:rounded file:border-0 file:bg-muted file:px-2 file:py-0.5 file:text-xs file:font-medium"
-        />
-        <p className="text-xs text-muted-foreground">
-          Alternatively, download your profile as a PDF from LinkedIn and upload
-          it here (Tier B). Your PDF will be processed after LinkedIn connection
-          via the import pipeline.
         </p>
       </div>
 

@@ -136,11 +136,15 @@ export async function scrapeLinkedInProfile(profileUrl, sessionCookie) {
       viewport: { width: 1280, height: 800 },
     });
 
+    // Strip "li_at=" prefix if the caller passed a name=value string.
+    // Playwright's addCookies expects the token value only, not the header form.
+    const cookieValue = sessionCookie.replace(/^li_at=/, "");
+
     // Set the session cookie — this is the only place it appears in memory
     await context.addCookies([
       {
         name: "li_at",
-        value: sessionCookie,
+        value: cookieValue,
         domain: ".linkedin.com",
         path: "/",
         secure: true,
