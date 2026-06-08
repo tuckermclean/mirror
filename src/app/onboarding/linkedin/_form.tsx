@@ -12,6 +12,13 @@ import { submitLinkedInForm } from "./_actions";
 
 type FormStatus = "idle" | "loading" | "success" | "error";
 
+/** Human-readable label for each status — mirrored in the aria-live region. */
+function buttonLabel(status: FormStatus): string {
+  if (status === "loading") return "Connecting…";
+  if (status === "success") return "Done — redirecting…";
+  return "Connect LinkedIn";
+}
+
 export function LinkedInForm() {
   const router = useRouter();
   const [status, setStatus] = React.useState<FormStatus>("idle");
@@ -42,6 +49,8 @@ export function LinkedInForm() {
     }
   }
 
+  const hasError = status === "error" && Boolean(errorMessage);
+
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-5" noValidate>
       {/* LinkedIn profile URL */}
@@ -55,6 +64,9 @@ export function LinkedInForm() {
           data-testid="linkedin-url-input"
           autoComplete="url"
           required
+          aria-required="true"
+          aria-invalid={hasError ? "true" : undefined}
+          aria-describedby={hasError ? "error-alert-id" : undefined}
           disabled={status === "loading" || status === "success"}
         />
         <p className="text-xs text-muted-foreground">
@@ -102,14 +114,17 @@ export function LinkedInForm() {
         />
         <p className="text-xs text-muted-foreground">
           Alternatively, download your profile as a PDF from LinkedIn and upload
-          it here (Tier B).
+          it here (Tier B). Your PDF will be processed after LinkedIn connection
+          via the import pipeline.
         </p>
       </div>
 
       {/* Error feedback */}
       <AnimatePresence>
-        {status === "error" && errorMessage && (
+        {hasError && (
           <motion.div
+            key="error-alert"
+            id="error-alert-id"
             role="alert"
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -122,6 +137,11 @@ export function LinkedInForm() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Screen-reader status announcement for button label changes (Suggestion 6) */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {buttonLabel(status)}
+      </span>
 
       {/* Submit */}
       <Button

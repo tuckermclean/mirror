@@ -48,7 +48,7 @@ describe("PostHog telemetry (Blocker 5)", () => {
     // Re-import to trigger the init side-effect
     vi.resetModules();
 
-    const posthog = await import("posthog-js");
+    const _posthog = await import("posthog-js");
     const _mod = await import("@/components/providers/posthog-provider");
 
     // The provider should export an init helper or call init during mount
@@ -56,8 +56,9 @@ describe("PostHog telemetry (Blocker 5)", () => {
     // (actual React rendering tested in e2e; unit test checks the config export)
     const { POSTHOG_CONFIG } = await import("@/components/providers/posthog-provider");
     expect(POSTHOG_CONFIG).toBeDefined();
-    expect(POSTHOG_CONFIG.maskAllInputs).toBe(true);
-    expect(POSTHOG_CONFIG.capture_hashed_url).toBe(false);
+    // maskAllInputs lives inside session_recording per PostHogConfig type
+    expect((POSTHOG_CONFIG.session_recording as { maskAllInputs?: boolean })?.maskAllInputs).toBe(true);
+    expect(POSTHOG_CONFIG.disable_session_recording).toBe(true);
   });
 
   it("walkthrough trackScrollUnlock uses posthog.config (public API) not __loaded", async () => {

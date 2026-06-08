@@ -35,10 +35,13 @@ function initialDecisions(): Record<ProfileSection, SectionDecision> {
  * Telemetry sink for the scroll-unlock event.
  * Fires a PostHog capture when PostHog is initialized; always emits a
  * structured logger event as a fallback for server-side log aggregation.
+ *
+ * Uses posthog.config (public API) rather than the undocumented __loaded
+ * property to check whether posthog.init() has been called.
  */
 function trackScrollUnlock(generationId: string): void {
   logger.info("walkthrough_scroll_unlocked", { generationId })
-  if (posthog.__loaded) {
+  if (posthog.config?.api_host) {
     posthog.capture("walkthrough_scroll_unlocked", { generationId })
   }
 }
