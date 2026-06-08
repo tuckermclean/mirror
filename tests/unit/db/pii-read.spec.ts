@@ -248,6 +248,29 @@ describe("readInterviewTranscript", () => {
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
   });
+
+  it("defaults accessorId to userId when not provided (subject self-read)", async () => {
+    await readInterviewTranscript("interview-1", "user-1", "test reason");
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", accessorId: "user-1" })
+    );
+  });
+
+  it("records an explicit accessorId distinct from userId (service-account read)", async () => {
+    await readInterviewTranscript(
+      "interview-1",
+      "user-1",
+      "support investigation",
+      undefined,
+      "service-account-7"
+    );
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        accessorId: "service-account-7",
+      })
+    );
+  });
 });
 
 describe("readImportRawPath", () => {
