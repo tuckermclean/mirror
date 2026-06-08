@@ -5,11 +5,29 @@
  * breadth: higher = better recall, slower; lower = faster, lower recall. The
  * helper guards the value to pgvector's supported range (1..1000).
  */
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
+
+const executedStatements: string[] = [];
+const mockTx = {
+  execute: vi.fn(async (stmt: unknown) => {
+    executedStatements.push(JSON.stringify(stmt));
+  }),
+};
+
+vi.mock("@/db/client", () => ({
+  db: {
+    execute: vi.fn(),
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn(mockTx)
+    ),
+  },
+}));
+
 import {
   efSearchStatement,
   efSearchLocalStatement,
   clampEfSearch,
+  withEfSearch,
 } from "@/lib/rag/ef-search";
 
 describe("clampEfSearch", () => {
@@ -54,5 +72,31 @@ describe("efSearchLocalStatement", () => {
     expect(text).toContain("SET LOCAL");
     expect(text).toContain("hnsw.ef_search");
     expect(text).toContain("40");
+  });
+});
+
+describe("withEfSearch", () => {
+  beforeEach(() => {
+    executedStatements.length = 0;
+    mockTx.execute.mockClear();
+  });
+
+  it("executes SET LOCAL inside the transaction", async () => {
+    await withEfSearch(100, async (_tx) => undefined);
+    expect(executedStatements).toHaveLength(1);
+    expect(executedStatements[0]).toContain("SET LOCAL");
+    expect(executedStatements[0]).toContain("hnsw.ef_search");
+    expect(executedStatements[0]).toContain("100");
+  });
+
+  it("returns the result of the callback", async () => {
+    const result = await withEfSearch(40, async (_tx) => "sentinel");
+    expect(result).toBe("sentinel");
+  });
+
+  it("uses the clamped ef_search value", async () => {
+    await withEfSearch(99999, async (_tx) => undefined);
+    expect(executedStatements[0]).toContain("1000");
+    expect(executedStatements[0]).not.toContain("99999");
   });
 });
