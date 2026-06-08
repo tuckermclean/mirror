@@ -51,7 +51,51 @@ function mockStreamReturning(text: string, usage = { input_tokens: 100, output_t
   });
 }
 
+import { readFileSync } from "fs";
+import { join } from "path";
 import { extractVoiceCardLlm } from "@/lib/voice/extract";
+
+// ---------------------------------------------------------------------------
+// AGENTS.md line-length guard: extractVoiceCardLlm must be ≤ 40 lines.
+// This test parses the source file to count lines inside the function body.
+// It fails (red) before the refactor splits out streamAndRecord, turning
+// green once the helper is extracted.
+// ---------------------------------------------------------------------------
+describe("extractVoiceCardLlm — AGENTS.md line-length constraint", () => {
+  it("extractVoiceCardLlm body must not exceed 40 lines", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/lib/voice/extract.ts"),
+      "utf-8",
+    );
+    const lines = src.split("\n");
+
+    const startIdx = lines.findIndex((l) =>
+      l.includes("export async function extractVoiceCardLlm("),
+    );
+    expect(startIdx).toBeGreaterThan(-1);
+
+    // Walk forward and find the closing brace at the same indent level.
+    // We must first see at least one `{` (depth > 0) before we can detect
+    // the matching `}` (depth back to 0), otherwise lines before the opening
+    // brace would trigger a false-early exit.
+    let depth = 0;
+    let seenOpen = false;
+    let endIdx = startIdx;
+    for (let i = startIdx; i < lines.length; i++) {
+      for (const ch of lines[i]!) {
+        if (ch === "{") { depth++; seenOpen = true; }
+        else if (ch === "}") depth--;
+      }
+      if (seenOpen && depth === 0) {
+        endIdx = i;
+        break;
+      }
+    }
+
+    const bodyLineCount = endIdx - startIdx + 1;
+    expect(bodyLineCount).toBeLessThanOrEqual(40);
+  });
+});
 
 describe("extractVoiceCardLlm", () => {
   beforeEach(() => {

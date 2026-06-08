@@ -39,7 +39,7 @@ tests:
         value: |
           try {
             // canonical: src/lib/voice-card/fence.ts — keep in sync
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i;
             const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
             const parsed = JSON.parse(stripped);
             const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
