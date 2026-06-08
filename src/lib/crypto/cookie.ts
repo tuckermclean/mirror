@@ -20,8 +20,15 @@ import { CookieEncryptionError } from "@/lib/errors";
 /** Expected byte length of the hex-encoded COOKIE_ENCRYPTION_KEY (32 bytes = 64 hex chars). */
 const KEY_HEX_LENGTH = 64;
 
-/** Load and validate the 32-byte encryption key from the environment. */
-function loadKey(): Uint8Array {
+/**
+ * Load and validate the 32-byte encryption key from the environment.
+ *
+ * Awaits `sodium.ready` itself so this function is safe to call independently,
+ * matching the pattern used by encryptCookie/decryptCookie — `sodium.from_hex`
+ * is a libsodium API and must not be invoked before the WASM module is ready.
+ */
+async function loadKey(): Promise<Uint8Array> {
+  await sodium.ready;
   const hex = process.env.COOKIE_ENCRYPTION_KEY;
   if (!hex || hex.length !== KEY_HEX_LENGTH) {
     throw new CookieEncryptionError(
@@ -41,7 +48,7 @@ function loadKey(): Uint8Array {
  */
 export async function encryptCookie(cookie: string): Promise<string> {
   await sodium.ready;
-  const key = loadKey();
+  const key = await loadKey();
 
   const { state, header } = sodium.crypto_secretstream_xchacha20poly1305_init_push(key);
   const cipherChunk = sodium.crypto_secretstream_xchacha20poly1305_push(
@@ -62,7 +69,7 @@ export async function encryptCookie(cookie: string): Promise<string> {
  */
 export async function decryptCookie(ciphertext: string): Promise<string> {
   await sodium.ready;
-  const key = loadKey();
+  const key = await loadKey();
 
   const { header, cipherChunk } = decodePayload(ciphertext);
 
