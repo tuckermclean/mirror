@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { benchmarkProfiles } from "@/db/schema";
 
@@ -57,7 +57,7 @@ export async function retrieveSimilarProfiles(
       distance,
     })
     .from(benchmarkProfiles)
-    .where(sql`embedding IS NOT NULL`)
+    .where(isNotNull(benchmarkProfiles.embedding))
     .orderBy(distance)
     .limit(limit);
 
