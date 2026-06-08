@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type { GetStepTools } from "inngest";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
@@ -14,6 +15,18 @@ import { logger } from "@/lib/logger";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 
 export type ImportSource = "chatgpt_zip" | "claude_zip" | "linkedin_pdf" | "plain_text";
+
+/**
+ * Inngest step tools, derived from our typed client (the canonical public way —
+ * `GetStepTools` is the exported helper; there is no separate `StepTools` export).
+ */
+type Step = GetStepTools<typeof inngest>;
+
+/** Handler arguments for the import-process Inngest function. */
+type ProcessImportHandlerArgs = {
+  event: { data: { importId: string } };
+  step: Step;
+};
 
 /** Dispatch raw bytes to the correct parser for the given import source. */
 export async function selectParser(
@@ -44,7 +57,7 @@ export const processImport = inngest.createFunction(
     concurrency: { key: "event.data.importId", limit: 1 },
     triggers: [{ event: "mirror/import.process" }],
   },
-  async ({ event, step }: { event: { data: { importId: string } }; step: { run: <T>(id: string, fn: () => Promise<T>) => Promise<T> } }) => {
+  async ({ event, step }: ProcessImportHandlerArgs) => {
     const { importId } = event.data;
 
     // Step 1: Load import row.
