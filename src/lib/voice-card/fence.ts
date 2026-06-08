@@ -9,4 +9,4 @@
  * `evals/voice-extraction.yaml` cannot ESM-import this module, so they each
  * carry a copy annotated `// canonical: src/lib/voice-card/fence.ts`.
  */
-export const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+export const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i;

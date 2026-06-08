@@ -10,7 +10,7 @@
 
 // canonical: src/lib/voice-card/fence.ts — keep in sync
 // (CommonJS cannot ESM-import the canonical module, so this is a tracked copy.)
-const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i;
 
 /** Non-empty string array predicate, mirroring z.array(z.string().min(1)). */
 function isNonEmptyStringArray(value) {
