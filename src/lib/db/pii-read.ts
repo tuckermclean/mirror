@@ -141,12 +141,19 @@ export async function readImportRawPath(
  *
  * Callers in other modules should use this rather than referencing
  * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ *
+ * `accessorId` identifies the principal performing the read and defaults to
+ * `userId` (the subject reading their own transcript). Pass an explicit
+ * `accessorId` for service-account or support reads so the audit row
+ * distinguishes who accessed the data from whose data it is — never let a
+ * staff/automated read masquerade as a subject self-read.
  */
 export async function readInterviewTranscript(
   interviewId: string,
   userId: string,
   reason: string,
-  ipAddress?: string
+  ipAddress?: string,
+  accessorId: string = userId
 ): Promise<{ transcript: unknown } | undefined> {
   const rows = await readPii(
     () =>
@@ -157,7 +164,7 @@ export async function readInterviewTranscript(
         .limit(1),
     {
       userId,
-      accessorId: userId,
+      accessorId,
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",
