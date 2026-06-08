@@ -15,8 +15,8 @@ import { eq } from "drizzle-orm";
 // DELETED_PLAN now lives in the dependency-free constants module so that
 // route/page files can import it without pulling in this DB-heavy module.
 // Re-exported here for backward compatibility with existing call sites.
-export { DELETED_PLAN } from "@/lib/constants";
 import { DELETED_PLAN } from "@/lib/constants";
+export { DELETED_PLAN };
 
 /**
  * GDPR Article 17 erasure — redaction-in-place ("soft delete"). See ADR-009.
