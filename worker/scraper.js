@@ -183,12 +183,33 @@ export async function scrapeLinkedInProfile(profileUrl, sessionCookie) {
 }
 
 /**
+ * Thrown when LinkedIn redirects to the login page instead of the profile.
+ * Indicates the li_at session cookie has expired or is invalid.
+ */
+export class AuthWallError extends Error {
+  constructor() {
+    super(
+      "[scraper] authentication wall detected — li_at cookie is expired or invalid"
+    );
+    this.name = "AuthWallError";
+  }
+}
+
+/**
  * Run the DOM extraction and handle auth-wall detection.
+ *
+ * If both `name` and `headline` are empty strings the page is almost certainly
+ * the LinkedIn login page returned because `li_at` has expired.
  *
  * @param {import('playwright').Page} page
  * @returns {Promise<Object>}
  */
 async function extractData(page) {
   const result = await page.evaluate(extractProfileFromDom);
+
+  if (!result.name && !result.headline) {
+    throw new AuthWallError();
+  }
+
   return result;
 }

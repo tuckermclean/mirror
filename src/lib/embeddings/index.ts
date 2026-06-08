@@ -39,11 +39,13 @@ export async function embedVoiceProfile(
     .map((m) => m.content)
     .join("\n\n");
 
+  const { short, medium, long } = voiceCard.sentenceLengthDistribution;
   const signalText = [
     `Vocabulary: ${voiceCard.vocabulary.slice(0, 20).join(", ")}`,
     `Register: ${voiceCard.emotionalRegister}`,
     `Hedges avoided: ${voiceCard.hedgesAvoided.join(", ")}`,
     `Jargon hated: ${voiceCard.jargonHated.join(", ")}`,
+    `Sentence rhythm: ${short}% short / ${medium}% medium / ${long}% long`,
     userText.slice(0, 4000),
   ]
     .filter(Boolean)

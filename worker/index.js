@@ -11,6 +11,7 @@
 
 import { createServer } from "node:http";
 import { serve } from "inngest/node";
+import { inngest } from "./inngest-client.js";
 import { scrapeLinkedInProfileFn } from "./inngest-functions.js";
 
 // ---------------------------------------------------------------------------
@@ -26,18 +27,6 @@ log("info", "worker: mirror playwright worker ready (Wk 2)");
 // ---------------------------------------------------------------------------
 // Inngest serve handler — registered at /api/inngest
 // ---------------------------------------------------------------------------
-
-import { Inngest } from "inngest";
-
-const inngest = new Inngest({
-  id: "mirror",
-  ...(process.env["INNGEST_EVENT_KEY"]
-    ? { eventKey: process.env["INNGEST_EVENT_KEY"] }
-    : {}),
-  ...(process.env["INNGEST_SIGNING_KEY"]
-    ? { signingKey: process.env["INNGEST_SIGNING_KEY"] }
-    : { isDev: true }),
-});
 
 const inngestHandler = serve({
   client: inngest,

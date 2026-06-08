@@ -13,7 +13,7 @@
  * The endpoint MUST NOT receive the session cookie — only the parsed data.
  */
 
-import { Inngest } from "inngest";
+import { inngest } from "./inngest-client.js";
 import { decryptCookie } from "./crypto.js";
 import { scrapeLinkedInProfile } from "./scraper.js";
 
@@ -24,20 +24,6 @@ import { scrapeLinkedInProfile } from "./scraper.js";
 function log(level, msg, meta = {}) {
   process.stdout.write(JSON.stringify({ level, msg, ...meta }) + "\n");
 }
-
-// ---------------------------------------------------------------------------
-// Inngest client
-// ---------------------------------------------------------------------------
-
-const inngest = new Inngest({
-  id: "mirror",
-  ...(process.env["INNGEST_EVENT_KEY"]
-    ? { eventKey: process.env["INNGEST_EVENT_KEY"] }
-    : {}),
-  ...(process.env["INNGEST_SIGNING_KEY"]
-    ? { signingKey: process.env["INNGEST_SIGNING_KEY"] }
-    : { isDev: true }),
-});
 
 // ---------------------------------------------------------------------------
 // Helper: POST parsed snapshot to the main app's internal API
@@ -64,6 +50,7 @@ async function persistSnapshot(userId, parsed) {
       Authorization: `Bearer ${secret}`,
     },
     body: JSON.stringify({ userId, parsed }),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!response.ok) {
@@ -86,8 +73,8 @@ export const scrapeLinkedInProfileFn = inngest.createFunction(
     id: "scrape-linkedin-profile",
     name: "Scrape LinkedIn Profile (Tier A)",
     retries: 3,
+    triggers: [{ event: "mirror/linkedin.scrape.requested" }],
   },
-  { event: "mirror/linkedin.scrape.requested" },
   async ({ event, step }) => {
     const { userId, profileUrl, encryptedCookie } = event.data;
 
@@ -98,40 +85,29 @@ export const scrapeLinkedInProfileFn = inngest.createFunction(
       hasCookie: Boolean(encryptedCookie),
     });
 
-    // Step 1: Decrypt the session cookie
-    const decryptedCookie = await step.run("decrypt-cookie", async () => {
+    // Step 1: Decrypt the cookie and scrape the profile in a single step so
+    // the plaintext li_at cookie is never serialised to Inngest durable state.
+    // Returning the decrypted cookie from step.run() would persist it to disk.
+    const parsed = await step.run("decrypt-and-scrape", async () => {
       const cookie = await decryptCookie(encryptedCookie);
-      return cookie;
-    });
-
-    // Step 2: Scrape the LinkedIn profile, then immediately zero the cookie
-    const parsed = await step.run("scrape-profile", async () => {
-      let cookie = decryptedCookie;
-      try {
-        const result = await scrapeLinkedInProfile(profileUrl, cookie);
-        return result;
-      } finally {
-        // Zero out the cookie variable — it must not survive this step
-        // eslint-disable-next-line no-unused-vars
-        cookie = null;
-      }
+      const result = await scrapeLinkedInProfile(profileUrl, cookie);
+      return result;
     });
 
     log("info", "[inngest] profile scraped, persisting snapshot", { userId });
 
-    // Step 3: Persist the snapshot to the main app (no cookie is sent)
+    // Step 2: Persist the snapshot to the main app (no cookie is sent)
     const { snapshotId } = await step.run("persist-snapshot", async () => {
       return persistSnapshot(userId, parsed);
     });
 
     log("info", "[inngest] snapshot persisted", { userId, snapshotId });
 
-    // Emit completion event for downstream consumers (e.g. generation pipeline)
-    await step.run("emit-snapshot-created", async () => {
-      await inngest.send({
-        name: "mirror/linkedin.snapshot.created",
-        data: { userId, snapshotId },
-      });
+    // Emit completion event using step.sendEvent() — automatically deduplicated
+    // by Inngest on retries (unlike step.run wrapping inngest.send()).
+    await step.sendEvent("emit-snapshot-created", {
+      name: "mirror/linkedin.snapshot.created",
+      data: { userId, snapshotId },
     });
 
     return { userId, snapshotId };
