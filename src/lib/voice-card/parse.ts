@@ -1,10 +1,10 @@
 import type { Result, VoiceCardParseError } from "@/lib/errors";
 import { VoiceCardSchema, type VoiceCard } from "./schema";
-
-const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+import { FENCE_RE } from "./fence";
 
 export function parseVoiceCardOutput(text: string): Result<VoiceCard, VoiceCardParseError> {
-  const stripped = FENCE_RE.exec(text.trim())?.[1]?.trim() ?? text.trim();
+  const raw = text.trim();
+  const stripped = FENCE_RE.exec(raw)?.[1]?.trim() ?? raw;
 
   let parsed: unknown;
   try {

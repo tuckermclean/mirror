@@ -34,11 +34,14 @@ describe("Voice Card extraction", () => {
     expect(result.emotionalRegister.length).toBeGreaterThan(0);
     expect(Array.isArray(result.jargonHated)).toBe(true);
 
-    // sentenceLengthDistribution must sum to approximately 100 (90–110)
+    // sentenceLengthDistribution is a set of 0–1 proportions summing to 1 (±0.01)
     const { short, medium, long } = result.sentenceLengthDistribution;
     const sum = short + medium + long;
-    expect(sum).toBeGreaterThanOrEqual(90);
-    expect(sum).toBeLessThanOrEqual(110);
+    expect(sum).toBeCloseTo(1, 2);
+    for (const prop of [short, medium, long]) {
+      expect(prop).toBeGreaterThanOrEqual(0);
+      expect(prop).toBeLessThanOrEqual(1);
+    }
 
     // vocabulary should pick up domain words repeated in the fixture
     // "reliability" appears multiple times in user messages

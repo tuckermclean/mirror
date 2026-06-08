@@ -71,7 +71,7 @@ function computeSentenceLengthDistribution(
     .filter((s) => s.length > 0);
 
   if (sentences.length === 0) {
-    return { short: 33, medium: 34, long: 33 };
+    return { short: 0.33, medium: 0.34, long: 0.33 };
   }
 
   let short = 0;
@@ -84,10 +84,14 @@ function computeSentenceLengthDistribution(
   }
 
   const total = sentences.length;
+  // Emit 0–1 proportions. Derive `long` as the remainder so the three always
+  // sum to exactly 1 (no floating-point drift past the schema's ±0.01 bound).
+  const shortProp = short / total;
+  const mediumProp = medium / total;
   return {
-    short: Math.round((short / total) * 100),
-    medium: Math.round((medium / total) * 100),
-    long: 100 - Math.round((short / total) * 100) - Math.round((medium / total) * 100),
+    short: shortProp,
+    medium: mediumProp,
+    long: 1 - shortProp - mediumProp,
   };
 }
 
