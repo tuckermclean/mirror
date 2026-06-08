@@ -6,6 +6,8 @@
  * classic longest-common-subsequence (LCS) alignment over the tokens.
  */
 
+import type { ExperienceEntry } from "./types";
+
 export type DiffSegmentType = "unchanged" | "added" | "removed";
 
 export interface DiffSegment {
@@ -88,4 +90,41 @@ export function computeWordDiff(before: string, after: string): DiffSegment[] {
   while (j < b.length) raw.push({ type: "added", text: b[j++]! });
 
   return coalesce(raw).map((s) => ({ ...s, text: s.text.replace(/\s+$/, (m) => m) }));
+}
+
+/** How a single experience slot differs between the before and after profiles. */
+export type ExperiencePairKind = "matched" | "added" | "removed";
+
+export interface ExperiencePair {
+  kind: ExperiencePairKind;
+  /** Present for `matched` and `removed` (the snapshot/"before" entry). */
+  before?: ExperienceEntry;
+  /** Present for `matched` and `added` (the rewrite/"after" entry). */
+  after?: ExperienceEntry;
+}
+
+/**
+ * Align the before/after experience lists by index into a union so the Diff view
+ * never drops entries. Pairs present on both sides are `matched`; trailing
+ * after-only entries are `added` (green); trailing before-only entries are
+ * `removed` (red strikethrough). Pure so the renderer stays a thin map.
+ */
+export function alignExperience(
+  before: ExperienceEntry[],
+  after: ExperienceEntry[]
+): ExperiencePair[] {
+  const pairs: ExperiencePair[] = [];
+  const length = Math.max(before.length, after.length);
+  for (let k = 0; k < length; k++) {
+    const beforeEntry = before[k];
+    const afterEntry = after[k];
+    if (beforeEntry && afterEntry) {
+      pairs.push({ kind: "matched", before: beforeEntry, after: afterEntry });
+    } else if (afterEntry) {
+      pairs.push({ kind: "added", after: afterEntry });
+    } else if (beforeEntry) {
+      pairs.push({ kind: "removed", before: beforeEntry });
+    }
+  }
+  return pairs;
 }
