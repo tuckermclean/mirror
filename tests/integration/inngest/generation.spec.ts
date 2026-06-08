@@ -21,6 +21,7 @@
  * step.run() callback synchronously.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NonRetriableError } from "inngest";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -101,6 +102,11 @@ vi.mock("@/lib/inngest/client", () => ({
 // ---------------------------------------------------------------------------
 const updateSetSpy = vi.fn();
 
+// selectCall is declared at module scope so it can be reset in beforeEach.
+// Declaring it inside the vi.mock() factory would make it invisible to
+// beforeEach — vi.clearAllMocks() does NOT reset local factory variables.
+let selectCall = 0;
+
 vi.mock("@/db/client", () => {
   // Sequence of resolved values for successive terminal awaits on select chains.
   // Order matters and matches the handler's read order:
@@ -125,7 +131,6 @@ vi.mock("@/db/client", () => {
     return chain;
   }
 
-  let selectCall = 0;
   const db = {
     select: vi.fn(() => {
       selectCall += 1;
@@ -169,6 +174,8 @@ async function invoke() {
 describe("runGeneration — generation/start (DB-mocked integration)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset the select call counter so each test starts at call #1 = interviews lookup.
+    selectCall = 0;
     checkMonthlyCap.mockResolvedValue({ allowed: true });
     finalMessageMock.mockResolvedValue({
       content: [{ type: "text", text: GENERATED_OUTPUT }],
@@ -204,10 +211,12 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
     expect(order).toEqual(["cap", "stream"]);
   });
 
-  it("throws MonthlyCapError and skips the Anthropic call when the cap is reached", async () => {
+  it("throws NonRetriableError wrapping MonthlyCapError when the cap is reached", async () => {
     checkMonthlyCap.mockResolvedValueOnce({ allowed: false, resets_at: "2026-07-01T00:00:00.000Z" });
     const { MonthlyCapError } = await import("@/lib/errors");
-    await expect(invoke()).rejects.toBeInstanceOf(MonthlyCapError);
+    const err = await invoke().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NonRetriableError);
+    expect((err as NonRetriableError).cause).toBeInstanceOf(MonthlyCapError);
     expect(messagesStream).not.toHaveBeenCalled();
   });
 
