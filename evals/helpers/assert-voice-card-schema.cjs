@@ -8,8 +8,7 @@
  * Used via file:// in evals/voice-extraction.yaml.
  */
 
-// canonical: src/lib/voice-card/fence.ts — keep in sync
-// (CommonJS cannot ESM-import the canonical module, so this is a tracked copy.)
+// FENCE_RE copied from src/lib/voice-card/fence.ts — a tracked CJS copy (cannot ESM-import the canonical module)
 const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i;
 
 /** Non-empty string array predicate, mirroring z.array(z.string().min(1)). */

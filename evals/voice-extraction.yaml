@@ -8,8 +8,7 @@ description: "Voice Card extraction eval — deterministic schema/structural ass
 prompts:
   - file://helpers/voice-extraction-messages.json
 
-# EVAL_MODEL defaults to the project model (see src/inngest/generation.ts MODEL).
-# Override per-run with `EVAL_MODEL=… pnpm eval:voice` to test a different model.
+# EVAL_MODEL defaults to 'claude-sonnet-4-6'. Override per-run with EVAL_MODEL=… pnpm eval:voice.
 providers:
   - id: "anthropic:messages:{{env.EVAL_MODEL || 'claude-sonnet-4-6'}}"
     config:

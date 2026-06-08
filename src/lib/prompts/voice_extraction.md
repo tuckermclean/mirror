@@ -40,6 +40,4 @@ Important constraints:
 - The JSON object MUST have exactly these 5 top-level keys and no others: `vocabulary`, `hedgesAvoided`, `sentenceLengthDistribution`, `emotionalRegister`, `jargonHated`
 
 Your output must be exactly this shape (values filled in):
-```
 {"vocabulary":[...],"hedgesAvoided":[...],"sentenceLengthDistribution":{"short":N,"medium":N,"long":N},"emotionalRegister":"...","jargonHated":[...]}
-```

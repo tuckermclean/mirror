@@ -33,8 +33,6 @@ E2=0
 pnpm run eval:interview || E1=$?
 pnpm run eval:voice     || E2=$?
 
-COMBINED=$(( E1 | E2 ))
-
 # ── 3. Billing / auth exhaustion → graceful skip ────────────────────────────
 # promptfoo exits with code 100 when every provider call fails due to billing
 # or authentication issues ("Please go to Plans & Billing …").  We treat this
