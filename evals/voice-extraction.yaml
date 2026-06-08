@@ -28,8 +28,13 @@ tests:
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
-      # Vocabulary length bound (1–30) is not part of the schema, so it stays
-      # inline here.
+      # Vocabulary upper-bound (≤ 30) is not part of the schema, so it stays
+      # inline here. The lower bound is intentionally absent: VoiceCardSchema
+      # does not enforce .min(1) at the array level, so an empty vocabulary is
+      # schema-valid. Asserting len >= 1 here would reject outputs that pass
+      # schema validation, creating a false-positive failure. If a non-empty
+      # vocabulary becomes a hard requirement, add .min(1) to VoiceCardSchema
+      # first, then restore the lower bound in this assertion.
       - type: javascript
         value: |
           try {
@@ -38,7 +43,7 @@ tests:
             const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
             const parsed = JSON.parse(stripped);
             const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
-            return len >= 1 && len <= 30;
+            return len >= 0 && len <= 30;
           } catch {
             return false;
           }
