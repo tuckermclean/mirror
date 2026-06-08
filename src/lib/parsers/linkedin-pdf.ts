@@ -123,7 +123,7 @@ export async function parseLinkedInPdf(
 
   let response: Anthropic.Message;
   try {
-    response = await client.messages.create({
+    const stream = await client.messages.stream({
       model: MODEL,
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
@@ -147,6 +147,7 @@ export async function parseLinkedInPdf(
         },
       ],
     });
+    response = await stream.finalMessage();
   } catch (err) {
     throw new ApiError(
       `Anthropic API error: ${err instanceof Error ? err.message : String(err)}`
