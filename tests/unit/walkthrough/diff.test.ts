@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { computeWordDiff } from "@/components/walkthrough/diff";
+import { computeWordDiff, alignExperience } from "@/components/walkthrough/diff";
+import type { ExperienceEntry } from "@/components/walkthrough/types";
+
+function exp(
+  company: string,
+  title: string,
+  bullets: string[] = []
+): ExperienceEntry {
+  return { company, title, bullets };
+}
 
 describe("computeWordDiff", () => {
   it("returns a single unchanged segment for identical strings", () => {
@@ -51,5 +60,59 @@ describe("computeWordDiff", () => {
       .map((s) => s.text)
       .join("");
     expect(rebuilt.replace(/\s+/g, " ").trim()).toBe(after);
+  });
+});
+
+describe("alignExperience", () => {
+  it("pairs matched entries when before and after are equal length", () => {
+    const before = [exp("Acme", "Engineer"), exp("Beta", "Lead")];
+    const after = [exp("Acme", "Senior Engineer"), exp("Beta", "Staff Lead")];
+    const aligned = alignExperience(before, after);
+
+    expect(aligned).toHaveLength(2);
+    expect(aligned.every((p) => p.kind === "matched")).toBe(true);
+    expect(aligned[0]).toMatchObject({
+      kind: "matched",
+      before: before[0],
+      after: after[0],
+    });
+    expect(aligned[1]).toMatchObject({
+      kind: "matched",
+      before: before[1],
+      after: after[1],
+    });
+  });
+
+  it("marks trailing before-only entries as removed when after is shorter", () => {
+    const before = [exp("Acme", "Engineer"), exp("Old Co", "Intern")];
+    const after = [exp("Acme", "Senior Engineer")];
+    const aligned = alignExperience(before, after);
+
+    expect(aligned).toHaveLength(2);
+    expect(aligned[0]).toMatchObject({ kind: "matched" });
+    expect(aligned[1]).toMatchObject({ kind: "removed", before: before[1] });
+    expect(aligned[1]!.after).toBeUndefined();
+  });
+
+  it("marks trailing after-only entries as added when after is longer", () => {
+    const before = [exp("Acme", "Engineer")];
+    const after = [exp("Acme", "Senior Engineer"), exp("New Co", "Founder")];
+    const aligned = alignExperience(before, after);
+
+    expect(aligned).toHaveLength(2);
+    expect(aligned[0]).toMatchObject({ kind: "matched" });
+    expect(aligned[1]).toMatchObject({ kind: "added", after: after[1] });
+    expect(aligned[1]!.before).toBeUndefined();
+  });
+
+  it("returns an empty list when both sides are empty", () => {
+    expect(alignExperience([], [])).toEqual([]);
+  });
+
+  it("marks every entry as added when before is empty", () => {
+    const after = [exp("A", "x"), exp("B", "y")];
+    const aligned = alignExperience([], after);
+    expect(aligned).toHaveLength(2);
+    expect(aligned.every((p) => p.kind === "added")).toBe(true);
   });
 });
