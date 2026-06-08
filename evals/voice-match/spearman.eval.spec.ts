@@ -64,10 +64,9 @@ describe("Voice Match Score eval — Spearman vs. human labels", () => {
       });
 
       expect(result.ok, JSON.stringify(result)).toBe(true);
-      if (result.ok) {
-        algoScores.push(result.value.score);
-        humanScores.push(pair.human);
-      }
+      if (!result.ok) continue; // keep algoScores / humanScores in sync on failure
+      algoScores.push(result.value.score);
+      humanScores.push(pair.human);
     }
 
     const rho = spearman(algoScores, humanScores);
