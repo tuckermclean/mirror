@@ -16,9 +16,9 @@ Output ONLY a valid JSON object matching this exact schema:
   "vocabulary": [],
   "hedgesAvoided": [],
   "sentenceLengthDistribution": {
-    "short": 0.0,
-    "medium": 0.0,
-    "long": 0.0
+    "short": 0.33,
+    "medium": 0.34,
+    "long": 0.33
   },
   "emotionalRegister": "",
   "jargonHated": []
