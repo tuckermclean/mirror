@@ -79,13 +79,11 @@ function computeSentenceLengthDistribution(
 
   let short = 0;
   let medium = 0;
-  let long = 0;
 
   for (const sentence of sentences) {
     const wordCount = sentence.split(/\s+/).filter((w) => w.length > 0).length;
     if (wordCount <= 10) short++;
     else if (wordCount <= 25) medium++;
-    else long++;
   }
 
   const total = sentences.length;

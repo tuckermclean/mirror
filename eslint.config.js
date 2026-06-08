@@ -12,6 +12,7 @@ export default tseslint.config(
       "infra/**",
       "worker/**",
       "extension/**",
+      "next-env.d.ts",
     ],
   },
   ...tseslint.configs.recommended,
