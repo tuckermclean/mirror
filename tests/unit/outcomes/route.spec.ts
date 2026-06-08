@@ -43,6 +43,7 @@ const mockDbInsertChain = vi.hoisted(() => {
 const mockTransaction = vi.hoisted(() =>
   vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => {
     const tx = {
+      _isTx: true as const,
       insert: mockDbInsertChain.insert,
     };
     return cb(tx);
@@ -114,6 +115,7 @@ beforeEach(() => {
   mockTransaction.mockImplementation(
     async (cb: (tx: unknown) => Promise<unknown>) => {
       const tx = {
+        _isTx: true as const,
         insert: mockDbInsertChain.insert,
       };
       return cb(tx);
@@ -238,9 +240,10 @@ describe("POST /api/outcomes — happy path (upsert)", () => {
     await POST(postRequest(validBody));
     expect(mockTransaction).toHaveBeenCalled();
     // Consent SELECT must be routed through tx, not the module-level db pool.
+    // _isTx is absent from db, so this verifies the tx connection was used, not the pool.
     expect(mockHasConsent).toHaveBeenCalledWith(
       "internal-user-uuid",
-      expect.objectContaining({ insert: expect.any(Function) })
+      expect.objectContaining({ _isTx: true })
     );
   });
 });
