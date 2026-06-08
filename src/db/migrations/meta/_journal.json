@@ -43,6 +43,13 @@
       "when": 1780873424464,
       "tag": "0005_fancy_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780925147342,
+      "tag": "0006_brainy_naoko",
+      "breakpoints": true
     }
   ]
 }

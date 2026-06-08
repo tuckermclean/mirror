@@ -5,6 +5,8 @@ import { db } from "@/db/client";
 import { users, interviews, imports, generations } from "@/db/schema";
 import { DELETED_PLAN } from "@/lib/constants";
 import { OnboardingSteps } from "@/components/dashboard/onboarding-steps";
+import { OutcomeTracker } from "@/components/dashboard/outcome-tracker";
+import { hasOutcomeTrackingConsent } from "@/lib/outcomes/consent";
 import { logger } from "@/lib/logger";
 
 export default async function DashboardPage() {
@@ -61,12 +63,23 @@ export default async function DashboardPage() {
   ]);
 
   const importCount = importRow?.value ?? 0;
+  const hasGeneration = !!generationRow;
+
+  // Outcome tracking is only meaningful once the user has a rewrite to measure.
+  const outcomeConsented = hasGeneration
+    ? await hasOutcomeTrackingConsent(userId)
+    : false;
 
   return (
-    <OnboardingSteps
-      step1Complete={!!completedInterview}
-      step2Complete={importCount > 0}
-      step3Complete={!!generationRow}
-    />
+    <>
+      <OnboardingSteps
+        step1Complete={!!completedInterview}
+        step2Complete={importCount > 0}
+        step3Complete={hasGeneration}
+      />
+      {hasGeneration ? (
+        <OutcomeTracker initialConsented={outcomeConsented} />
+      ) : null}
+    </>
   );
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "outcome_tracking_consent_at" timestamp with time zone;
