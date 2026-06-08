@@ -26,6 +26,7 @@ interface LinkedInSnapshot {
 
 Rules:
 - Return ONLY the JSON object — no markdown fences, no explanation, no extra text
+  (Note: the parser defensively strips a surrounding ```json fence if one slips through, but you should still omit it.)
 - `name` and `headline` are required; use empty string "" if genuinely absent
 - All other fields are optional — omit them rather than setting to null or empty
 - For `experience` and `education`, return an empty array [] if none are found
