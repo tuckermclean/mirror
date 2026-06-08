@@ -1,0 +1,27 @@
+{
+  "source": "chatgpt",
+  "messages": [
+    {
+      "role": "user",
+      "content": "I fell into infrastructure almost by accident. Started as a sysadmin at a small hosting company right out of college. Realized I actually liked keeping things running. Stayed in infrastructure ever since. I obsess over reliability and toil reduction."
+    },
+    {
+      "role": "assistant",
+      "content": "That's an interesting path. What drew you to reliability work specifically?"
+    },
+    {
+      "role": "user",
+      "content": "We had a full-region outage on a Friday afternoon — payment processing down for about 40 minutes. I was the only SRE on call. I'd written a runbook six months earlier that nobody had reviewed. That runbook is the reason we recovered in 40 minutes instead of four hours. The work is invisible when it's done right. Reliability engineering is a craft."
+    },
+    {
+      "role": "assistant",
+      "content": "The invisible-when-done-right observation is striking. What does that mean for how you think about your own career visibility?"
+    },
+    {
+      "role": "user",
+      "content": "I want to build platform teams, not be the only senior person keeping everything together. I've been the load-bearing column at two companies now. It's useful but it's not sustainable. I won't go somewhere that calls infrastructure a cost center and means it. SLO-driven engineering matters."
+    }
+  ],
+  "exportedAt": "2024-01-01T00:00:00Z",
+  "totalConversations": 1
+}
