@@ -1,13 +1,16 @@
 "use client"
 
 import * as React from "react"
+import { motion } from "framer-motion"
 
 import type {
+  ExperienceEntry,
   GeneratedProfile,
   ProfileSection,
   RationaleBundle,
   SectionDecision,
 } from "./types"
+import { alignExperience, type ExperiencePair } from "./diff"
 import { DiffText } from "./diff-text"
 import { WhyPill } from "./why-pill"
 import { ConfidenceScore } from "./confidence-score"
@@ -93,6 +96,164 @@ function textFor(
   return <DiffText before={beforeText} after={afterText} index={index} />
 }
 
+/** A single experience entry rendered whole as added (green) or removed (red). */
+function WholeEntry({
+  entry,
+  variant,
+  index,
+}: {
+  entry: ExperienceEntry
+  variant: "added" | "removed"
+  index: number
+}) {
+  const added = variant === "added"
+  const titleClass = added
+    ? "rounded-sm bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300"
+    : "text-red-700 line-through decoration-red-500/70 dark:text-red-400"
+  const bulletClass = added
+    ? "marker:text-green-700 dark:marker:text-green-300"
+    : "marker:text-red-700 dark:marker:text-red-400"
+  return (
+    <motion.li
+      className="flex gap-3"
+      data-diff={variant}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, delay: index * 0.05, ease: "easeOut" }}
+    >
+      <div
+        className="mt-0.5 size-10 shrink-0 rounded bg-[#00000014] dark:bg-muted"
+        aria-hidden
+      />
+      <div className="min-w-0">
+        <p className={`font-semibold ${titleClass}`}>{entry.title}</p>
+        <p className={`text-sm ${titleClass}`}>{entry.company}</p>
+        <ul className={`mt-1.5 list-disc space-y-1 pl-5 text-sm ${bulletClass}`}>
+          {entry.bullets.map((bullet, bi) => (
+            <li key={bi} className={titleClass}>
+              {bullet}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </motion.li>
+  )
+}
+
+/** Shared entry shell: avatar + title/company/bullets slot. */
+function EntryShell({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <div
+        className="mt-0.5 size-10 shrink-0 rounded bg-[#00000014] dark:bg-muted"
+        aria-hidden
+      />
+      <div className="min-w-0">{children}</div>
+    </li>
+  )
+}
+
+/** A single experience entry as plain text (Before/After modes). */
+function PlainEntry({ entry }: { entry: ExperienceEntry }) {
+  return (
+    <EntryShell>
+      <p className="font-semibold text-[#000000e6] dark:text-foreground">
+        {entry.title}
+      </p>
+      <p className="text-sm text-[#000000e6] dark:text-foreground">
+        {entry.company}
+      </p>
+      <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-[#00000099] dark:text-muted-foreground">
+        {entry.bullets.map((bullet, bi) => (
+          <li key={bi}>{bullet}</li>
+        ))}
+      </ul>
+    </EntryShell>
+  )
+}
+
+/** A matched entry in Diff mode: per-field and per-bullet word diff. */
+function MatchedEntry({
+  before,
+  after,
+  index,
+}: {
+  before: ExperienceEntry
+  after: ExperienceEntry
+  index: number
+}) {
+  const bulletCount = Math.max(before.bullets.length, after.bullets.length)
+  return (
+    <EntryShell>
+      <p className="font-semibold text-[#000000e6] dark:text-foreground">
+        <DiffText before={before.title} after={after.title} index={index} />
+      </p>
+      <p className="text-sm text-[#000000e6] dark:text-foreground">
+        {after.company}
+      </p>
+      <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-[#00000099] dark:text-muted-foreground">
+        {Array.from({ length: bulletCount }).map((_, bi) => (
+          <li key={bi}>
+            <DiffText
+              before={before.bullets[bi] ?? ""}
+              after={after.bullets[bi] ?? ""}
+              index={bi}
+            />
+          </li>
+        ))}
+      </ul>
+    </EntryShell>
+  )
+}
+
+/** Render one aligned pair in Diff mode (added/removed/matched). */
+function DiffEntry({ pair, index }: { pair: ExperiencePair; index: number }) {
+  if (pair.kind === "added" && pair.after) {
+    return <WholeEntry entry={pair.after} variant="added" index={index} />
+  }
+  if (pair.kind === "removed" && pair.before) {
+    return <WholeEntry entry={pair.before} variant="removed" index={index} />
+  }
+  if (pair.before && pair.after) {
+    return <MatchedEntry before={pair.before} after={pair.after} index={index} />
+  }
+  return null
+}
+
+/**
+ * Experience list. In Before/After it maps one side; in Diff it iterates the
+ * union of both lists (via `alignExperience`) so no entry is dropped — added
+ * entries render green, removed entries red strikethrough, matched entries get
+ * the per-field/per-bullet word diff. Framer Motion stagger is preserved.
+ */
+function ExperienceList({
+  before,
+  after,
+  mode,
+}: {
+  before: ExperienceEntry[]
+  after: ExperienceEntry[]
+  mode: ProfileViewMode
+}) {
+  if (mode !== "diff") {
+    const list = mode === "before" ? before : after
+    return (
+      <>
+        {list.map((entry, i) => (
+          <PlainEntry key={`${entry.company}-${i}`} entry={entry} />
+        ))}
+      </>
+    )
+  }
+  return (
+    <>
+      {alignExperience(before, after).map((pair, i) => (
+        <DiffEntry key={`${pair.kind}-${i}`} pair={pair} index={i} />
+      ))}
+    </>
+  )
+}
+
 /**
  * Pixel-faithful LinkedIn profile renderer.
  *
@@ -116,7 +277,6 @@ export function LinkedInProfile({
     onEdit,
     showControls,
   }
-  const expSrc = mode === "before" ? before : after
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
@@ -175,41 +335,11 @@ export function LinkedInProfile({
           {...headerProps}
         />
         <ul className="flex flex-col gap-4" data-section="experience">
-          {expSrc.experience.map((exp, ei) => {
-            const beforeExp = before.experience[ei]
-            const afterExp = after.experience[ei]
-            return (
-              <li key={`${exp.company}-${ei}`} className="flex gap-3">
-                <div
-                  className="mt-0.5 size-10 shrink-0 rounded bg-[#00000014] dark:bg-muted"
-                  aria-hidden
-                />
-                <div className="min-w-0">
-                  <p className="font-semibold text-[#000000e6] dark:text-foreground">
-                    {mode === "diff" && beforeExp && afterExp
-                      ? textFor(mode, beforeExp.title, afterExp.title, ei)
-                      : exp.title}
-                  </p>
-                  <p className="text-sm text-[#000000e6] dark:text-foreground">
-                    {exp.company}
-                  </p>
-                  <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-[#00000099] dark:text-muted-foreground">
-                    {exp.bullets.map((bullet, bi) => {
-                      const beforeBullet = beforeExp?.bullets[bi] ?? ""
-                      const afterBullet = afterExp?.bullets[bi] ?? ""
-                      return (
-                        <li key={bi}>
-                          {mode === "diff"
-                            ? textFor(mode, beforeBullet, afterBullet, bi)
-                            : bullet}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              </li>
-            )
-          })}
+          <ExperienceList
+            before={before.experience}
+            after={after.experience}
+            mode={mode}
+          />
         </ul>
       </section>
 

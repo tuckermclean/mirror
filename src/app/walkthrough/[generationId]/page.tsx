@@ -11,6 +11,7 @@ import {
   SEED_GENERATION_ID,
   WALKTHROUGH_FIXTURE,
 } from "@/components/walkthrough/fixture"
+import { isGeneratedProfile } from "@/components/walkthrough/profile-guard"
 import type {
   GeneratedProfile,
   RationaleBundle,
@@ -60,9 +61,15 @@ async function loadWalkthroughData(
   )
   if (!snapshot?.parsed) return null
 
+  // snapshot.parsed comes from the scraper/parse pipeline, not the Zod-validated
+  // AI output, so validate its shape at runtime. Drift is treated like a missing
+  // row (caller falls back to the fixture in dev/test, 404s in production)
+  // instead of throwing client-side mid-render.
+  if (!isGeneratedProfile(snapshot.parsed)) return null
+
   return {
     generationId: gen.id,
-    before: snapshot.parsed as GeneratedProfile,
+    before: snapshot.parsed,
     after: gen.output as GeneratedProfile,
     rationale: gen.rationale as RationaleBundle,
     isFixture: false,
