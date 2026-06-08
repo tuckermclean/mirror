@@ -19,7 +19,7 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
-      include: ["src/**"],
+      include: ["src/**", "src/lib/voice-card/**"],
       thresholds: {
         // TODO: AGENTS.md promises ≥80% global src/ coverage. Actual measured
         // (unit + infra tests; integration tests omitted — require live DB):
@@ -42,6 +42,15 @@ export default defineConfig({
           functions: 100,
           branches: 100,
           statements: 100,
+        },
+        // The Voice Card vertical (schema, parse, fence) is fully unit-tested.
+        // errors.ts is type-only (compiles to nothing) so it does not affect
+        // these aggregates. Kept below 100 to leave headroom for new helpers.
+        "src/lib/voice-card/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
         },
       },
     },
