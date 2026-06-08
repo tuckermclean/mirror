@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { generations } from "@/db/schema";
 
@@ -35,7 +35,13 @@ export function computePromptHash(input: PromptHashInput): string {
 
 /**
  * Return the newest generation row matching `promptHash` created within the last
- * `withinHours`, or null if none. Used to short-circuit duplicate generations.
+ * `withinHours` whose output is non-null, or null if none found.
+ *
+ * The `isNotNull(generations.output)` guard prevents cache poisoning: the
+ * generate route inserts a placeholder row with `output: null` before Inngest
+ * runs.  If Inngest fails permanently (spend cap exhausted, missing data, etc.)
+ * that null-output placeholder would otherwise match for 24 h, returning
+ * `{ cached: true }` to every retry while the output stays null forever.
  */
 export async function findCachedGeneration(
   promptHash: string,
@@ -46,7 +52,13 @@ export async function findCachedGeneration(
   const rows = await db
     .select({ id: generations.id, output: generations.output })
     .from(generations)
-    .where(and(eq(generations.promptHash, promptHash), gte(generations.createdAt, cutoff)))
+    .where(
+      and(
+        eq(generations.promptHash, promptHash),
+        gte(generations.createdAt, cutoff),
+        isNotNull(generations.output)
+      )
+    )
     .orderBy(desc(generations.createdAt))
     .limit(1);
 
