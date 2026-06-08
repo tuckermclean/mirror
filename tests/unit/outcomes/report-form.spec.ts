@@ -9,6 +9,7 @@ import {
   parseMetricField,
   buildReportPayload,
   isoWeekStart,
+  getSubmitButtonProps,
 } from "@/lib/outcomes/report-form";
 
 describe("parseMetricField", () => {
@@ -63,6 +64,32 @@ describe("buildReportPayload", () => {
       postImpressions: "0",
     });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("getSubmitButtonProps", () => {
+  it("is enabled and shows 'Save this week' by default (not submitting, not submitted)", () => {
+    const props = getSubmitButtonProps({ submitting: false, submitted: false });
+    expect(props.disabled).toBe(false);
+    expect(props.label).toBe("Save this week");
+  });
+
+  it("is disabled and shows 'Saving…' while submitting", () => {
+    const props = getSubmitButtonProps({ submitting: true, submitted: false });
+    expect(props.disabled).toBe(true);
+    expect(props.label).toBe("Saving…");
+  });
+
+  it("is disabled and shows 'Saved ✓' after successful submission", () => {
+    const props = getSubmitButtonProps({ submitting: false, submitted: true });
+    expect(props.disabled).toBe(true);
+    expect(props.label).toBe("Saved ✓");
+  });
+
+  it("submitting takes precedence over submitted (defensive guard)", () => {
+    const props = getSubmitButtonProps({ submitting: true, submitted: true });
+    expect(props.disabled).toBe(true);
+    expect(props.label).toBe("Saving…");
   });
 });
 
