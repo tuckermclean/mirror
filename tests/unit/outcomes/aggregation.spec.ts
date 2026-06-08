@@ -232,4 +232,61 @@ describe("computeOutcomeDelta", () => {
     expect(delta.after30d.profileViews).toBe(5);
     expect(delta.baseline30d.profileViews).toBe(0);
   });
+
+  describe("DST boundary correctness", () => {
+    /**
+     * North-American DST transition (spring-forward) lands on the last Sunday
+     * of March. A 30-day epoch-ms offset of `30 * 24 * 3600 * 1000` from a
+     * commit date that straddles the clocks-change would shift the boundary
+     * by one hour, potentially misclassifying a week that starts at 00:00 UTC
+     * as falling just outside the window.
+     *
+     * The implementation MUST use UTC calendar arithmetic (subtract 30 days
+     * on the calendar, anchored at 00:00 UTC) so the boundary is always an
+     * exact calendar date regardless of DST or timezone.
+     *
+     * committedAt = 2024-04-07 UTC (after US spring-forward on 2024-03-10)
+     * 30 calendar days before = 2024-03-08 UTC
+     * A row for "2024-03-08" must land in the baseline window.
+     */
+    it("includes a week exactly 30 UTC calendar days before the commit in the baseline window", () => {
+      const committedDst = new Date("2024-04-07T00:00:00.000Z");
+      const delta = computeOutcomeDelta(
+        [row({ weekOf: "2024-03-08", profileViews: 10 })],
+        committedDst
+      );
+      // The row is exactly at the 30-day baseline boundary; it must be included.
+      expect(delta.baseline30d.profileViews).toBe(10);
+    });
+
+    it("excludes a week exactly 31 UTC calendar days before the commit from the baseline window", () => {
+      const committedDst = new Date("2024-04-07T00:00:00.000Z");
+      const delta = computeOutcomeDelta(
+        [row({ weekOf: "2024-03-07", profileViews: 99 })],
+        committedDst
+      );
+      // 31 calendar days before the commit: must be outside the 30-day window.
+      expect(delta.baseline30d.profileViews).toBe(0);
+    });
+
+    it("includes a week exactly 29 UTC calendar days after the commit in the after window", () => {
+      const committedDst = new Date("2024-04-07T00:00:00.000Z");
+      const delta = computeOutcomeDelta(
+        [row({ weekOf: "2024-05-06", profileViews: 20 })],
+        committedDst
+      );
+      // 29 calendar days after: must be inside the 30-day after window.
+      expect(delta.after30d.profileViews).toBe(20);
+    });
+
+    it("excludes a week exactly 30 UTC calendar days after the commit from the after window", () => {
+      const committedDst = new Date("2024-04-07T00:00:00.000Z");
+      const delta = computeOutcomeDelta(
+        [row({ weekOf: "2024-05-07", profileViews: 99 })],
+        committedDst
+      );
+      // 30 calendar days after: must be outside the [commitMs, commitMs+30d) window.
+      expect(delta.after30d.profileViews).toBe(0);
+    });
+  });
 });

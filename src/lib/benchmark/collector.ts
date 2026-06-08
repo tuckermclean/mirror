@@ -94,7 +94,10 @@ export async function findExistingUrls(urls: string[]): Promise<Set<string>> {
 
 /**
  * Insert rows idempotently. Re-queries existing URLs immediately before insert
- * so concurrent/duplicate seed runs never create duplicate corpus entries.
+ * to reduce duplicate work on sequential re-runs; the INSERT itself uses
+ * ON CONFLICT DO NOTHING so truly concurrent seed runs are also safe (the DB
+ * constraint is the authoritative guard, not this SELECT which is a plain
+ * read without FOR UPDATE).
  * Returns the number of rows actually inserted.
  */
 export async function upsertBenchmarkRows(rows: BenchmarkRow[]): Promise<number> {

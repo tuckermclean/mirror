@@ -45,7 +45,20 @@ const ZERO_TOTALS: MetricTotals = {
   postImpressions: 0,
 };
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Add `days` calendar days to a UTC date, returning a new UTC midnight.
+ * Uses Date.UTC arithmetic instead of epoch-ms multiplication so the boundary
+ * is always an exact calendar date regardless of DST or local timezone.
+ */
+function addUtcDays(date: Date, days: number): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() + days
+    )
+  );
+}
 
 /** Add `b`'s metrics into a fresh copy of `a`. */
 function addMetrics(a: MetricTotals, b: OutcomeRow): MetricTotals {
@@ -99,15 +112,20 @@ export function computeOutcomeDelta(
   rows: readonly OutcomeRow[],
   committedAt: Date
 ): OutcomeDelta {
+  // UTC calendar boundaries for the 30-day windows. Using addUtcDays instead
+  // of epoch-ms multiplication ensures the boundary is always an exact calendar
+  // date even when DST transitions fall within the window.
   const commitMs = committedAt.getTime();
+  const baselineStartMs = addUtcDays(committedAt, -30).getTime();
+  const afterEndMs = addUtcDays(committedAt, 30).getTime();
   let baseline = { ...ZERO_TOTALS };
   let after = { ...ZERO_TOTALS };
 
   for (const r of rows) {
     const weekMs = new Date(`${r.weekOf}T00:00:00.000Z`).getTime();
-    if (weekMs >= commitMs && weekMs < commitMs + THIRTY_DAYS_MS) {
+    if (weekMs >= commitMs && weekMs < afterEndMs) {
       after = addMetrics(after, r);
-    } else if (weekMs < commitMs && weekMs >= commitMs - THIRTY_DAYS_MS) {
+    } else if (weekMs < commitMs && weekMs >= baselineStartMs) {
       baseline = addMetrics(baseline, r);
     }
   }

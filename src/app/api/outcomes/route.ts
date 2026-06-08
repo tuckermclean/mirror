@@ -100,6 +100,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Wrap the consent check and INSERT in a transaction to prevent a TOCTOU
   // race where the user revokes consent between the check and the write.
+  // Drizzle's transaction callback type omits the `.query` builder that the
+  // `DB` alias includes, so `tx` does not directly satisfy `DB`. The double-
+  // cast via `unknown` is the safe widening path used by Drizzle's own docs.
   const inserted = await db.transaction(async (tx) => {
     return insertOutcomeWithConsentCheck(tx as unknown as DB, internalUserId, body.data);
   });

@@ -241,6 +241,14 @@ describe("POST /api/outcomes — happy path (upsert)", () => {
     expect(mockTransaction).toHaveBeenCalled();
     // Consent SELECT must be routed through tx, not the module-level db pool.
     // _isTx is absent from db, so this verifies the tx connection was used, not the pool.
+    //
+    // Why match on `{ insert: Function }` in the tx mock rather than
+    // `{ select, insert, transaction }`?  The tx mock intentionally omits
+    // `select` and `transaction` — Drizzle transaction objects do not expose a
+    // nested `.transaction()` and the mock only needs to surface `insert` to
+    // let production code call `tx.insert(...)`.  Matching on `insert: Function`
+    // alone is therefore sufficient to distinguish the tx object from the db
+    // pool (which also has `select` and `transaction`).
     expect(mockHasConsent).toHaveBeenCalledWith(
       "internal-user-uuid",
       expect.objectContaining({ _isTx: true })
