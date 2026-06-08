@@ -231,7 +231,7 @@ describe("worker/scraper — scrapeLinkedInProfile", () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: "li_at",
-          value: "li_at=mysession",
+          value: "mysession",
           domain: ".linkedin.com",
           path: "/",
         }),
