@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { eq, and, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { imports, users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 import { getR2Client, getR2Bucket } from "@/lib/storage/r2";
 import { detectSourceFromBytes } from "@/lib/parsers/index";
 import { inngest } from "@/lib/inngest/client";

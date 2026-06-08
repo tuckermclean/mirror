@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { eq, and, isNull, sql, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { interviews, users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 import { prompts } from "@/lib/prompts/index";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 import { readInterviewTranscript } from "@/lib/db/pii-read";

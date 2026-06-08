@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { generations, linkedinSnapshots, users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 import { checkMonthlyCap } from "@/lib/llm/cost-guard";
 import { computePromptHash, findCachedGeneration } from "@/lib/llm/prompt-cache";
 import { inngest } from "@/lib/inngest/client";

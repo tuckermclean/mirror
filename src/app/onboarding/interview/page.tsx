@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 import { InterviewChat } from "@/components/interview-chat";
 import { logger } from "@/lib/logger";
 

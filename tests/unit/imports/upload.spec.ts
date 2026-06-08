@@ -99,7 +99,7 @@ vi.mock("@/lib/logger", () => ({
 import { POST } from "@/app/api/imports/upload/route";
 import { NextRequest } from "next/server";
 import { users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -121,10 +121,11 @@ function makeOctetFile(bytes: Uint8Array, name = "export.bin"): File {
   return new File([bytes], name, { type: "application/octet-stream" });
 }
 
+// Retained for future text/plain import tests. The leading underscore marks it
+// as intentionally unused so the no-unused-vars rule stays satisfied.
 function _makeTextFile(content = "chat history", name = "export.txt"): File {
   return new File([content], name, { type: "text/plain" });
 }
-void _makeTextFile; // exported for future text/plain tests
 
 function makeRequest(file: File): NextRequest {
   const formData = new FormData();
