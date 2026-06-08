@@ -88,13 +88,10 @@ export function WalkthroughClient({ data }: { data: WalkthroughData }) {
     toast.info(`Inline editing for ${section} is coming soon.`)
   }, [])
 
-  const acceptedFields = React.useCallback(
-    () =>
-      Object.fromEntries(
-        SECTIONS.map((s) => [s, decisions[s] === "accept"])
-      ) as Record<ProfileSection, boolean>,
-    [decisions]
-  )
+  // Plain derived value — cheap to compute each render, so no memoization needed.
+  const acceptedFields = Object.fromEntries(
+    SECTIONS.map((s) => [s, decisions[s] === "accept"])
+  ) as Record<ProfileSection, boolean>
 
   const handleExport = React.useCallback(() => {
     const text = buildExportText(data.before, data.after, decisions)
@@ -116,7 +113,7 @@ export function WalkthroughClient({ data }: { data: WalkthroughData }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           generationId: data.generationId,
-          fieldsAccepted: acceptedFields(),
+          fieldsAccepted: acceptedFields,
           method: "in-app",
         }),
       })
