@@ -85,11 +85,16 @@ export const scrapeLinkedInProfileFn = inngest.createFunction(
       hasCookie: Boolean(encryptedCookie),
     });
 
-    // Step 1: Decrypt the cookie and scrape the profile in a single step so
-    // the plaintext li_at cookie is never serialised to Inngest durable state.
-    // Returning the decrypted cookie from step.run() would persist it to disk.
+    // Step 1: Decrypt the cookie (if present) and scrape the profile in a
+    // single step so the plaintext li_at cookie is never serialised to Inngest
+    // durable state. Returning the decrypted cookie from step.run() would
+    // persist it to disk.
+    // When encryptedCookie is null the user submitted without a cookie —
+    // fall through to the public-scrape path (no decryption needed).
     const parsed = await step.run("decrypt-and-scrape", async () => {
-      const cookie = await decryptCookie(encryptedCookie);
+      const cookie = encryptedCookie
+        ? await decryptCookie(encryptedCookie)
+        : null;
       const result = await scrapeLinkedInProfile(profileUrl, cookie);
       return result;
     });

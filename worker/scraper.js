@@ -136,22 +136,27 @@ export async function scrapeLinkedInProfile(profileUrl, sessionCookie) {
       viewport: { width: 1280, height: 800 },
     });
 
-    // Strip "li_at=" prefix if the caller passed a name=value string.
-    // Playwright's addCookies expects the token value only, not the header form.
-    const cookieValue = sessionCookie.replace(/^li_at=/, "");
+    // Set the session cookie only when one was provided (Tier A).
+    // When sessionCookie is null, skip addCookies entirely — this is the
+    // public-browsing path (no authenticated session).
+    if (sessionCookie) {
+      // Strip "li_at=" prefix if the caller passed a name=value string.
+      // Playwright's addCookies expects the token value only, not the header form.
+      const cookieValue = sessionCookie.replace(/^li_at=/, "");
 
-    // Set the session cookie — this is the only place it appears in memory
-    await context.addCookies([
-      {
-        name: "li_at",
-        value: cookieValue,
-        domain: ".linkedin.com",
-        path: "/",
-        secure: true,
-        httpOnly: true,
-        sameSite: "None",
-      },
-    ]);
+      // Set the session cookie — this is the only place it appears in memory
+      await context.addCookies([
+        {
+          name: "li_at",
+          value: cookieValue,
+          domain: ".linkedin.com",
+          path: "/",
+          secure: true,
+          httpOnly: true,
+          sameSite: "None",
+        },
+      ]);
+    }
 
     const page = await context.newPage();
 
