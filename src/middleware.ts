@@ -9,6 +9,11 @@ const isPublicRoute = createRouteMatcher([
   "/api/health/(.*)",
   "/api/webhooks/(.*)",
   "/api/inngest(.*)",
+  // The walkthrough page enforces auth + owner-only access itself (auth() is
+  // read first; real generation ids redirect to /sign-in when unauthenticated
+  // and 404 when not owned). It is public here only so the seed/demo id renders
+  // for E2E/visual/a11y tests and demos without a session.
+  "/walkthrough/(.*)",
 ]);
 
 function applySecurityHeaders(response: NextResponse, nonce: string): NextResponse {
