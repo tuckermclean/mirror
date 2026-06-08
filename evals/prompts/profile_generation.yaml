@@ -1,8 +1,9 @@
-# promptfoo eval for profile_generation.md
-# RED: lib/prompts/profile_generation.md does not exist yet — fails until Wk 3
+# promptfoo eval for the profile generation system prompt.
+# The generation prompt lives at src/lib/prompts/generation_system.md and is
+# registered as `prompts.profileGeneration` in src/lib/prompts/index.ts.
 description: "Profile generation prompt eval — 5 rubric dimensions"
 prompts:
-  - file://../../lib/prompts/profile_generation.md
+  - file://../../src/lib/prompts/generation_system.md
 
 providers:
   - id: anthropic:claude-opus-4-7
@@ -17,7 +18,7 @@ tests:
       - type: json-schema
         value:
           type: object
-          required: [headline, about, experiences, skills, featured, rationale]
+          required: [headline, about, experience, education, skills, featured, rationale]
 
   - description: "Voice fidelity >= 4/5 vs user's own speech"
     vars:

@@ -62,6 +62,20 @@ export class MonthlyCapError extends Error {
   }
 }
 
+/**
+ * Thrown when an LLM generation response fails the canonical output schema
+ * (invalid JSON or schema mismatch). This is a DETERMINISTIC, terminal failure:
+ * retrying the same inputs will not fix it, so the Inngest job wraps it in a
+ * NonRetriableError rather than burning the retry budget.
+ */
+export class GenerationSchemaError extends Error {
+  constructor(message: string) {
+    super(`generation output failed schema validation: ${message}`);
+    this.name = "GenerationSchemaError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 /** Thrown when an object storage operation fails (R2 / S3). */
 export class StorageError extends Error {
   constructor(message: string) {
