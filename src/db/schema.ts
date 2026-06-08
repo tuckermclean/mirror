@@ -47,6 +47,14 @@ export const users = pgTable(
       (): AnyPgColumn => imports.id,
       { onDelete: "set null" }
     ),
+    // Outcome-tracking consent (COMPLIANCE.md §2.2 — consent is the lawful
+    // basis under GDPR Art. 6(1)(a) for the optional outcome-tracking feature).
+    // NULL means consent has never been granted or has been revoked; a non-null
+    // timestamp records when the user opted in. Revoke MUST set this back to
+    // NULL so collection stops. Capture/read paths gate on IS NOT NULL.
+    outcomeTrackingConsentAt: timestamp("outcome_tracking_consent_at", {
+      withTimezone: true,
+    }),
   },
   // Backs the ON DELETE SET NULL cascade fired when an import is removed
   (table) => [index("users_voice_profile_id_idx").on(table.voiceProfileId)]
