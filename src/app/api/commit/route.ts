@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextRequest, NextResponse } from "next/server"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import { db } from "@/db/client"
-import { commits, generations, users } from "@/db/schema"
-import { DELETED_PLAN } from "@/lib/db/delete-user"
+import { commits, generations } from "@/db/schema"
+import { resolveActiveUserId } from "@/lib/db/user"
 import { ValidationError } from "@/lib/errors"
 
 export const runtime = "nodejs"
@@ -17,16 +17,6 @@ interface CommitBody {
   generationId: string
   fieldsAccepted: Record<string, unknown>
   method: string
-}
-
-/** Resolve the internal user row from a Clerk id, excluding tombstones (ADR-009). */
-async function resolveActiveUserId(clerkUserId: string): Promise<string | null> {
-  const rows = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
-    .limit(1)
-  return rows[0]?.id ?? null
 }
 
 /** Parse and validate the request body, throwing ValidationError on bad input. */

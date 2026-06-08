@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server"
 import { redirect, notFound } from "next/navigation"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import { db } from "@/db/client"
-import { generations, users } from "@/db/schema"
-import { DELETED_PLAN } from "@/lib/db/delete-user"
+import { generations } from "@/db/schema"
+import { resolveActiveUserId } from "@/lib/db/user"
 import { readLinkedinSnapshot } from "@/lib/db/pii-read"
 import { WalkthroughClient } from "@/components/walkthrough/walkthrough-client"
 import {
@@ -20,16 +20,6 @@ import type {
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-/** Resolve the internal user row from a Clerk id, excluding tombstones (ADR-009). */
-async function resolveActiveUserId(clerkUserId: string): Promise<string | null> {
-  const rows = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.clerkId, clerkUserId), ne(users.plan, DELETED_PLAN)))
-    .limit(1)
-  return rows[0]?.id ?? null
-}
 
 /**
  * Load a real generation + its input snapshot for the authenticated owner.
