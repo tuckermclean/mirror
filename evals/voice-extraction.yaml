@@ -9,6 +9,10 @@ prompts:
   - file://helpers/voice-extraction-messages.json
 
 providers:
+  # TODO(infra): there is no project-wide eval model constant/env var yet
+  # (no ANTHROPIC_MODEL / EVAL_MODEL in .env.example, and src/inngest/generation.ts
+  # hardcodes its own MODEL). Once a shared model identifier exists, reference it
+  # here (e.g. anthropic:messages:${env:EVAL_MODEL}) instead of hardcoding.
   - id: anthropic:messages:claude-sonnet-4-6
     config:
       temperature: 0
@@ -22,19 +26,17 @@ tests:
     assert:
       - type: javascript
         value: |
-          const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-          const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-          try { JSON.parse(stripped); return true; } catch { return false; }
+          const { stripFence } = require("./helpers/strip-fence.cjs");
+          try { JSON.parse(stripFence(output)); return true; } catch { return false; }
 
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
       - type: javascript
         value: |
+          const { stripFence } = require("./helpers/strip-fence.cjs");
           try {
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
+            const parsed = JSON.parse(stripFence(output));
             const dist = parsed.sentenceLengthDistribution;
             if (!dist || typeof dist !== "object") return false;
             const { short, medium, long } = dist;
@@ -47,10 +49,9 @@ tests:
 
       - type: javascript
         value: |
+          const { stripFence } = require("./helpers/strip-fence.cjs");
           try {
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
+            const parsed = JSON.parse(stripFence(output));
             const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
             return len >= 1 && len <= 30;
           } catch {

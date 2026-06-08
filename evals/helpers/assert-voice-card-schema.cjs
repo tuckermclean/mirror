@@ -8,11 +8,12 @@
  * Used via file:// in evals/voice-extraction.yaml.
  */
 
-const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS (.cjs) helper loaded by promptfoo; require() is the module system here.
+const { stripFence } = require("./strip-fence.cjs");
 
 /** @param {string} output */
 module.exports = function assertVoiceCardSchema(output) {
-  const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
+  const stripped = stripFence(output);
   let parsed;
   try {
     parsed = JSON.parse(stripped);

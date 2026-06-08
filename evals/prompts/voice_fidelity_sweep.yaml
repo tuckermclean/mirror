@@ -5,6 +5,13 @@
 # regressions on any cluster surface in CI before merge.
 #
 # Run via: pnpm eval:prompts (executes all evals/prompts/*.yaml)
+#
+# TODO(wk4): every test case currently shares the SRE benchmark exemplars
+# (fixtures/benchmark-profiles/sre-top5.json) because it is the ONLY benchmark
+# fixture that exists today — the per-cluster benchmark corpus lands in wk4.
+# Until then a single benchmark is intentionally reused so the sweep can run;
+# once cluster-specific fixtures exist, wire each case's `benchmark_exemplars`
+# to the file matching its persona cluster (SRE→sre-top5, PM→pm-top5, etc.).
 description: "Voice fidelity sweep — all 22 personas"
 
 prompts:
