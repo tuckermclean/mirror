@@ -29,7 +29,7 @@ Rules:
   education, skills.
 
 Output a single JSON object — raw JSON only, no markdown fence, no commentary —
-with these keys:
+with exactly these keys:
 
 - `headline` (string)
 - `about` (string)
@@ -37,16 +37,7 @@ with these keys:
   `bullets` (array of strings))
 - `education` (array of objects; each: `school` (string), `degree` (string))
 - `skills` (array of strings)
-- `featured` (array of strings; suggested items to feature, e.g. a project or
-  post the snapshot already evidences — `[]` if none)
-- `rationale` (object) — one short string per MAJOR section explaining the change.
-  Include at minimum the keys `headline`, `about`, and `experience`, so at least
-  three sections are covered. When benchmark exemplars were supplied, each
-  rationale value MUST cite which exemplar pattern informed that choice — name
-  the exemplar (e.g. "exemplar #2") and the pattern it demonstrates (e.g. "leads
-  the headline with a concrete outcome"). When no exemplars were supplied,
-  explain the change on its own merits.
 
-The `headline`, `about`, `experience`, `education`, and `skills` keys are the
-canonical rewritten profile and are stored as-is for the walkthrough's "after"
-view, so keep them field-faithful to the input snapshot's structure.
+These five keys are the canonical rewritten profile. They are stored as-is for
+the walkthrough's "after" view, so keep them field-faithful to the input
+snapshot's structure. Do not add any extra keys beyond these five.

@@ -18,7 +18,14 @@ tests:
       - type: json-schema
         value:
           type: object
-          required: [headline, about, experience, education, skills, featured, rationale]
+          required: [headline, about, experience, education, skills]
+          additionalProperties: false
+          properties:
+            headline: { type: string }
+            about: { type: string }
+            experience: { type: array }
+            education: { type: array }
+            skills: { type: array, items: { type: string } }
 
   - description: "Voice fidelity >= 4/5 vs user's own speech"
     vars:
@@ -38,7 +45,7 @@ tests:
       - type: llm-rubric
         value: "Rate recruiter-eye lift 1-5: would a recruiter find this profile significantly more compelling than the original? Pass if >= 3."
 
-  - description: "Each major section cites which benchmark exemplar informed it"
+  - description: "Output contains no extra keys beyond the five canonical fields"
     vars:
       voice_card: "fixture://../../evals/personas/sre-senior-01.json"
       current_linkedin: "fixture://../../fixtures/linkedin-pages/seed-profile.html"
@@ -47,4 +54,5 @@ tests:
       - type: javascript
         value: |
           const r = JSON.parse(output);
-          return r.rationale && Object.keys(r.rationale).length >= 3;
+          const allowed = new Set(["headline", "about", "experience", "education", "skills"]);
+          return Object.keys(r).every(k => allowed.has(k));
