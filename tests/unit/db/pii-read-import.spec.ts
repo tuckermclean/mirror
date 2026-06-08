@@ -46,7 +46,7 @@ vi.mock("@/db/schema", () => ({
   },
 }));
 
-import { readImportRawPath } from "@/lib/db/pii-read";
+import { readImportRawPath, readImportParsed } from "@/lib/db/pii-read";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -159,5 +159,61 @@ describe("readImportRawPath", () => {
       mockAnd,
       "and() must be used to combine importId and userId conditions"
     ).toHaveBeenCalled();
+  });
+});
+
+describe("readImportParsed", () => {
+  const PARSED_IMPORT_ID = "import-uuid-2";
+  const PARSED_USER_ID = "user-uuid-2";
+  const PARSED_REASON = "inngest worker: parse import";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockImplementation(() => ({ values: mockValues }));
+    mockValues.mockResolvedValue([]);
+    mockLimit.mockResolvedValue([{ parsed: { source: "chatgpt", messages: [] } }]);
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockEq.mockImplementation((...args: unknown[]) => ({ _tag: "eq", args }));
+    mockAnd.mockImplementation((...args: unknown[]) => ({ _tag: "and", args }));
+  });
+
+  it("rejects an empty reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportParsed(PARSED_IMPORT_ID, PARSED_USER_ID, "")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("rejects a whitespace-only reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportParsed(PARSED_IMPORT_ID, PARSED_USER_ID, "   ")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("returns the parsed field for the given importId", async () => {
+    const result = await readImportParsed(PARSED_IMPORT_ID, PARSED_USER_ID, PARSED_REASON);
+    expect(result).toEqual({ parsed: { source: "chatgpt", messages: [] } });
+  });
+
+  it("writes an audit_log row with correct tableName and fieldName", async () => {
+    await readImportParsed(PARSED_IMPORT_ID, PARSED_USER_ID, PARSED_REASON);
+    expect(mockInsert).toHaveBeenCalledOnce();
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tableName: "imports",
+        rowId: PARSED_IMPORT_ID,
+        fieldName: "parsed",
+        userId: PARSED_USER_ID,
+        accessorId: PARSED_USER_ID,
+        reason: PARSED_REASON,
+      })
+    );
+  });
+
+  it("returns undefined when no import row is found", async () => {
+    mockLimit.mockResolvedValue([]);
+    const result = await readImportParsed(PARSED_IMPORT_ID, PARSED_USER_ID, PARSED_REASON);
+    expect(result).toBeUndefined();
   });
 });

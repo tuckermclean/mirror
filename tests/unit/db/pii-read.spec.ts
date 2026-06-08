@@ -292,6 +292,18 @@ describe("readInterviewTranscript", () => {
     mockAnd.mockImplementation((...args: unknown[]) => ({ _tag: "and", args }));
   });
 
+  it("rejects an empty reason — prevents silent audit bypass", async () => {
+    await expect(
+      readInterviewTranscript("interview-1", "user-1", "")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("rejects a whitespace-only reason — prevents silent audit bypass", async () => {
+    await expect(
+      readInterviewTranscript("interview-1", "user-1", " ")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
   it("returns the transcript row for the given interviewId", async () => {
     const result = await readInterviewTranscript("interview-1", "user-1", "test reason");
     expect(result).toEqual({ transcript: transcriptData });
@@ -447,6 +459,18 @@ describe("readImportParsed", () => {
     mockSelect.mockReturnValue({ from: mockFrom });
     mockEq.mockImplementation((...args: unknown[]) => ({ _tag: "eq", args }));
     mockAnd.mockImplementation((...args: unknown[]) => ({ _tag: "and", args }));
+  });
+
+  it("rejects an empty reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportParsed("import-1", "user-1", "")
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("rejects a whitespace-only reason — prevents silent audit bypass", async () => {
+    await expect(
+      readImportParsed("import-1", "user-1", " ")
+    ).rejects.toMatchObject({ name: "ValidationError" });
   });
 
   it("returns the parsed field for the given importId", async () => {

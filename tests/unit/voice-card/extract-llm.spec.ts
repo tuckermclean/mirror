@@ -53,7 +53,9 @@ function mockStreamReturning(text: string, usage = { input_tokens: 100, output_t
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { extractVoiceCardLlm } from "@/lib/voice/extract";
+import { extractVoiceCardLlm, _anthropicClient as _importedClient } from "@/lib/voice/extract";
+// Re-import as mutable reference for singleton reset
+import * as extractModule from "@/lib/voice/extract";
 
 // ---------------------------------------------------------------------------
 // AGENTS.md line-length guard: extractVoiceCardLlm must be ≤ 40 lines.
@@ -97,9 +99,49 @@ describe("extractVoiceCardLlm — AGENTS.md line-length constraint", () => {
   });
 });
 
+describe("_anthropicClient export and singleton injection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset the exported singleton so each test starts fresh.
+    (extractModule as Record<string, unknown>)["_anthropicClient"] = undefined;
+    checkMonthlyCap.mockResolvedValue({ allowed: true });
+    findCachedGeneration.mockResolvedValue(null);
+    computeCostUsd.mockReturnValue(0.01);
+    recordGeneration.mockResolvedValue(undefined);
+    evictGeneration.mockResolvedValue(undefined);
+  });
+
+  it("_anthropicClient is exported as a mutable let — can be set to undefined between tests", () => {
+    // The export exists and can be read
+    expect("_anthropicClient" in extractModule).toBe(true);
+  });
+
+  it("uses an injected custom _anthropicClient instance instead of creating a new one", async () => {
+    mockStreamReturning(JSON.stringify(VALID_CARD));
+    const customStream = vi.fn().mockResolvedValue({
+      finalMessage: async () => ({
+        content: [{ type: "text", text: JSON.stringify(VALID_CARD) }],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      }),
+    });
+    const customClient = { messages: { stream: customStream } };
+    // Inject custom client via the exported let
+    (extractModule as Record<string, unknown>)["_anthropicClient"] = customClient;
+
+    const result = await extractVoiceCardLlm("transcript", { userId: "u-inject" });
+
+    // customStream must have been called (not the vi.mock default streamMock)
+    expect(customStream).toHaveBeenCalledTimes(1);
+    expect(streamMock).not.toHaveBeenCalled();
+    expect(result).toEqual(VALID_CARD);
+  });
+});
+
 describe("extractVoiceCardLlm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset the singleton so each test starts with a clean vi.mock instance.
+    (extractModule as Record<string, unknown>)["_anthropicClient"] = undefined;
     checkMonthlyCap.mockResolvedValue({ allowed: true });
     findCachedGeneration.mockResolvedValue(null);
     computeCostUsd.mockReturnValue(0.01);
