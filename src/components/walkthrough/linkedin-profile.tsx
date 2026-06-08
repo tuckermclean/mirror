@@ -3,6 +3,7 @@
 import * as React from "react"
 import { motion } from "framer-motion"
 
+import { cn } from "@/lib/utils"
 import type {
   ExperienceEntry,
   GeneratedProfile,
@@ -378,7 +379,28 @@ export function LinkedInProfile({
           {...headerProps}
         />
         <div className="flex flex-wrap gap-2" data-section="skills">
-          {(mode === "before" ? before.skills : after.skills).map((skill, i) => (
+          {mode === "diff" ? (() => {
+            const beforeSet = new Set(before.skills)
+            const afterSet = new Set(after.skills)
+            const allSkills = [...new Set([...before.skills, ...after.skills])]
+            return allSkills.map((skill, i) => {
+              const isAdded = !beforeSet.has(skill)
+              const isRemoved = !afterSet.has(skill)
+              return (
+                <span
+                  key={`${skill}-${i}`}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-sm",
+                    isAdded && "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-200",
+                    isRemoved && "border-red-300 bg-red-50 text-red-800 line-through dark:border-red-700 dark:bg-red-950 dark:text-red-200",
+                    !isAdded && !isRemoved && "border-[#00000014] bg-[#f3f2ef] text-[#000000e6] dark:border-border dark:bg-muted dark:text-foreground",
+                  )}
+                >
+                  {skill}
+                </span>
+              )
+            })
+          })() : (mode === "before" ? before.skills : after.skills).map((skill, i) => (
             <span
               key={`${skill}-${i}`}
               className="rounded-full border border-[#00000014] bg-[#f3f2ef] px-3 py-1 text-sm text-[#000000e6] dark:border-border dark:bg-muted dark:text-foreground"
@@ -387,14 +409,6 @@ export function LinkedInProfile({
             </span>
           ))}
         </div>
-        {mode === "diff" ? (
-          <div className="mt-2 text-sm">
-            <DiffText
-              before={before.skills.join(", ")}
-              after={after.skills.join(", ")}
-            />
-          </div>
-        ) : null}
       </section>
     </div>
   )
