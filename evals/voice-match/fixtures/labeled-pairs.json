@@ -1,0 +1,41 @@
+{
+  "description": "Labeled (voice, candidate) pairs for the Voice Match Score eval. Each pair has a human-assigned voice-fidelity rating (0-100): how well the candidate text reads in the reference user's authentic voice. Embeddings are synthesized deterministically by evals/voice-match/synthetic-embedder.ts so the eval is reproducible offline (no Voyage/OpenAI API call) while still exercising the real cosine+feature blend. Spearman target: >= 0.7.",
+  "voiceCards": {
+    "directBuilder": {
+      "vocabulary": ["shipped", "built", "pragmatic", "ownership", "measured", "rigor", "systems", "scrappy"],
+      "hedgesAvoided": ["I think", "sort of", "kind of", "maybe", "perhaps", "I guess"],
+      "sentenceLengthDistribution": { "short": 55, "medium": 35, "long": 10 },
+      "emotionalRegister": "technical, direct, methodical",
+      "jargonHated": ["synergy", "leverage", "rockstar", "ninja", "thought leader", "move the needle"]
+    },
+    "warmCollaborator": {
+      "vocabulary": ["together", "team", "supported", "learned", "grateful", "growth", "people", "mentored"],
+      "hedgesAvoided": ["leverage", "synergy"],
+      "sentenceLengthDistribution": { "short": 30, "medium": 45, "long": 25 },
+      "emotionalRegister": "warm, enthusiastic, collaborative",
+      "jargonHated": ["disruptive", "rockstar", "ninja", "game changer"]
+    }
+  },
+  "referenceTexts": {
+    "directBuilder": "I shipped systems. Built scrappy tools fast. Took ownership end to end. Measured everything. Kept the rigor high and the talk pragmatic.",
+    "warmCollaborator": "I love building with great people. We learned together and supported each other. I'm grateful for the team that mentored me and grew with me."
+  },
+  "pairs": [
+    { "voice": "directBuilder", "candidate": "I shipped pragmatic systems with rigor and total ownership. Measured the results, kept it scrappy.", "human": 95 },
+    { "voice": "directBuilder", "candidate": "Built and shipped systems end to end. Took ownership. Measured outcomes with rigor.", "human": 90 },
+    { "voice": "directBuilder", "candidate": "I built pragmatic tools and shipped them. Owned the work. Stayed measured.", "human": 82 },
+    { "voice": "directBuilder", "candidate": "Delivered systems with a focus on ownership and measured, rigorous execution.", "human": 74 },
+    { "voice": "directBuilder", "candidate": "A results-driven engineer who delivers measured outcomes and owns the systems they build.", "human": 60 },
+    { "voice": "directBuilder", "candidate": "Experienced professional skilled in delivering high-quality technical outcomes for the business.", "human": 45 },
+    { "voice": "directBuilder", "candidate": "A passionate, collaborative leader who loves bringing teams together to grow.", "human": 30 },
+    { "voice": "directBuilder", "candidate": "I think we could maybe leverage synergy to move the needle. I'm a rockstar ninja thought leader.", "human": 8 },
+    { "voice": "warmCollaborator", "candidate": "I love building with great people. We learned and grew together, and I'm grateful for the team.", "human": 96 },
+    { "voice": "warmCollaborator", "candidate": "Together with a wonderful team, we supported each other and mentored our way to growth.", "human": 88 },
+    { "voice": "warmCollaborator", "candidate": "I'm grateful for the people I learned from. We grew together and supported the team.", "human": 80 },
+    { "voice": "warmCollaborator", "candidate": "A people-first collaborator who values team growth, mentorship, and learning together.", "human": 68 },
+    { "voice": "warmCollaborator", "candidate": "Supportive teammate focused on collaboration and helping people develop their skills.", "human": 55 },
+    { "voice": "warmCollaborator", "candidate": "Professional with a track record of delivering results across cross-functional initiatives.", "human": 38 },
+    { "voice": "warmCollaborator", "candidate": "I shipped scrappy systems with rigor. Pragmatic, measured, owned end to end.", "human": 25 },
+    { "voice": "warmCollaborator", "candidate": "A disruptive rockstar ninja who leverages synergy to be a game changer in any room.", "human": 6 }
+  ]
+}

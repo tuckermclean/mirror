@@ -17,10 +17,27 @@ import type {
 } from "./types"
 import { LinkedInProfile, type ProfileViewMode } from "./linkedin-profile"
 import { RecruiterView } from "./recruiter-view"
+import { VoiceMatchBadge } from "./voice-match-badge"
 import { isScrolledToEnd } from "./scroll-unlock"
 import { buildExportText, EXPORT_DOC_FILENAME } from "./export-doc"
 
 const SECTIONS: ProfileSection[] = ["headline", "about", "experience", "skills"]
+
+/**
+ * Optional Voice Match payload the generation pipeline may attach to
+ * `WalkthroughData` (`scoreVoiceMatch` output). Read defensively so the
+ * walkthrough renders whether or not the score is present yet — the local
+ * `WalkthroughData` contract is owned by another file and stays untouched.
+ */
+interface VoiceMatchPayload {
+  score: number
+  components?: { cosine: number; feature: number }
+}
+
+function readVoiceMatch(data: WalkthroughData): VoiceMatchPayload | undefined {
+  const vm = (data as { voiceMatch?: VoiceMatchPayload }).voiceMatch
+  return vm && typeof vm.score === "number" ? vm : undefined
+}
 
 function initialDecisions(): Record<ProfileSection, SectionDecision> {
   return {
@@ -47,6 +64,7 @@ function trackScrollUnlock(generationId: string): void {
 }
 
 export function WalkthroughClient({ data }: { data: WalkthroughData }) {
+  const voiceMatch = readVoiceMatch(data)
   const [mode, setMode] = React.useState<ProfileViewMode>("after")
   const [unlocked, setUnlocked] = React.useState(false)
   const [committed, setCommitted] = React.useState(false)
@@ -148,7 +166,15 @@ export function WalkthroughClient({ data }: { data: WalkthroughData }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Your Mirror walkthrough</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Your Mirror walkthrough</h1>
+          {voiceMatch ? (
+            <VoiceMatchBadge
+              value={voiceMatch.score}
+              components={voiceMatch.components}
+            />
+          ) : null}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Compare your current profile with the rewrite, see why each change works,
           and accept what fits. Scroll to the end to unlock commit.
