@@ -66,7 +66,7 @@ export const scrapeLinkedInProfileFn = inngest.createFunction(
     id: "scrape-linkedin-profile",
     name: "Scrape LinkedIn Profile (Tier A)",
     retries: 3,
-    triggers: { event: "mirror/linkedin.scrape.requested" },
+    triggers: [{ event: "mirror/linkedin.scrape.requested" }],
   },
   async ({ event, step }) => {
     const { userId, profileUrl, encryptedCookie } = event.data;
