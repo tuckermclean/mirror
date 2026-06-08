@@ -3,6 +3,7 @@
  *
  * Security contract: reads from linkedin_snapshots.raw_html / parsed MUST be gated
  * behind the PII audit wrapper so every access is recorded in audit_log.
+ * Ownership: the WHERE clause MUST include a userId filter to prevent IDOR.
  *
  * DB is fully mocked; no DATABASE_URL needed.
  */
@@ -17,6 +18,19 @@ const mockLimit = vi.hoisted(() => vi.fn());
 const mockWhere = vi.hoisted(() => vi.fn(() => ({ limit: mockLimit })));
 const mockFrom = vi.hoisted(() => vi.fn(() => ({ where: mockWhere })));
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockFrom })));
+
+// Spy on eq and and from drizzle-orm to verify ownership filtering in WHERE clause.
+const mockEq = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ _tag: "eq", args })));
+const mockAnd = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ _tag: "and", args })));
+
+vi.mock("drizzle-orm", async (importActual) => {
+  const actual = await importActual<typeof import("drizzle-orm")>();
+  return {
+    ...actual,
+    eq: (...args: Parameters<typeof actual.eq>) => mockEq(...args),
+    and: (...args: Parameters<typeof actual.and>) => mockAnd(...args),
+  };
+});
 
 vi.mock("@/db/client", () => ({
   db: { insert: mockInsert, select: mockSelect },
@@ -37,6 +51,7 @@ vi.mock("@/db/schema", () => ({
     rawHtml: Symbol("linkedinSnapshots.rawHtml"),
     parsed: Symbol("linkedinSnapshots.parsed"),
     id: Symbol("linkedinSnapshots.id"),
+    userId: Symbol("linkedinSnapshots.userId"),
   },
 }));
 
@@ -61,6 +76,9 @@ beforeEach(() => {
   mockWhere.mockReturnValue({ limit: mockLimit });
   mockFrom.mockReturnValue({ where: mockWhere });
   mockSelect.mockReturnValue({ from: mockFrom });
+  // Restore eq/and spy implementations after vi.clearAllMocks() resets them.
+  mockEq.mockImplementation((...args: unknown[]) => ({ _tag: "eq", args }));
+  mockAnd.mockImplementation((...args: unknown[]) => ({ _tag: "and", args }));
 });
 
 // ---------------------------------------------------------------------------
@@ -125,5 +143,30 @@ describe("readLinkedinSnapshot", () => {
     await expect(
       readLinkedinSnapshot(SNAPSHOT_ID, USER_ID, "   ")
     ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("enforces ownership: WHERE clause includes eq(linkedinSnapshots.userId, userId) — IDOR prevention", async () => {
+    // Arrange: import the mocked schema to get the userId symbol
+    const schema = await import("@/db/schema");
+    const { linkedinSnapshots } = schema;
+
+    // Act
+    await readLinkedinSnapshot(SNAPSHOT_ID, USER_ID, REASON);
+
+    // Assert: eq must have been called with linkedinSnapshots.userId and USER_ID
+    const eqCalls = mockEq.mock.calls;
+    const userIdCheck = eqCalls.find(
+      (call) => call[0] === linkedinSnapshots.userId && call[1] === USER_ID
+    );
+    expect(
+      userIdCheck,
+      "eq(linkedinSnapshots.userId, userId) must appear in WHERE clause to prevent IDOR"
+    ).toBeDefined();
+
+    // Assert: and() must have been called to combine the id and userId conditions
+    expect(
+      mockAnd,
+      "and() must be used to combine snapshotId and userId conditions"
+    ).toHaveBeenCalled();
   });
 });
