@@ -301,7 +301,7 @@ describe("readInterviewTranscript", () => {
   });
 
   it("forwards ipAddress to the audit row when provided", async () => {
-    await readInterviewTranscript("interview-1", "user-1", "test reason", "203.0.113.42");
+    await readInterviewTranscript("interview-1", "user-1", "test reason", { ipAddress: "203.0.113.42" });
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ ipAddress: "203.0.113.42" })
     );
@@ -319,8 +319,7 @@ describe("readInterviewTranscript", () => {
       "interview-1",
       "user-1",
       "support investigation",
-      undefined,
-      "service-account-7"
+      { accessorId: "service-account-7" }
     );
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({
