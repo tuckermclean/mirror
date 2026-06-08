@@ -121,10 +121,11 @@ function makeOctetFile(bytes: Uint8Array, name = "export.bin"): File {
   return new File([bytes], name, { type: "application/octet-stream" });
 }
 
+// Reserved for future text/plain tests; underscore prefix suppresses the
+// unused-var lint rule, so no explicit void reference is needed.
 function _makeTextFile(content = "chat history", name = "export.txt"): File {
   return new File([content], name, { type: "text/plain" });
 }
-void _makeTextFile; // exported for future text/plain tests
 
 function makeRequest(file: File): NextRequest {
   const formData = new FormData();
