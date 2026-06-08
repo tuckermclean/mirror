@@ -36,9 +36,10 @@ describe("loadAllFixtures", () => {
     const res = loadAllFixtures(FIXTURE_DIR);
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    // clusters.json (11) + sre-top5.json (5) = 16 profiles.
-    expect(res.value.length).toBe(16);
-    for (const p of res.value) {
+    // clusters.json (11) + sre-top5.json (5) = 16 profiles across 2 files.
+    expect(res.value.profiles.length).toBe(16);
+    expect(res.value.fileCount).toBe(2);
+    for (const p of res.value.profiles) {
       expect(p.publicUrl).toMatch(/^https?:\/\//);
       expect(p.parsed.headline.length).toBeGreaterThan(0);
     }
