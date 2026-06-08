@@ -12,11 +12,8 @@ import {
   WALKTHROUGH_FIXTURE,
 } from "@/components/walkthrough/fixture"
 import { isGeneratedProfile } from "@/components/walkthrough/profile-guard"
-import type {
-  GeneratedProfile,
-  RationaleBundle,
-  WalkthroughData,
-} from "@/components/walkthrough/types"
+import { rationaleBundleSchema } from "@/lib/generation/schema"
+import type { WalkthroughData } from "@/components/walkthrough/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -57,11 +54,18 @@ async function loadWalkthroughData(
   // instead of throwing client-side mid-render.
   if (!isGeneratedProfile(snapshot.parsed)) return null
 
+  // gen.output and gen.rationale are JSONB — validate at the boundary so a row
+  // written by an older schema version fails gracefully instead of crashing the
+  // server component at render time.
+  if (!isGeneratedProfile(gen.output)) return null
+  const rationaleResult = rationaleBundleSchema.safeParse(gen.rationale)
+  if (!rationaleResult.success) return null
+
   return {
     generationId: gen.id,
     before: snapshot.parsed,
-    after: gen.output as GeneratedProfile,
-    rationale: gen.rationale as RationaleBundle,
+    after: gen.output,
+    rationale: rationaleResult.data,
     isFixture: false,
   }
 }
