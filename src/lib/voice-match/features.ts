@@ -1,14 +1,17 @@
 import type { VoiceCard } from "@/lib/voice-card/schema";
 
-function tokenize(text: string): string[] {
-  return text.toLowerCase().match(/\b[a-z']{2,}\b/g) ?? [];
-}
-
-/** Fraction of the candidate's distinctive vocabulary present in the voice card. */
-function vocabularyOverlap(card: VoiceCard, candidateTokens: Set<string>): number {
+/**
+ * Fraction of the voice card's vocabulary present in the candidate text.
+ *
+ * Uses `String.includes()` (not `Set.has()`) so that multi-word vocabulary
+ * terms like "machine learning" are matched against the full text rather than
+ * against the set of individual tokens.
+ */
+function vocabularyOverlap(card: VoiceCard, candidateText: string): number {
   const vocab = card.vocabulary.map((v) => v.toLowerCase());
-  if (vocab.length === 0 || candidateTokens.size === 0) return 0;
-  const hits = vocab.filter((word) => candidateTokens.has(word)).length;
+  if (vocab.length === 0 || candidateText.length === 0) return 0;
+  const textLower = candidateText.toLowerCase();
+  const hits = vocab.filter((word) => textLower.includes(word)).length;
   return hits / vocab.length;
 }
 
@@ -60,10 +63,9 @@ export function voiceCardFeatureOverlap(
   card: VoiceCard,
   candidateText: string,
 ): number {
-  const tokens = new Set(tokenize(candidateText));
   const textLower = candidateText.toLowerCase();
 
-  const vocab = vocabularyOverlap(card, tokens);
+  const vocab = vocabularyOverlap(card, candidateText);
   const cadence = cadenceAgreement(card, candidateText);
 
   const jargonPenalty =
