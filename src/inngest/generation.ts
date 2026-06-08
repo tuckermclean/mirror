@@ -14,12 +14,17 @@ import { generations, imports, interviews, users } from "@/db/schema";
 import { readLinkedinSnapshot, readInterviewTranscript } from "@/lib/db/pii-read";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 import { prompts } from "@/lib/prompts";
-import { MonthlyCapError } from "@/lib/errors";
+import { MonthlyCapError, GenerationSchemaError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { retrieveSimilarProfiles } from "@/lib/rag/retrieval";
+import { parseGeneratedProfile, type GeneratedProfile } from "@/lib/generation/schema";
+import { assembleRationaleBundle } from "@/lib/generation/rationale";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 4096;
+const RATIONALE_MAX_TOKENS = 2048;
 const VOICE_TOP_K = 5;
+const EXEMPLAR_TOP_K = 5;
 
 type GenerationEvent = {
   data: { userId: string; snapshotId: string; generationId: string };
@@ -108,11 +113,12 @@ type StreamResult = { output: string; inputTokens: number; outputTokens: number 
 async function streamGeneration(
   client: Anthropic,
   system: string,
-  userMessage: string
+  userMessage: string,
+  maxTokens: number = MAX_TOKENS
 ): Promise<StreamResult> {
   const stream = await client.messages.stream({
     model: MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens,
     system,
     messages: [{ role: "user", content: userMessage }],
   });
@@ -134,7 +140,8 @@ async function streamGeneration(
 function buildUserMessage(
   snapshot: string,
   transcript: string,
-  voiceSamples: string
+  voiceSamples: string,
+  exemplars: string
 ): string {
   return [
     "Rewrite this LinkedIn profile in the user's voice.",
@@ -146,7 +153,101 @@ function buildUserMessage(
     transcript,
     "",
     `Voice samples: ${voiceSamples}`,
+    "",
+    "Benchmark exemplars:",
+    exemplars,
   ].join("\n");
+}
+
+/**
+ * Serialize the top-k benchmark exemplars (RAG) for the prompt. Empty corpus
+ * (Wk4 populates it) yields an explicit "none" marker so the model knows not to
+ * cite exemplars it wasn't given.
+ */
+function formatExemplars(
+  exemplars: Awaited<ReturnType<typeof retrieveSimilarProfiles>>
+): string {
+  if (exemplars.length === 0) return "[none supplied]";
+  return exemplars
+    .map((e, i) => `exemplar #${i + 1} (${e.role}, ${e.seniority}): ${JSON.stringify(e.parsed)}`)
+    .join("\n");
+}
+
+/**
+ * Enforce the monthly spend cap, then run one STREAMING Anthropic call and
+ * record its ACTUAL token cost. Throws NonRetriableError when the cap is hit
+ * (a depleted cap will not resolve inside the retry window).
+ */
+async function callLlmGuarded(
+  client: Anthropic,
+  args: { system: string; userMessage: string; maxTokens: number },
+  spend: { userId: string; generationId: string }
+): Promise<string> {
+  const cap = await checkMonthlyCap();
+  if (!cap.allowed) {
+    logger.warn("generation: monthly cap reached, aborting", spend);
+    throw new NonRetriableError(
+      `Monthly LLM spend cap reached; resets at ${cap.resets_at}`,
+      { cause: new MonthlyCapError(cap.resets_at) }
+    );
+  }
+  const result = await streamGeneration(client, args.system, args.userMessage, args.maxTokens);
+  await recordLlmSpend({
+    userId: spend.userId,
+    generationId: spend.generationId,
+    model: MODEL,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    costUsd: computeCostUsd(MODEL, result.inputTokens, result.outputTokens),
+  });
+  return result.output;
+}
+
+/** Parse + validate the rewritten profile; terminal schema failures are non-retriable. */
+function validateProfile(raw: string, generationId: string): GeneratedProfile {
+  const parsed = parseGeneratedProfile(raw);
+  if (parsed.ok) return parsed.value;
+  const detail =
+    parsed.error.kind === "invalid_json"
+      ? "model did not return JSON"
+      : JSON.stringify(parsed.error.issues);
+  logger.warn("generation: output failed schema validation", { generationId, detail });
+  throw new NonRetriableError("generation output failed schema validation", {
+    cause: new GenerationSchemaError(detail),
+  });
+}
+
+/** Build the rationale+recruiter-eye system prompt and the user message for it. */
+function buildRationalePrompt(
+  profile: GeneratedProfile,
+  snapshot: string
+): { system: string; userMessage: string } {
+  const system = [
+    prompts.rationale.content,
+    "",
+    "---",
+    "",
+    prompts.recruiterEye.content,
+    "",
+    "---",
+    "",
+    "Combine both tasks. Output a single raw JSON object with keys:",
+    "`headline` (string, one sentence), `about` (string, one sentence),",
+    "`experience` (array of one-sentence strings, index-aligned with the",
+    "rewritten experience entries), `skills` (string, one sentence),",
+    "`recruiterEye` (array of { rank (int), observation (string), section",
+    '("headline"|"about"|"experience"|"skills") }), and `confidence`',
+    "({ headline, about, experience, skills } — integers 0-100).",
+    "No markdown fence, no commentary.",
+  ].join("\n");
+  const userMessage = [
+    "Original profile (before):",
+    snapshot,
+    "",
+    "Rewritten profile (after):",
+    JSON.stringify(profile),
+  ].join("\n");
+  return { system, userMessage };
 }
 
 export const runGeneration = inngest.createFunction(
@@ -173,57 +274,71 @@ export const runGeneration = inngest.createFunction(
       loadTranscript(userId)
     );
 
-    // Step 3: Retrieve top-k voice embeddings via pgvector cosine distance.
-    const voiceEmbeddings = await step.run("load-voice-embeddings", async () =>
-      loadVoiceEmbeddings(userId)
+    // Step 3: Retrieve top-k voice embeddings via pgvector cosine distance,
+    // plus the active voice vector used as the RAG query against the corpus.
+    const { voiceEmbeddings, queryVec } = await step.run(
+      "load-voice-embeddings",
+      async () => ({
+        voiceEmbeddings: await loadVoiceEmbeddings(userId),
+        queryVec: await loadActiveVoiceVector(userId),
+      })
+    );
+
+    // Step 4: RAG — top-k benchmark exemplars for the user's voice vector.
+    // Empty until the Wk4 corpus lands; retrieval returns [] safely.
+    const exemplars = await step.run("retrieve-exemplars", async () =>
+      queryVec
+        ? retrieveSimilarProfiles(queryVec, { limit: EXEMPLAR_TOP_K })
+        : []
     );
 
     const voiceSamples = `[voice vectors: ${voiceEmbeddings.length}]`;
-    const system = prompts.profileGeneration.content;
-    const userMessage = buildUserMessage(snapshot, transcript, voiceSamples);
+    const userMessage = buildUserMessage(
+      snapshot,
+      transcript,
+      voiceSamples,
+      formatExemplars(exemplars)
+    );
 
-    // Step 4: Enforce the monthly spend cap BEFORE the Anthropic call.
-    // Use NonRetriableError so Inngest stops retrying immediately — a
-    // depleted monthly cap will not resolve within the retry window.
-    await step.run("check-monthly-cap", async () => {
-      const cap = await checkMonthlyCap();
-      if (!cap.allowed) {
-        logger.warn("generation: monthly cap reached, aborting", { generationId, userId });
-        throw new NonRetriableError(
-          `Monthly LLM spend cap reached; resets at ${cap.resets_at}`,
-          { cause: new MonthlyCapError(cap.resets_at) }
-        );
-      }
-    });
-
-    // Step 5: Anthropic STREAMING generation call.
-    const result = await step.run("generate", async () => {
+    // Step 5: Cap-guarded STREAMING generation call (cap checked + spend
+    // recorded inside callLlmGuarded), then validate against the canonical
+    // schema. Schema failure is deterministic → NonRetriableError.
+    const profile = await step.run("generate", async () => {
       const client = new Anthropic();
-      return streamGeneration(client, system, userMessage);
+      const raw = await callLlmGuarded(
+        client,
+        { system: prompts.profileGeneration.content, userMessage, maxTokens: MAX_TOKENS },
+        { userId, generationId }
+      );
+      return validateProfile(raw, generationId);
     });
 
-    // Step 6: Record ACTUAL token usage to the spend ledger (never estimate).
-    await step.run("record-spend", async () => {
-      await recordLlmSpend({
-        userId,
-        generationId,
-        model: MODEL,
-        inputTokens: result.inputTokens,
-        outputTokens: result.outputTokens,
-        costUsd: computeCostUsd(MODEL, result.inputTokens, result.outputTokens),
-      });
+    // Step 6: Cap-guarded rationale + recruiter-eye call → canonical bundle.
+    const rationale = await step.run("generate-rationale", async () => {
+      const client = new Anthropic();
+      const { system, userMessage: rMsg } = buildRationalePrompt(profile, snapshot);
+      const raw = await callLlmGuarded(
+        client,
+        { system, userMessage: rMsg, maxTokens: RATIONALE_MAX_TOKENS },
+        { userId, generationId }
+      );
+      const bundle = assembleRationaleBundle(raw, profile.experience.length);
+      if (!bundle.ok) {
+        throw new NonRetriableError("rationale output failed schema validation", {
+          cause: new GenerationSchemaError(JSON.stringify(bundle.error)),
+        });
+      }
+      return bundle.value;
     });
 
-    // Step 7: Persist the result into the existing generations row.
-    // The POST /api/generate route OWNS the prompt-hash cache key: it computes
-    // the hash, performs the 24h findCachedGeneration lookup with it, and stores
-    // it on the placeholder row we update here. We MUST preserve that
-    // route-computed hash — overwriting it with a differently-shaped hash would
-    // mean the route's lookup can never hit, defeating the prompt-caching rule.
+    // Step 7: Persist the validated profile + rationale bundle.
+    // The POST /api/generate route OWNS the prompt-hash cache key (computed,
+    // looked up over 24h, and stored on the placeholder row we update here), so
+    // we never touch promptHash — overwriting it would defeat prompt caching.
     await step.run("store-generation", async () => {
       await db
         .update(generations)
-        .set({ output: result.output, model: MODEL })
+        .set({ output: profile, rationale, model: MODEL })
         .where(eq(generations.id, generationId));
     });
 
