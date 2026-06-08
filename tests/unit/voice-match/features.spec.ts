@@ -64,4 +64,28 @@ describe("voiceCardFeatureOverlap", () => {
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(1);
   });
+
+  it("counts multi-word vocabulary terms as hits when present in candidate text", () => {
+    // Use ONLY multi-word terms so Set.has() can never match — every token in
+    // the set is a single word, so `set.has("machine learning")` is always false.
+    const multiWordCard: VoiceCard = {
+      vocabulary: ["machine learning", "first principles"],
+      hedgesAvoided: [],
+      sentenceLengthDistribution: { short: 50, medium: 35, long: 15 },
+      emotionalRegister: "technical",
+      jargonHated: [],
+    };
+    // Both multi-word terms appear verbatim in the candidate text.
+    // A text WITHOUT these phrases should score lower than one WITH them.
+    // With Set.has() both score identically (0 vocab hits each) — the bug.
+    const withTerms =
+      "I applied machine learning at scale, reasoning from first principles.";
+    const withoutTerms =
+      "I wrote software and deployed containers to production clusters.";
+    const scoreWith = voiceCardFeatureOverlap(multiWordCard, withTerms);
+    const scoreWithout = voiceCardFeatureOverlap(multiWordCard, withoutTerms);
+    // With the String.includes fix: withTerms gets 2/2 vocab hits → higher score.
+    // With the Set.has() bug: both get 0/2 vocab hits → equal score (test fails).
+    expect(scoreWith).toBeGreaterThan(scoreWithout);
+  });
 });
