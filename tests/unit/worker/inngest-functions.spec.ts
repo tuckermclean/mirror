@@ -231,6 +231,53 @@ describe("worker/inngest-functions — scrape-linkedin-profile", () => {
     ).toBe(0);
   });
 
+
+  // B-1: null encryptedCookie path — must NOT call decryptCookie, must call
+  // scrapeLinkedInProfile with null as the second argument (public-scrape path).
+  it("when encryptedCookie is null, decryptCookie is NOT called and scrapeLinkedInProfile receives null", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ snapshotId: "snap-null" }),
+      })
+    );
+
+    const step = {
+      run: vi.fn(async (_id: string, fn: () => unknown) => fn()),
+      sendEvent: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const { scrapeLinkedInProfileFn } = await import(
+      "../../../worker/inngest-functions.js"
+    );
+
+    await (scrapeLinkedInProfileFn as unknown as {
+      fn: (ctx: {
+        event: { data: Record<string, string | null> };
+        step: typeof step;
+      }) => Promise<unknown>;
+    }).fn({
+      event: {
+        data: {
+          userId: "user-null",
+          profileUrl: "https://www.linkedin.com/in/publicuser",
+          encryptedCookie: null,
+        },
+      },
+      step,
+    });
+
+    // decryptCookie must NOT have been called when there is no cookie
+    expect(mockDecryptCookie).not.toHaveBeenCalled();
+
+    // scrapeLinkedInProfile MUST have been called with null as second arg
+    expect(mockScrapeLinkedInProfile).toHaveBeenCalledWith(
+      "https://www.linkedin.com/in/publicuser",
+      null
+    );
+  });
+
   it("persistSnapshot passes AbortSignal.timeout(15000) to fetch", async () => {
     const fetchCalls: RequestInit[] = [];
     vi.stubGlobal(

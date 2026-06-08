@@ -321,4 +321,14 @@ describe("worker/scraper — scrapeLinkedInProfile", () => {
       )
     ).rejects.toThrow(/auth.wall|AuthWall|expired|authentication/i);
   });
+  // B-2: null sessionCookie path — addCookies must NOT be called, public scrape path.
+  it("when sessionCookie is null, addCookies is NOT called (public browsing path)", async () => {
+    const { scrapeLinkedInProfile } = await import("../../../worker/scraper.js");
+    await scrapeLinkedInProfile(
+      "https://www.linkedin.com/in/publicuser",
+      null
+    );
+    expect(mockAddCookies).not.toHaveBeenCalled();
+  });
+
 });
