@@ -61,6 +61,23 @@ describe("PostHog telemetry (Blocker 5)", () => {
     expect(POSTHOG_CONFIG.disable_session_recording).toBe(true);
   });
 
+  it("provider does not early-return a bare fragment that bypasses PHProvider when the key is absent", async () => {
+    // Children must always render INSIDE PHProvider so posthog context is
+    // available; without the key, posthog is simply never init()'d and
+    // captures degrade to a graceful no-op (documented in the provider).
+    const fs = await import("fs");
+    const path = await import("path");
+    const src = fs.readFileSync(
+      path.resolve(
+        __dirname,
+        "../../../src/components/providers/posthog-provider.tsx"
+      ),
+      "utf-8"
+    );
+    expect(src).not.toContain("if (!key) return <>{children}</>");
+    expect(src).toContain("<PHProvider client={posthog}>{children}</PHProvider>");
+  });
+
   it("walkthrough trackScrollUnlock uses posthog.config (public API) not __loaded", async () => {
     // Read the source text to assert the private property is not used
     const fs = await import("fs");

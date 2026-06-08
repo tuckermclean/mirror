@@ -82,6 +82,7 @@ vi.mock("@/components/interview-chat", () => ({
 // ---------------------------------------------------------------------------
 import InterviewPage from "@/app/onboarding/interview/page";
 import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helper: invoke the page and ignore JSX render errors from node env
@@ -123,9 +124,9 @@ beforeEach(() => {
 describe("tombstone guard", () => {
   it("user lookup WHERE clause uses ne(users.plan, DELETED_PLAN)", async () => {
     await invokeInterviewPage();
-    expect(mockNe, "ne() must be called with users.plan and 'deleted'").toHaveBeenCalledWith(
+    expect(mockNe, "ne() must be called with users.plan and DELETED_PLAN").toHaveBeenCalledWith(
       users.plan,
-      "deleted"
+      DELETED_PLAN
     );
   });
 

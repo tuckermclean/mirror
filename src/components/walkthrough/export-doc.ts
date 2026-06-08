@@ -29,6 +29,9 @@ export function buildExportText(
     lines.push("")
   }
   lines.push("EDUCATION")
+  // Education intentionally always uses the "after" value: Mirror does not
+  // rewrite education (it is verbatim factual data), so there is no per-section
+  // accept/reject decision for it — before and after are identical here.
   for (const edu of after.education) lines.push(`${edu.degree} — ${edu.school}`)
   lines.push("")
   lines.push("SKILLS", skillsSrc.skills.join(", "))

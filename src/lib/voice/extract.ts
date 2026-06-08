@@ -15,6 +15,11 @@ const HEDGE_WORDS = [
   "I suppose",
 ];
 
+// Buzzword candidates whose ABSENCE we report as `jargonHated` (see
+// detectJargonHated). Terms must be unambiguously buzzwords: "guru" was
+// removed because it also appears in legitimate technical contexts (tool and
+// product names, e.g. "Ansible Guru", "Config Guru"), so its absence is not a
+// reliable signal of an avoided buzzword.
 const JARGON_CANDIDATES = [
   "synergy",
   "leverage",
@@ -28,7 +33,6 @@ const JARGON_CANDIDATES = [
   "low-hanging fruit",
   "rockstar",
   "ninja",
-  "guru",
   "thought leader",
   "game changer",
 ];
@@ -56,6 +60,16 @@ function extractVocabulary(allText: string): string[] {
     .map(([word]) => word);
 }
 
+/**
+ * Return the hedge phrases that do NOT appear anywhere in the user's text.
+ *
+ * SEMANTICS: this is "absence of use", not measured "active avoidance". We
+ * cannot distinguish a writer who deliberately avoids hedging from one who
+ * simply had no occasion to hedge in the sampled text. The field name
+ * (`hedgesAvoided`) is therefore an inferred signal: hedges the user did not
+ * reach for in this sample. Downstream consumers must treat it as a soft hint,
+ * not a hard claim about the user's style.
+ */
 function detectHedgesAvoided(allText: string): string[] {
   const textLower = allText.toLowerCase();
   return HEDGE_WORDS.filter((hedge) => !textLower.includes(hedge.toLowerCase()));
@@ -99,25 +113,30 @@ function detectEmotionalRegister(allText: string): string {
   const technicalMarkers = ["implementation", "architecture", "system", "performance", "optimize"];
   const analyticalMarkers = ["data", "metric", "measure", "analyze", "insight", "result"];
 
-  const scores = {
-    enthusiastic: enthusiasmMarkers.filter((m) => textLower.includes(m)).length,
-    formal: formalMarkers.filter((m) => textLower.includes(m)).length,
-    technical: technicalMarkers.filter((m) => textLower.includes(m)).length,
-    analytical: analyticalMarkers.filter((m) => textLower.includes(m)).length,
-  };
+  // Explicit, fixed priority order. Equal-scoring categories are broken by this
+  // order (earliest wins) so the result is deterministic regardless of the
+  // engine's Object/sort iteration semantics — e.g. a formal/technical tie
+  // always resolves to "formal".
+  const REGISTER_PRIORITY = [
+    { key: "enthusiastic", markers: enthusiasmMarkers, label: "warm, enthusiastic, collaborative" },
+    { key: "formal", markers: formalMarkers, label: "formal, precise, structured" },
+    { key: "technical", markers: technicalMarkers, label: "technical, direct, methodical" },
+    { key: "analytical", markers: analyticalMarkers, label: "analytical, data-driven, measured" },
+  ] as const;
 
-  const dominant = Object.entries(scores).sort(([, a], [, b]) => b - a)[0];
+  let dominant: (typeof REGISTER_PRIORITY)[number] | null = null;
+  let dominantScore = 0;
+  for (const register of REGISTER_PRIORITY) {
+    const score = register.markers.filter((m) => textLower.includes(m)).length;
+    // Strict `>` keeps the earlier-priority category on a tie.
+    if (score > dominantScore) {
+      dominantScore = score;
+      dominant = register;
+    }
+  }
 
-  if (!dominant || dominant[1] === 0) return "neutral, professional";
-
-  const registers: Record<string, string> = {
-    enthusiastic: "warm, enthusiastic, collaborative",
-    formal: "formal, precise, structured",
-    technical: "technical, direct, methodical",
-    analytical: "analytical, data-driven, measured",
-  };
-
-  return registers[dominant[0]] ?? "neutral, professional";
+  if (!dominant || dominantScore === 0) return "neutral, professional";
+  return dominant.label;
 }
 
 function detectJargonHated(allText: string): string[] {

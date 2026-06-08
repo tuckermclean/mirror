@@ -17,6 +17,10 @@
 #
 # Usage:
 #   bash scripts/ci/check-pr-workflow-script-staging.sh [--workflow-dir DIR]
+#   bash scripts/ci/check-pr-workflow-script-staging.sh [DIR]
+#
+# DIR (positional or via --workflow-dir) overrides the workflow directory to
+# audit; it defaults to <repo root>/.github/workflows.
 #
 # Exit codes:
 #   0 — no violations found

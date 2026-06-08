@@ -9,6 +9,10 @@ prompts:
   - file://helpers/voice-extraction-messages.json
 
 providers:
+  # TODO(infra): there is no project-wide eval model constant/env var yet
+  # (no ANTHROPIC_MODEL / EVAL_MODEL in .env.example, and src/inngest/generation.ts
+  # hardcodes its own MODEL). Once a shared model identifier exists, reference it
+  # here (e.g. anthropic:messages:${env:EVAL_MODEL}) instead of hardcoding.
   - id: anthropic:messages:claude-sonnet-4-6
     config:
       temperature: 0
@@ -21,38 +25,16 @@ tests:
   - description: "VoiceCard schema — all structural assertions against one model output"
     assert:
       - type: javascript
-        value: |
-          const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-          const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-          try { JSON.parse(stripped); return true; } catch { return false; }
+        value: "file://./helpers/assert-json-parseable.cjs"
 
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
       - type: javascript
-        value: |
-          try {
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
-            const dist = parsed.sentenceLengthDistribution;
-            if (!dist || typeof dist !== "object") return false;
-            const { short, medium, long } = dist;
-            if (typeof short !== "number" || typeof medium !== "number" || typeof long !== "number") return false;
-            const sum = short + medium + long;
-            return sum >= 90 && sum <= 110;
-          } catch {
-            return false;
-          }
+        value: "file://./helpers/assert-sentence-length-distribution.cjs"
 
       - type: javascript
-        value: |
-          try {
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
-            const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
-            return len >= 1 && len <= 30;
-          } catch {
-            return false;
-          }
+        value: "file://./helpers/assert-vocabulary-length.cjs"
+
+      - type: llm-rubric
+        value: "Output does NOT invent job titles, companies, or skills not present in input. Pass/fail."

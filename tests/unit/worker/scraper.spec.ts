@@ -265,14 +265,20 @@ describe("worker/scraper — scrapeLinkedInProfile", () => {
   });
 
   it("NEVER logs the session cookie value in any output", async () => {
-    const sensitiveToken = "li_at=super_secret_session_xyz_12345";
+    const bareToken = "super_secret_session_xyz_12345";
+    const sensitiveToken = `li_at=${bareToken}`;
     const { scrapeLinkedInProfile } = await import("../../../worker/scraper.js");
     await scrapeLinkedInProfile(
       "https://www.linkedin.com/in/janedoe",
       sensitiveToken
     );
     const allOutput = stdoutLines.join("\n");
+    // The full name=value header form must never appear in logs...
     expect(allOutput).not.toContain(sensitiveToken);
+    // ...nor the bare token value on its own (the scraper strips the
+    // "li_at=" prefix before handing it to Playwright, so guard the
+    // stripped form separately).
+    expect(allOutput).not.toContain(bareToken);
   });
 
   it("throws a descriptive error when page navigation fails", async () => {

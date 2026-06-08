@@ -73,17 +73,13 @@ vi.mock("@/db/schema", () => ({
   },
 }));
 
-vi.mock("@/lib/db/delete-user", () => ({
-  DELETED_PLAN: "deleted",
-}));
-
 // ---------------------------------------------------------------------------
 // SUT import
 // ---------------------------------------------------------------------------
 import { POST } from "@/app/api/commit/route";
 import { NextRequest } from "next/server";
 import { users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
