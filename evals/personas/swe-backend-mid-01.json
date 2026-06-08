@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Mid-Level Backend Engineer",
+    "seniority": "mid",
+    "industry": "Fintech",
+    "region": "APAC",
+    "yoe": 4,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["API", "latency", "throughput", "idempotency", "schema", "queue", "observability"],
+    "hedgesAvoided": ["I guess", "kind of", "basically", "literally"],
+    "sentenceLengthDistribution": { "short": 40, "medium": 45, "long": 15 },
+    "emotionalRegister": "methodical, reliability-focused, concise",
+    "jargonHated": ["synergy", "leverage", "pivot", "disruptive", "ninja"]
+  },
+  "currentLinkedIn": {
+    "headline": "Backend Engineer at Paypocket | Go · Kafka · PostgreSQL | Singapore",
+    "about": "I build payment services that process millions of transactions daily without losing a cent. Four years in fintech back-end, obsessed with idempotency and distributed consistency.",
+    "experience": [
+      {
+        "title": "Backend Engineer",
+        "company": "Paypocket",
+        "bullets": [
+          "Designed idempotent payment retry logic that eliminated 99.97% of duplicate charges on a Kafka-based pipeline",
+          "Optimised PostgreSQL query performance for settlement ledger; reduced P99 from 380ms to 45ms",
+          "Contributed to on-call rotation for services handling SGD 2B+ in monthly transaction volume"
+        ]
+      },
+      {
+        "title": "Junior Software Engineer",
+        "company": "Nexus Commerce",
+        "bullets": [
+          "Built internal REST APIs in Go for inventory management consumed by three downstream services",
+          "Implemented automated integration tests that cut pre-release regression time from 3 days to 4 hours"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["engineer", "backend"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

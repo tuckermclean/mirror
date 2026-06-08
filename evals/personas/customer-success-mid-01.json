@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Customer Success Manager",
+    "seniority": "mid",
+    "industry": "B2B SaaS",
+    "region": "APAC",
+    "yoe": 4,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["retention", "health score", "QBR", "expansion", "onboarding", "renewal", "adoption"],
+    "hedgesAvoided": ["I think", "sort of", "maybe", "I suppose"],
+    "sentenceLengthDistribution": { "short": 35, "medium": 50, "long": 15 },
+    "emotionalRegister": "warm, proactive, customer-obsessed",
+    "jargonHated": ["synergy", "leverage", "circle back", "rockstar", "thought leader"]
+  },
+  "currentLinkedIn": {
+    "headline": "Customer Success Manager at Deputy | Retention · Expansion · ANZ Portfolio | Sydney",
+    "about": "I look after the customers who keep the lights on. Four years in Customer Success — I focus on adoption, health scores, and making sure renewals are never a surprise.",
+    "experience": [
+      {
+        "title": "Customer Success Manager",
+        "company": "Deputy",
+        "bullets": [
+          "Maintained 94% gross retention across a $4.2M ANZ portfolio of 80 mid-market accounts",
+          "Drove $620K in expansion ARR through proactive QBRs that surfaced upsell opportunities",
+          "Built a customer health dashboard in Salesforce that gave CS leadership real-time churn risk visibility"
+        ]
+      },
+      {
+        "title": "Customer Onboarding Specialist",
+        "company": "Airwallex",
+        "bullets": [
+          "Onboarded 120+ SMB clients to global payment platform in first year; 97% completed setup within SLA",
+          "Created onboarding playbook adopted across Asia-Pacific CS team of 14"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["customer success", "CSM"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

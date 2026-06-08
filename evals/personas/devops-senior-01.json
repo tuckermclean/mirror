@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior DevOps / Infrastructure Engineer",
+    "seniority": "senior",
+    "industry": "Cloud-native SaaS",
+    "region": "US",
+    "yoe": 10,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["Kubernetes", "Terraform", "CI/CD", "drift", "immutable", "GitOps", "cluster"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 42, "medium": 45, "long": 13 },
+    "emotionalRegister": "pragmatic, automation-focused, no-nonsense",
+    "jargonHated": ["synergy", "leverage", "move the needle", "rockstar", "ninja"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Infrastructure Engineer at Orbital | Kubernetes · Terraform · GitOps",
+    "about": "I automate the boring parts of infrastructure so engineers can ship features. Ten years in DevOps — from bare metal to multi-region Kubernetes fleets.",
+    "experience": [
+      {
+        "title": "Senior Infrastructure Engineer",
+        "company": "Orbital",
+        "bullets": [
+          "Migrated 40-service monolith to Kubernetes across three AWS regions; zero customer-facing downtime",
+          "Built GitOps pipeline with ArgoCD that eliminated manual kubectl applies and cut deployment risk by 80%",
+          "Reduced cloud spend by $380K/year through right-sizing and Reserved Instance purchasing strategy"
+        ]
+      },
+      {
+        "title": "DevOps Engineer",
+        "company": "Strata Cloud",
+        "bullets": [
+          "Owned Terraform codebase for 200+ AWS resources; enforced drift detection in CI",
+          "Implemented automated certificate rotation that ended all manual TLS renewal incidents"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["infrastructure", "DevOps", "platform"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

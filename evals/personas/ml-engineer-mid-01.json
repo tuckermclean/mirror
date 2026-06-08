@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "ML Engineer",
+    "seniority": "mid",
+    "industry": "AI/ML platform",
+    "region": "APAC",
+    "yoe": 4,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["inference", "latency", "pipeline", "fine-tuning", "embedding", "deployment", "monitoring"],
+    "hedgesAvoided": ["I think", "kind of", "basically", "I suppose"],
+    "sentenceLengthDistribution": { "short": 38, "medium": 48, "long": 14 },
+    "emotionalRegister": "technical, precise, systems-thinking",
+    "jargonHated": ["synergy", "rockstar", "disruptive", "thought leader", "leverage"]
+  },
+  "currentLinkedIn": {
+    "headline": "ML Engineer at Nexus AI | LLM Serving · MLOps · Python | Bangalore",
+    "about": "I operationalise machine learning — from prototype notebook to production inference endpoint. Four years shipping ML systems at scale in the APAC market.",
+    "experience": [
+      {
+        "title": "ML Engineer",
+        "company": "Nexus AI",
+        "bullets": [
+          "Reduced LLM inference latency from 1.8s to 320ms by implementing speculative decoding and KV-cache tuning",
+          "Built a model registry and automated retraining pipeline that reduced manual deployment effort by 70%",
+          "Deployed fine-tuned sentence-transformer models serving 2M+ embedding requests per day"
+        ]
+      },
+      {
+        "title": "Data Engineer",
+        "company": "DataMesh India",
+        "bullets": [
+          "Designed Spark-based ETL pipelines processing 40GB of daily event data for ML feature generation",
+          "Implemented data-quality checks that caught schema drift issues before they reached model training"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["ML engineer", "machine learning"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

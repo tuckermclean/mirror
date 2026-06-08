@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior Technical Recruiter",
+    "seniority": "senior",
+    "industry": "Tech / Startup",
+    "region": "EU",
+    "yoe": 7,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["talent", "pipeline", "sourcing", "offer", "closing", "candidate experience", "bar-raise"],
+    "hedgesAvoided": ["maybe", "sort of", "basically", "I suppose"],
+    "sentenceLengthDistribution": { "short": 38, "medium": 48, "long": 14 },
+    "emotionalRegister": "personable, direct, partnership-oriented",
+    "jargonHated": ["synergy", "rockstar", "ninja", "guru", "disruptive"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Technical Recruiter at Klarna | Engineering Hiring · Sourcing · Berlin",
+    "about": "I match engineers with roles where they'll actually grow. Seven years of technical recruiting — I care about the candidate experience as much as I care about the hire.",
+    "experience": [
+      {
+        "title": "Senior Technical Recruiter",
+        "company": "Klarna",
+        "bullets": [
+          "Hired 80+ engineers across backend, data, and security in FY24; median offer acceptance rate 88%",
+          "Built a structured technical screening process that reduced mis-hires by 30% year over year",
+          "Partnered with Engineering Directors on headcount planning and levelling calibration"
+        ]
+      },
+      {
+        "title": "Technical Recruiter",
+        "company": "Delivery Hero",
+        "bullets": [
+          "Sourced and closed 45 software engineers for APAC and EMEA product teams",
+          "Introduced candidate-NPS survey; improved candidate experience score from 3.4 to 4.6 out of 5"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["recruiter", "recruiting", "talent"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

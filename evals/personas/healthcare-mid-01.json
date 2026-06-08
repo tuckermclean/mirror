@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Healthcare / Clinical Informatics",
+    "seniority": "mid",
+    "industry": "Health tech",
+    "region": "US",
+    "yoe": 6,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["EHR", "clinical workflow", "interoperability", "FHIR", "patient outcomes", "safety", "protocol"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I suppose"],
+    "sentenceLengthDistribution": { "short": 32, "medium": 55, "long": 13 },
+    "emotionalRegister": "careful, evidence-based, patient-centred",
+    "jargonHated": ["synergy", "disruptive", "leverage", "rockstar", "move the needle"]
+  },
+  "currentLinkedIn": {
+    "headline": "Clinical Informatics Analyst at Mass General Brigham | EHR · FHIR · Patient Safety",
+    "about": "I sit at the intersection of medicine and technology. Six years translating clinical needs into EHR configurations and data pipelines — always with patient safety as the north star.",
+    "experience": [
+      {
+        "title": "Clinical Informatics Analyst",
+        "company": "Mass General Brigham",
+        "bullets": [
+          "Led Epic build for a 400-bed hospital expansion; coordinated 18 clinical departments through go-live",
+          "Designed FHIR-based data pipelines delivering real-time patient data to a sepsis early-warning system",
+          "Reduced medication order errors by 22% through targeted CDS alert redesign based on alert-fatigue analysis"
+        ]
+      },
+      {
+        "title": "EHR Implementation Specialist",
+        "company": "Cerner (now Oracle Health)",
+        "bullets": [
+          "Configured PowerChart workflows for 5 community hospital clients across New England",
+          "Trained 300+ nurses and physicians on updated documentation workflows during system upgrades"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["clinical", "health", "informatics"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

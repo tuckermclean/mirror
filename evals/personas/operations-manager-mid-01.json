@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Operations Manager",
+    "seniority": "mid",
+    "industry": "Logistics / Supply Chain",
+    "region": "US",
+    "yoe": 5,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["throughput", "SLA", "process", "efficiency", "KPI", "vendor", "workflow"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I guess"],
+    "sentenceLengthDistribution": { "short": 40, "medium": 48, "long": 12 },
+    "emotionalRegister": "systematic, ownership-driven, results-focused",
+    "jargonHated": ["synergy", "leverage", "game changer", "disruptive", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Operations Manager at Flexport | Freight · Process Improvement · Cross-functional",
+    "about": "I remove operational friction — from vendor onboarding to SLA compliance. Five years running cross-functional ops teams in logistics and supply chain.",
+    "experience": [
+      {
+        "title": "Operations Manager",
+        "company": "Flexport",
+        "bullets": [
+          "Reduced customs clearance cycle time by 35% by redesigning the document-collection workflow",
+          "Managed a team of 12 operations coordinators across three US hubs; maintained 98.5% SLA compliance",
+          "Negotiated vendor contracts saving $1.2M annually on drayage and last-mile services"
+        ]
+      },
+      {
+        "title": "Operations Analyst",
+        "company": "XPO Logistics",
+        "bullets": [
+          "Built Excel-based KPI dashboards used by the regional VP to track on-time delivery metrics",
+          "Identified a routing inefficiency that saved 420 driver-hours per month across the Southeast region"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["operations", "ops"],
+    "aboutMinWords": 55,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

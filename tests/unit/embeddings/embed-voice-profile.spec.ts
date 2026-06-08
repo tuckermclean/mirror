@@ -18,9 +18,10 @@ const baseHistory = {
 
 const baseVoiceCard = {
   vocabulary: ["systems", "engineer"],
-  topics: ["engineering", "distributed systems"],
-  writingStyle: "direct and technical",
-  communicationPatterns: [],
+  hedgesAvoided: ["I think", "maybe"],
+  sentenceLengthDistribution: { short: 40, medium: 45, long: 15 },
+  emotionalRegister: "direct, technical",
+  jargonHated: ["synergy", "leverage"],
 };
 
 describe("embedVoiceProfile", () => {

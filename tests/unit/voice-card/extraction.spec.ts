@@ -1,4 +1,3 @@
-// RED: @/lib/voice-card does not exist yet — fails until Wk 2
 import { describe, it, expect } from "vitest";
 
 const REQUIRED_VOICE_CARD_FIELDS = [

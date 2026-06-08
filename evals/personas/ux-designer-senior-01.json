@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "cluster": "Senior UX/Product Designer",
+    "seniority": "senior",
+    "industry": "Consumer mobile",
+    "region": "EU",
+    "yoe": 7,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["usability", "prototype", "research", "friction", "pattern", "flow", "iteration"],
+    "hedgesAvoided": ["I think", "maybe", "sort of", "I suppose"],
+    "sentenceLengthDistribution": { "short": 38, "medium": 48, "long": 14 },
+    "emotionalRegister": "empathetic, clear, visually expressive",
+    "jargonHated": ["synergy", "leverage", "disruptive", "rockstar", "circle back"]
+  },
+  "currentLinkedIn": {
+    "headline": "Senior Product Designer at Veloci · Stockholm | Mobile · Research · Design Systems",
+    "about": "I design mobile experiences that get out of the way. Seven years of user research, rapid prototyping, and cross-functional collaboration — mostly in consumer apps with millions of users.",
+    "experience": [
+      {
+        "title": "Senior Product Designer",
+        "company": "Veloci",
+        "bullets": [
+          "Led end-to-end redesign of the onboarding flow; usability testing cut task-completion errors by 55%",
+          "Established and maintained a Figma component library used by six product squads across two platforms",
+          "Ran 80+ moderated research sessions per year to inform roadmap priorities and validate concepts"
+        ]
+      },
+      {
+        "title": "UX Designer",
+        "company": "Flink Mobility",
+        "bullets": [
+          "Designed the map and booking interface for a micro-mobility app with 500K active users",
+          "Introduced usability heuristic reviews as a standing ritual; reduced post-launch UX bugs by 30%"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["designer", "design"],
+    "aboutMinWords": 60,
+    "voiceFidelityMinScore": 4,
+    "recruiterEyeLiftMinScore": 3
+  }
+}

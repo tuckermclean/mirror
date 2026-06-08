@@ -1,0 +1,182 @@
+[
+  {
+    "id": "sre-bench-01",
+    "industry": "tech",
+    "role": "SRE",
+    "seniority": "senior",
+    "headline": "Staff SRE at Stripe | Incident Command · Chaos Engineering · Platform Reliability",
+    "about": "I design systems that fail gracefully and recover fast. Nine years of SRE — I've led incident command on outages affecting millions of payment transactions and built the chaos engineering programme that now runs continuously across Stripe's production fleet. My goal is always the same: make on-call boring.",
+    "experience": [
+      {
+        "title": "Staff Site Reliability Engineer",
+        "company": "Stripe",
+        "startDate": "2020-03",
+        "endDate": null,
+        "bullets": [
+          "Owned SLO framework adopted across 80+ services; reduced error budget burn alerts by 62%",
+          "Led GameDay program running 200+ fault-injection experiments per year across production-mirror environments",
+          "Drove MTTR from 47 minutes to 11 minutes for Tier-1 incidents through runbook automation and on-call tooling improvements",
+          "Mentored 6 SRE engineers and 2 SWE-to-SRE transition engineers"
+        ]
+      },
+      {
+        "title": "Senior Site Reliability Engineer",
+        "company": "Cloudflare",
+        "startDate": "2017-06",
+        "endDate": "2020-02",
+        "bullets": [
+          "Managed reliability of DNS infrastructure serving 1.1 trillion queries/day",
+          "Implemented automated capacity planning that prevented three capacity-related incidents in 2019",
+          "Designed observability stack (Prometheus + Grafana + custom alerting) for 200-node Kafka cluster"
+        ]
+      }
+    ],
+    "performanceSignals": {
+      "profileViews": 4200,
+      "recruiterMessages": 18
+    }
+  },
+  {
+    "id": "sre-bench-02",
+    "industry": "tech",
+    "role": "SRE",
+    "seniority": "senior",
+    "headline": "Senior SRE at Datadog | Observability Infrastructure · Kubernetes · Toil Reduction",
+    "about": "I eat toil for breakfast so engineers can ship at 5pm on Fridays. Six years in SRE — I specialise in building the observability tooling and automation that makes operational work sustainable at scale.",
+    "experience": [
+      {
+        "title": "Senior Site Reliability Engineer",
+        "company": "Datadog",
+        "startDate": "2021-01",
+        "endDate": null,
+        "bullets": [
+          "Reduced on-call toil by 40% by automating 15 runbooks into self-healing Kubernetes operators",
+          "Built internal SLO-as-code tooling now used by 120+ product engineers to define and track service SLOs",
+          "Led cross-org reliability review that identified and resolved 8 systemic reliability gaps"
+        ]
+      },
+      {
+        "title": "Production Engineer",
+        "company": "Meta",
+        "startDate": "2018-07",
+        "endDate": "2020-12",
+        "bullets": [
+          "Owned reliability for Messenger notification delivery serving 1B+ users",
+          "Implemented quota-based rate limiting that eliminated cascading failure mode during Super Bowl traffic spikes"
+        ]
+      }
+    ],
+    "performanceSignals": {
+      "profileViews": 3800,
+      "recruiterMessages": 14
+    }
+  },
+  {
+    "id": "sre-bench-03",
+    "industry": "tech",
+    "role": "SRE",
+    "seniority": "senior",
+    "headline": "Platform SRE at Shopify | Multi-region Kubernetes · Error Budgets · Developer Experience",
+    "about": "I make platforms that developers trust. Eight years at the intersection of infrastructure and developer experience — I build the reliability primitives (SLOs, runbooks, chaos tests) that let product teams move fast without breaking things.",
+    "experience": [
+      {
+        "title": "Senior Platform SRE",
+        "company": "Shopify",
+        "startDate": "2019-04",
+        "endDate": null,
+        "bullets": [
+          "Architected multi-region active-active deployment pattern now used by 30+ core Shopify services",
+          "Established error budget policy adopted company-wide; connected reliability metrics to sprint planning for the first time",
+          "Cut mean deployment rollback time from 22 minutes to under 4 minutes through progressive delivery tooling",
+          "Ran quarterly reliability reviews with VP Engineering; influenced roadmap prioritisation for platform investments"
+        ]
+      },
+      {
+        "title": "SRE",
+        "company": "Heroku",
+        "startDate": "2015-09",
+        "endDate": "2019-03",
+        "bullets": [
+          "Managed reliability of the container runtime serving 10M+ deployments per month",
+          "Implemented capacity planning model that eliminated three over-provisioning incidents in 2017"
+        ]
+      }
+    ],
+    "performanceSignals": {
+      "profileViews": 5100,
+      "recruiterMessages": 22
+    }
+  },
+  {
+    "id": "sre-bench-04",
+    "industry": "tech",
+    "role": "SRE",
+    "seniority": "senior",
+    "headline": "SRE Lead at Grafana Labs | Open Source · Mimir · Distributed Storage Reliability",
+    "about": "I work on the tools SREs use every day — which means I hold my own systems to an unusually high standard. Seven years in reliability engineering, now leading the SRE function for Grafana's hosted metrics platform.",
+    "experience": [
+      {
+        "title": "SRE Lead",
+        "company": "Grafana Labs",
+        "startDate": "2022-02",
+        "endDate": null,
+        "bullets": [
+          "Led 4-person SRE team responsible for Grafana Cloud metrics platform processing 500M series",
+          "Drove 99.95% → 99.99% availability improvement for Mimir ingest path over 8-month reliability sprint",
+          "Authored public postmortem format adopted as open standard by 200+ companies in cloud-native community",
+          "Represented Grafana at KubeCon SRE track; presented talk with 1,200+ attendees"
+        ]
+      },
+      {
+        "title": "Senior SRE",
+        "company": "GitHub",
+        "startDate": "2019-01",
+        "endDate": "2022-01",
+        "bullets": [
+          "Owned reliability of Actions runner infrastructure scaling to 500K concurrent CI jobs during peak",
+          "Designed autoscaling policies that reduced runner idle cost by $1.2M/year without impacting job latency"
+        ]
+      }
+    ],
+    "performanceSignals": {
+      "profileViews": 6300,
+      "recruiterMessages": 27
+    }
+  },
+  {
+    "id": "sre-bench-05",
+    "industry": "tech",
+    "role": "SRE",
+    "seniority": "senior",
+    "headline": "Senior SRE at Twilio | Telecom Infrastructure · Five Nines · Incident Management",
+    "about": "Telecom reliability is unforgiving — a dropped call at 2am is someone's emergency. Ten years in carrier-grade and cloud SRE, the last four at Twilio keeping the voice and messaging infrastructure at five nines.",
+    "experience": [
+      {
+        "title": "Senior Site Reliability Engineer",
+        "company": "Twilio",
+        "startDate": "2020-06",
+        "endDate": null,
+        "bullets": [
+          "Maintained 99.999% availability for voice call routing infrastructure handling 2B+ minutes per month",
+          "Designed multi-region failover architecture that survived a complete AWS us-east-1 degradation event",
+          "Built automated incident severity classifier that cut SEV-1 misclassification rate by 70%",
+          "Established SRE on-call rotation and escalation paths for a 12-person globally distributed team"
+        ]
+      },
+      {
+        "title": "Infrastructure Engineer",
+        "company": "Vonage",
+        "startDate": "2016-03",
+        "endDate": "2020-05",
+        "bullets": [
+          "Migrated telecom media servers from bare metal to AWS; achieved parity availability within 6 months",
+          "Built capacity forecasting model for SMS infrastructure that prevented 2 capacity incidents in 2018"
+        ]
+      }
+    ],
+    "performanceSignals": {
+      "profileViews": 3500,
+      "recruiterMessages": 15
+    }
+  }
+]

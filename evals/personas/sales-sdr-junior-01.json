@@ -1,0 +1,38 @@
+{
+  "_meta": {
+    "cluster": "Sales Development Representative",
+    "seniority": "junior",
+    "industry": "B2B SaaS",
+    "region": "EU",
+    "yoe": 1,
+    "status": "active"
+  },
+  "voiceCard": {
+    "vocabulary": ["outreach", "sequence", "connect", "meeting", "prospect", "ICP", "qualify"],
+    "hedgesAvoided": ["sort of", "I suppose", "basically", "literally"],
+    "sentenceLengthDistribution": { "short": 55, "medium": 35, "long": 10 },
+    "emotionalRegister": "high-energy, personable, persistent",
+    "jargonHated": ["synergy", "leverage", "rockstar", "ninja", "thought leader"]
+  },
+  "currentLinkedIn": {
+    "headline": "SDR at Personio | Booking Meetings for DACH Enterprise Sales | Munich",
+    "about": "I open doors. One year as an SDR at Personio, focused on DACH enterprise HR-tech buyers. I hit 115% of my meeting-booked quota last quarter.",
+    "experience": [
+      {
+        "title": "Sales Development Representative",
+        "company": "Personio",
+        "bullets": [
+          "Booked 68 qualified meetings in Q1 FY25 against a target of 60 — 113% attainment",
+          "Personalised multi-touch sequences for 200+ HR Director and VP targets per week in the DACH region",
+          "Converted 18% of cold LinkedIn connections into discovery calls through value-first messaging"
+        ]
+      }
+    ]
+  },
+  "expectedOutputRange": {
+    "headlineMustContain": ["SDR", "sales development"],
+    "aboutMinWords": 40,
+    "voiceFidelityMinScore": 3,
+    "recruiterEyeLiftMinScore": 3
+  }
+}
