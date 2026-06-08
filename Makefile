@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration coverage build smoke e2e eval-prompts helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
+.PHONY: install typecheck lint test-unit test-integration coverage build smoke e2e eval-prompts eval-spearman helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
 
 install:
 	pnpm install --frozen-lockfile
@@ -12,10 +12,9 @@ lint:
 test-unit:
 	pnpm test:unit
 
-# Runs db + health suites. Requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
-# rag/retrieval excluded — that module is not yet implemented (RED tests stay out of CI gate).
+# Runs db + health + rag suites. Requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
 test-integration:
-	pnpm vitest run tests/integration/db tests/integration/health
+	pnpm vitest run tests/integration/db tests/integration/health tests/integration/rag
 
 coverage:
 	pnpm coverage
@@ -33,6 +32,9 @@ e2e:
 
 eval-prompts:
 	pnpm run eval:interview; E1=$$?; pnpm run eval:voice; E2=$$?; exit $$((E1 | E2))
+
+eval-spearman:
+	pnpm eval:spearman
 
 helm-lint:
 	helm lint infra/helm/mirror-web
