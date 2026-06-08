@@ -57,9 +57,9 @@ describe("issues event", () => {
     expect(r.model).toBe("claude-opus-4-8");
   });
 
-  it("sets max_turns to 60", () => {
+  it("sets max_turns to 40", () => {
     const r = decide("issues");
-    expect(r.max_turns).toBe(60);
+    expect(r.max_turns).toBe(40);
   });
 
   it("loads orchestrator-contract", () => {
@@ -78,9 +78,9 @@ describe("issue_comment event", () => {
     expect(r.model).toBe("claude-sonnet-4-6");
   });
 
-  it("sets max_turns to 40", () => {
+  it("sets max_turns to 30", () => {
     const r = decide("issue_comment");
-    expect(r.max_turns).toBe(40);
+    expect(r.max_turns).toBe(30);
   });
 
   it("loads orchestrator-contract", () => {
@@ -99,9 +99,9 @@ describe("pull_request_review_comment event", () => {
     expect(r.model).toBe("claude-sonnet-4-6");
   });
 
-  it("sets max_turns to 40", () => {
+  it("sets max_turns to 30", () => {
     const r = decide("pull_request_review_comment");
-    expect(r.max_turns).toBe(40);
+    expect(r.max_turns).toBe(30);
   });
 
   it("loads orchestrator-contract", () => {
@@ -111,7 +111,7 @@ describe("pull_request_review_comment event", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Unknown event — safe default (Sonnet, 40, orchestrator-contract)
+// Unknown event — safe default (Sonnet, 30, orchestrator-contract)
 // ---------------------------------------------------------------------------
 
 describe("unknown / empty event", () => {
@@ -120,9 +120,9 @@ describe("unknown / empty event", () => {
     expect(r.model).toBe("claude-sonnet-4-6");
   });
 
-  it("defaults to max_turns 40 for unknown event", () => {
+  it("defaults to max_turns 30 for unknown event", () => {
     const r = decide("something_unknown");
-    expect(r.max_turns).toBe(40);
+    expect(r.max_turns).toBe(30);
   });
 
   it("loads orchestrator-contract for unknown event", () => {
