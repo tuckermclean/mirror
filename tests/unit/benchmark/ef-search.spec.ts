@@ -6,7 +6,11 @@
  * helper guards the value to pgvector's supported range (1..1000).
  */
 import { describe, it, expect } from "vitest";
-import { efSearchStatement, clampEfSearch } from "@/lib/rag/ef-search";
+import {
+  efSearchStatement,
+  efSearchLocalStatement,
+  clampEfSearch,
+} from "@/lib/rag/ef-search";
 
 describe("clampEfSearch", () => {
   it("clamps below 1 up to 1", () => {
@@ -41,5 +45,14 @@ describe("efSearchStatement", () => {
   it("uses the clamped value in the statement", () => {
     const text = JSON.stringify(efSearchStatement(99999));
     expect(text).toContain("1000");
+  });
+});
+
+describe("efSearchLocalStatement", () => {
+  it("produces a SET LOCAL hnsw.ef_search statement with the clamped value", () => {
+    const text = JSON.stringify(efSearchLocalStatement(40));
+    expect(text).toContain("SET LOCAL");
+    expect(text).toContain("hnsw.ef_search");
+    expect(text).toContain("40");
   });
 });

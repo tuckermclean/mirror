@@ -37,7 +37,7 @@ describeWithDb("retrieval latency at 5k vectors", () => {
         role: "sre",
         seniority: "senior",
         publicUrl: `${URL_PREFIX}${start + j}`,
-        parsed: { headline: `perf ${start + j}` },
+        parsed: { headline: `perf ${start + j}`, about: "", experience: [] },
         embedding: randomVector(),
         performanceSignals: null,
       }));

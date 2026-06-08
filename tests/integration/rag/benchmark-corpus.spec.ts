@@ -33,6 +33,7 @@ describeWithDb("benchmark corpus retrieval", () => {
     const { upsertBenchmarkRows } = await import("@/lib/benchmark/collector");
 
     // Plant a known near-duplicate plus a handful of distractors.
+    const parsed = (headline: string) => ({ headline, about: "", experience: [] });
     const planted = makeVector(1);
     const rows = [
       {
@@ -40,7 +41,7 @@ describeWithDb("benchmark corpus retrieval", () => {
         role: "sre",
         seniority: "senior",
         publicUrl: `${URL_PREFIX}planted`,
-        parsed: { headline: "planted near-duplicate" },
+        parsed: parsed("planted near-duplicate"),
         embedding: planted,
         performanceSignals: { profileViews: 1 },
       },
@@ -49,7 +50,7 @@ describeWithDb("benchmark corpus retrieval", () => {
         role: "sre",
         seniority: "senior",
         publicUrl: `${URL_PREFIX}distractor-${i}`,
-        parsed: { headline: `distractor ${i}` },
+        parsed: parsed(`distractor ${i}`),
         embedding: makeVector(i + 50),
         performanceSignals: null,
       })),
@@ -74,7 +75,8 @@ describeWithDb("benchmark corpus retrieval", () => {
     const results = await retrieveSimilarProfiles(query, { limit: 5 });
     expect(results.length).toBeGreaterThan(0);
     const top = results[0];
-    expect(top?.publicUrl ?? top?.id).toBeTruthy();
+    expect(top?.id).toBeTruthy();
+    expect((top?.parsed as { headline?: string })?.headline).toBe("planted near-duplicate");
     expect(top?.similarity).toBeGreaterThan(0.7);
   });
 
