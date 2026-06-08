@@ -81,6 +81,22 @@ vi.mock("@/lib/inngest/client", () => ({
   },
 }));
 
+// Mock NonRetriableError from 'inngest' so we can assert on it without a
+// real Inngest runtime. We make it a distinct named class so instanceof checks
+// and name checks work reliably.
+class MockNonRetriableError extends Error {
+  cause: unknown;
+  constructor(message: string, opts?: { cause?: unknown }) {
+    super(message);
+    this.name = "NonRetriableError";
+    this.cause = opts?.cause;
+  }
+}
+
+vi.mock("inngest", () => ({
+  NonRetriableError: MockNonRetriableError,
+}));
+
 // Capture the messages array passed to the Anthropic stream call.
 const capturedMessages: Array<{ role: string; content: string }[]> = [];
 
@@ -249,5 +265,61 @@ describe("generation — buildUserMessage", () => {
     const userContent = capturedMessages[0]?.[0]?.content ?? "";
     expect(userContent).toContain("Profile:");
     expect(userContent).toContain("My LinkedIn profile");
+  });
+
+  it("throws NonRetriableError (not plain MonthlyCapError) when monthly cap is exhausted", async () => {
+    // Arrange: cap is exhausted
+    mockCheckMonthlyCap.mockResolvedValue({
+      allowed: false,
+      resets_at: "2026-07-01T00:00:00.000Z",
+    });
+
+    const mod = await import("@/inngest/generation");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = (mod.runGeneration as any).__rawFn as (ctx: {
+      event: { data: { userId: string; snapshotId: string; generationId: string } };
+      step: ReturnType<typeof makeMockStep>;
+    }) => Promise<unknown>;
+
+    const mockStep = makeMockStep();
+
+    // Act + Assert: must throw NonRetriableError so Inngest stops retrying
+    await expect(
+      fn({
+        event: { data: { userId: "user-1", snapshotId: "snap-1", generationId: "gen-1" } },
+        step: mockStep,
+      })
+    ).rejects.toMatchObject({
+      name: "NonRetriableError",
+      message: expect.stringContaining("2026-07-01"),
+    });
+  });
+
+  it("wraps the MonthlyCapError as the cause of the NonRetriableError", async () => {
+    mockCheckMonthlyCap.mockResolvedValue({
+      allowed: false,
+      resets_at: "2026-07-01T00:00:00.000Z",
+    });
+
+    const mod = await import("@/inngest/generation");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = (mod.runGeneration as any).__rawFn as (ctx: {
+      event: { data: { userId: string; snapshotId: string; generationId: string } };
+      step: ReturnType<typeof makeMockStep>;
+    }) => Promise<unknown>;
+
+    const mockStep = makeMockStep();
+
+    const err = await fn({
+      event: { data: { userId: "user-1", snapshotId: "snap-1", generationId: "gen-1" } },
+      step: mockStep,
+    }).catch((e: unknown) => e);
+
+    expect(err).toMatchObject({ name: "NonRetriableError" });
+    // The original MonthlyCapError must be attached as the cause
+    expect((err as { cause?: unknown }).cause).toBeInstanceOf(Error);
+    expect(((err as { cause?: Error }).cause as Error).message).toContain("monthly cap");
   });
 });
