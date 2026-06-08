@@ -160,72 +160,16 @@ Both must pass cleanly before you proceed.
 
 ---
 
-## Step 7 — Pre-flight review (mandatory before marking ready)
-
-**Do not skip this.** This is how you catch what your specialists missed.
-
-Spawn TWO reviewers in parallel against the assembled PR diff:
-
-```
-Agent(subagent_type: "general-purpose", run_in_background: true,
-  prompt: """
-    Act as .agents/engineering-security-engineer.md. Read that file first.
-
-    Review the diff on branch <BRANCH> against master. Focus on:
-    - OWASP A01 (broken access control): does every query that accepts a user-supplied ID
-      verify ownership with WHERE user_id = authenticatedUserId? UUIDs are not access credentials.
-    - Inngest error handling: are terminal failures (spend cap, missing data) wrapped in
-      NonRetriableError to prevent infinite retry loops?
-    - PII access: are all reads of transcript, raw_html, parsed going through pii-read.ts?
-    - Auth first in every route handler.
-    - li_at cookie never logged or returned.
-    - LLM spend cap checked before every Anthropic API call.
-    - Cache interactions: could a failed partial write poison a cache entry and block retries?
-
-    Post your findings as a comment on PR #<n> using gh pr comment.
-    Return a JSON summary: { "blockers": [{"file": "...", "line": ..., "description": "..."}] }
-  """
-)
-
-Agent(subagent_type: "general-purpose", run_in_background: true,
-  prompt: """
-    Act as .agents/engineering-code-reviewer.md. Read that file first.
-
-    Review the diff on branch <BRANCH> against master. Focus specifically on:
-    - Cross-domain seams: does the API route's assumptions match what the Inngest function
-      actually does? Do shared types/helpers have consistent contracts end-to-end?
-    - Cache correctness: can a null/partial write be treated as a cache hit?
-    - Error propagation: are domain-specific errors mapped to correct HTTP/Inngest responses?
-    - Test coverage: are the failure paths (not just happy path) tested?
-    - TypeScript: any implicit `any`, unchecked nulls at domain boundaries?
-
-    Post your findings as a comment on PR #<n> using gh pr comment.
-    Return a JSON summary: { "blockers": [{"file": "...", "line": ..., "description": "..."}] }
-  """
-)
-```
-
-Wait for both. Collect all blockers from their JSON summaries.
-
-**If blockers found:** for each blocker, identify the owning domain by file path, re-spawn that specialist with a focused fix prompt (the specific blocker description + affected files). Wait → cherry-pick fix → re-run typecheck/lint → re-run this review step.
-
-**If no blockers:** proceed to Step 8.
-
-Do not mark the PR ready until this step comes back clean.
-
----
-
-## Step 8 — Mark ready and exit
+## Step 7 — Mark ready and exit
 
 ```bash
 gh pr edit <n> --add-label "converge,agent:orchestrated"
 gh pr ready <n>
-gh pr comment <n> --body "✅ Complete: <brief summary of what each specialist built, plus pre-flight review result>"
+gh pr comment <n> --body "✅ Complete: <brief summary of what each specialist built>"
 ```
 
-The `agent:orchestrated` label tells the converge reviewer to calibrate: this PR has already passed
-a security review and a cross-domain correctness review. Treat any remaining findings as genuine
-slips that escaped two rounds of specialist scrutiny — they should be rare.
+The `agent:orchestrated` label tells the converge swarm to calibrate its review around
+cross-domain seam issues. Converge owns all review and fix quality from here.
 
 ---
 
@@ -233,11 +177,9 @@ slips that escaped two rounds of specialist scrutiny — they should be rare.
 
 | Role | Model | ~Turns |
 |------|-------|--------|
-| Orchestrator (you) | Opus (issues) / Sonnet (comments) | 60 / 40 |
+| Orchestrator (you) | Opus (issues) / Sonnet (comments) | 40 / 30 |
 | Each implementation specialist | general-purpose | ~20 |
-| Each pre-flight reviewer | general-purpose | ~15 |
 
-Budget raised to 60 (issues) / 40 (comments) to accommodate the pre-flight review step.
 Sub-agent turns are **independent** of yours. Use your turns for coordination only.
 
 **If you are running low on turns:** open the draft PR (if not already open), commit whatever integration work exists, and exit with:

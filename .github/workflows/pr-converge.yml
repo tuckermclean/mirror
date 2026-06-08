@@ -145,40 +145,19 @@ jobs:
       - name: "R1 — Review"
         id: r1_review
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 40
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
           allowed_bots: "claude"
           prompt: |
-            Load: .agents/engineering-code-reviewer.md
-            Also load: .agents/custom/converge-orchestrator.md (the convergence contract —
-            your output MUST satisfy it: verdict schema, comment format).
+            Load: .agents/custom/converge-reviewer.md
+            Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
 
             This is ROUND 1 of 3.
-
-            Review PR #${{ env.PR_NUMBER }}.
-
-            BUILD PROVENANCE: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'agent:orchestrated') && 'specialist-swarm — each domain was built by a dedicated specialist agent. Expect domain-expert-quality work per area. Flag cross-domain SEAMS as 🔴 blockers: type mismatches at module boundaries, duplicated logic across domains, inconsistent error handling or naming conventions between specialist outputs.' || 'single-agent' }}
-
-            DELIVERABLE ORDER (durability — do this even if you run out of turns):
-            1. Post an initial placeholder comment FIRST:
-                 gh pr comment ${{ env.PR_NUMBER }} --body "🔄 Round 1 of 3 — review in progress…"
-            2. As you find issues, rewrite it:
-                 gh pr comment ${{ env.PR_NUMBER }} --edit-last --body "🔄 Round 1 of 3\n\n<findings>"
-            3. LAST action: write .converge-verdict.json (schema in converge-orchestrator.md).
-
-            Check (per AGENTS.md and converge-orchestrator.md):
-            1. AGENTS.md compliance (auth first, no raw PII reads, no naked throws, etc.)
-            2. Test coverage — every new public function must have a failing test before it
-            3. Error handling and edge cases
-            4. Security issues (always, not just flagged paths)
-            5. Idiomatic TypeScript / Next.js style
-            6. Accessibility on any UI changes
-
-            Assign 🔴 / 🟡 / 💭 to every finding. Be specific — cite file:line.
+            PR_NUMBER=${{ env.PR_NUMBER }}
 
       - name: "R1 — Save verdict"
         run: |
@@ -237,30 +216,20 @@ jobs:
       - name: "R1 — Fix (🔴 blockers + 🟡 suggestions)"
         if: steps.r1_decide.outputs.done != 'true'
         continue-on-error: true
-        timeout-minutes: 55
+        timeout-minutes: 60
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 80"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 60"
           show_full_output: "true"
           allowed_bots: "claude"
           prompt: |
-            Load: .agents/engineering-senior-developer.md
+            Load: .agents/custom/converge-fixer.md
             Also load: .agents/custom/converge-orchestrator.md
 
-            This is ROUND 1 of 3 — fix mode.
+            This is ROUND 1 of 3 — fix mode. Fix ALL 🔴 blockers AND ALL 🟡 suggestions.
             Branch: ${{ steps.branch.outputs.name }}
-            PR: #${{ env.PR_NUMBER }}
-
-            Read .converge-verdict-r1.json for the findings.
-            Fix ALL 🔴 blockers AND ALL 🟡 suggestions. Do NOT touch 💭 nits.
-
-            Follow AGENTS.md TDD (Red → Green → Refactor). One commit per fix.
-            Commit and push after each logical change:
-              git push origin ${{ steps.branch.outputs.name }}
-
-            Before pushing, verify: pnpm typecheck && pnpm lint && pnpm test:unit
-            Report results honestly. Do not claim green if any check is red.
+            PR_NUMBER=${{ env.PR_NUMBER }}
 
       # ── Round 2 ─────────────────────────────────────────────────────────────
 
@@ -274,27 +243,20 @@ jobs:
         id: r2_review
         if: steps.r1_decide.outputs.done != 'true'
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 40
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
           allowed_bots: "claude"
           prompt: |
-            Load: .agents/engineering-code-reviewer.md
-            Also load: .agents/custom/converge-orchestrator.md
+            Load: .agents/custom/converge-reviewer.md
+            Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
 
             This is ROUND 2 of 3.
-
-            Review PR #${{ env.PR_NUMBER }}.
+            PR_NUMBER=${{ env.PR_NUMBER }}
             Compare with .converge-verdict-r1.json to track what was fixed vs. still open.
-
-            DELIVERABLE ORDER:
-            1. Edit previous review comment:
-                 gh pr comment ${{ env.PR_NUMBER }} --edit-last --body "🔄 Round 2 of 3 — review in progress…"
-            2. Rewrite as findings come in.
-            3. LAST: write fresh .converge-verdict.json reflecting the CURRENT PR state.
 
       - name: "R2 — Save verdict"
         if: steps.r1_decide.outputs.done != 'true'
@@ -360,28 +322,20 @@ jobs:
       - name: "R2 — Fix (🔴 blockers only)"
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         continue-on-error: true
-        timeout-minutes: 55
+        timeout-minutes: 60
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 80"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 60"
           show_full_output: "true"
           allowed_bots: "claude"
           prompt: |
-            Load: .agents/engineering-senior-developer.md
+            Load: .agents/custom/converge-fixer.md
             Also load: .agents/custom/converge-orchestrator.md
 
-            This is ROUND 2 of 3 — fix mode.
+            This is ROUND 2 of 3 — fix mode. Fix ONLY 🔴 blockers.
             Branch: ${{ steps.branch.outputs.name }}
-            PR: #${{ env.PR_NUMBER }}
-
-            Read .converge-verdict-r2.json for remaining findings.
-            Fix ONLY 🔴 blockers. Do NOT touch 🟡 suggestions or 💭 nits.
-
-            Follow AGENTS.md TDD. One commit per fix. Commit and push after each change:
-              git push origin ${{ steps.branch.outputs.name }}
-
-            Before pushing: pnpm typecheck && pnpm lint && pnpm test:unit
+            PR_NUMBER=${{ env.PR_NUMBER }}
 
       # ── Round 3 ─────────────────────────────────────────────────────────────
 
@@ -395,27 +349,20 @@ jobs:
         id: r3_review
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 40
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 30"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
           allowed_bots: "claude"
           prompt: |
-            Load: .agents/engineering-code-reviewer.md
-            Also load: .agents/custom/converge-orchestrator.md
+            Load: .agents/custom/converge-reviewer.md
+            Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
 
-            This is ROUND 3 of 3 (final round).
-
-            Review PR #${{ env.PR_NUMBER }}.
+            This is ROUND 3 of 3 (final round — no fix step after this).
+            PR_NUMBER=${{ env.PR_NUMBER }}
             Compare with .converge-verdict-r2.json to track progress.
-
-            DELIVERABLE ORDER:
-            1. Edit previous review comment:
-                 gh pr comment ${{ env.PR_NUMBER }} --edit-last --body "🔄 Round 3 of 3 (final) — review in progress…"
-            2. Rewrite with findings.
-            3. LAST: write fresh .converge-verdict.json.
 
       - name: "R3 — Save verdict"
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
