@@ -103,4 +103,15 @@ describe("findCachedGeneration", () => {
     const result = await findCachedGeneration("hash-missing");
     expect(result).toBeNull();
   });
+
+  it("returns null for a null-output placeholder row (cache-poisoning guard)", async () => {
+    // The WHERE clause includes isNotNull(generations.output), so the DB
+    // returns no rows when the only matching row has output=null (e.g. an
+    // Inngest placeholder inserted before the job runs that then fails
+    // permanently). findCachedGeneration must return null so retries can
+    // proceed rather than being blocked for 24 h by the poisoned placeholder.
+    mockDbSelectChain.limit.mockResolvedValue([]);
+    const result = await findCachedGeneration("hash-null-output");
+    expect(result).toBeNull();
+  });
 });
