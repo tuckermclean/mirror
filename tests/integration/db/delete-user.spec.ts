@@ -142,7 +142,7 @@ describeWithDb("deleteUser — GDPR redaction-in-place (ADR-009)", () => {
     await db.insert(outcomes).values({
       userId: subject.id,
       weekOf: "2026-05-25",
-      source: "manual",
+      source: "self_report",
     });
     await db.insert(outcomeDeltas).values({
       userId: subject.id,
