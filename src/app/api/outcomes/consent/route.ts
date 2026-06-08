@@ -11,11 +11,10 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Resolve the internal user id, or return the appropriate error response. */
-async function resolveUserOr401Or404(): Promise<
-  { ok: true; userId: string } | { ok: false; response: NextResponse }
-> {
-  const { userId: clerkUserId } = await auth();
+/** Resolve the internal user id from a Clerk user id, or return the appropriate error response. */
+async function resolveOrReject(
+  clerkUserId: string | null | undefined
+): Promise<{ ok: true; userId: string } | { ok: false; response: NextResponse }> {
   if (!clerkUserId) {
     return {
       ok: false,
@@ -34,7 +33,8 @@ async function resolveUserOr401Or404(): Promise<
 
 /** POST /api/outcomes/consent — grant outcome-tracking consent. */
 export async function POST(): Promise<NextResponse> {
-  const resolved = await resolveUserOr401Or404();
+  const { userId: clerkUserId } = await auth();
+  const resolved = await resolveOrReject(clerkUserId);
   if (!resolved.ok) return resolved.response;
 
   await grantOutcomeTrackingConsent(resolved.userId);
@@ -43,7 +43,8 @@ export async function POST(): Promise<NextResponse> {
 
 /** DELETE /api/outcomes/consent — revoke consent (stops collection). */
 export async function DELETE(): Promise<NextResponse> {
-  const resolved = await resolveUserOr401Or404();
+  const { userId: clerkUserId } = await auth();
+  const resolved = await resolveOrReject(clerkUserId);
   if (!resolved.ok) return resolved.response;
 
   await revokeOutcomeTrackingConsent(resolved.userId);
@@ -52,7 +53,8 @@ export async function DELETE(): Promise<NextResponse> {
 
 /** GET /api/outcomes/consent — read current consent state. */
 export async function GET(): Promise<NextResponse> {
-  const resolved = await resolveUserOr401Or404();
+  const { userId: clerkUserId } = await auth();
+  const resolved = await resolveOrReject(clerkUserId);
   if (!resolved.ok) return resolved.response;
 
   const consented = await hasOutcomeTrackingConsent(resolved.userId);

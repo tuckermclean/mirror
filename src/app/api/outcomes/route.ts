@@ -13,6 +13,39 @@ import { aggregateWeeklySeries } from "@/lib/outcomes/aggregation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+async function parseBody(
+  request: NextRequest
+): Promise<
+  | { ok: true; data: ReturnType<typeof selfReportSchema.parse> }
+  | { ok: false; response: NextResponse }
+> {
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return { ok: false, response: NextResponse.json({ error: "invalid_json" }, { status: 400 }) };
+  }
+
+  const parsed = selfReportSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error: "validation_error",
+          issues: parsed.error.issues.map((i) => ({
+            field: i.path.join("."),
+            message: i.message,
+          })),
+        },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return { ok: true, data: parsed.data };
+}
+
 async function insertOutcomeWithConsentCheck(
   tx: DB,
   internalUserId: string,
@@ -57,45 +90,21 @@ async function insertOutcomeWithConsentCheck(
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId: clerkUserId } = await auth();
-  if (!clerkUserId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!clerkUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
-
-  const parsed = selfReportSchema.safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "validation_error",
-        issues: parsed.error.issues.map((i) => ({
-          field: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      { status: 400 }
-    );
-  }
+  const body = await parseBody(request);
+  if (!body.ok) return body.response;
 
   const internalUserId = await resolveActiveUserId(clerkUserId);
-  if (!internalUserId) {
-    return NextResponse.json({ error: "user_not_found" }, { status: 404 });
-  }
+  if (!internalUserId) return NextResponse.json({ error: "user_not_found" }, { status: 404 });
 
   // Wrap the consent check and INSERT in a transaction to prevent a TOCTOU
   // race where the user revokes consent between the check and the write.
   const inserted = await db.transaction(async (tx) => {
-    return insertOutcomeWithConsentCheck(tx as unknown as DB, internalUserId, parsed.data);
+    return insertOutcomeWithConsentCheck(tx as unknown as DB, internalUserId, body.data);
   });
 
-  if (!inserted) {
-    return NextResponse.json({ error: "consent_required" }, { status: 403 });
-  }
+  if (!inserted) return NextResponse.json({ error: "consent_required" }, { status: 403 });
 
   return NextResponse.json({ outcomeId: inserted[0]!.id }, { status: 200 });
 }
