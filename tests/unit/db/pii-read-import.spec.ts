@@ -16,6 +16,19 @@ const mockWhere = vi.hoisted(() => vi.fn(() => ({ limit: mockLimit })));
 const mockFrom = vi.hoisted(() => vi.fn(() => ({ where: mockWhere })));
 const mockSelect = vi.hoisted(() => vi.fn(() => ({ from: mockFrom })));
 
+// Spy on eq and and from drizzle-orm to verify ownership filtering in WHERE clause.
+const mockEq = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ _tag: "eq", args })));
+const mockAnd = vi.hoisted(() => vi.fn((...args: unknown[]) => ({ _tag: "and", args })));
+
+vi.mock("drizzle-orm", async (importActual) => {
+  const actual = await importActual<typeof import("drizzle-orm")>();
+  return {
+    ...actual,
+    eq: (...args: Parameters<typeof actual.eq>) => mockEq(...args),
+    and: (...args: Parameters<typeof actual.and>) => mockAnd(...args),
+  };
+});
+
 vi.mock("@/db/client", () => ({
   db: { insert: mockInsert, select: mockSelect },
 }));
@@ -25,6 +38,7 @@ vi.mock("@/db/schema", () => ({
   imports: {
     rawPath: Symbol("imports.rawPath"),
     id: Symbol("imports.id"),
+    userId: Symbol("imports.userId"),
   },
   interviews: {
     transcript: Symbol("interviews.transcript"),
@@ -49,6 +63,9 @@ beforeEach(() => {
   mockWhere.mockReturnValue({ limit: mockLimit });
   mockFrom.mockReturnValue({ where: mockWhere });
   mockSelect.mockReturnValue({ from: mockFrom });
+  // Restore eq/and spy implementations after vi.clearAllMocks() resets them.
+  mockEq.mockImplementation((...args: unknown[]) => ({ _tag: "eq", args }));
+  mockAnd.mockImplementation((...args: unknown[]) => ({ _tag: "and", args }));
 });
 
 // ---------------------------------------------------------------------------
@@ -121,5 +138,26 @@ describe("readImportRawPath", () => {
     await expect(
       readImportRawPath(IMPORT_ID, ACCESSOR_ID, "   ")
     ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
+  it("enforces ownership: WHERE clause includes eq(imports.userId, accessorId) — IDOR prevention", async () => {
+    const schema = await import("@/db/schema");
+    const { imports } = schema;
+
+    await readImportRawPath(IMPORT_ID, ACCESSOR_ID, REASON);
+
+    const eqCalls = mockEq.mock.calls;
+    const userIdCheck = eqCalls.find(
+      (call) => call[0] === imports.userId && call[1] === ACCESSOR_ID
+    );
+    expect(
+      userIdCheck,
+      "eq(imports.userId, accessorId) must appear in WHERE clause to prevent IDOR"
+    ).toBeDefined();
+
+    expect(
+      mockAnd,
+      "and() must be used to combine importId and userId conditions"
+    ).toHaveBeenCalled();
   });
 });
