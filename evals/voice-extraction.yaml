@@ -8,8 +8,10 @@ description: "Voice Card extraction eval — deterministic schema/structural ass
 prompts:
   - file://helpers/voice-extraction-messages.json
 
+# EVAL_MODEL defaults to the project model (see src/inngest/generation.ts MODEL).
+# Override per-run with `EVAL_MODEL=… pnpm eval:voice` to test a different model.
 providers:
-  - id: anthropic:messages:claude-sonnet-4-6
+  - id: "anthropic:messages:{{env.EVAL_MODEL || 'claude-sonnet-4-6'}}"
     config:
       temperature: 0
 
@@ -20,34 +22,18 @@ defaultTest:
 tests:
   - description: "VoiceCard schema — all structural assertions against one model output"
     assert:
-      - type: javascript
-        value: |
-          const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-          const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-          try { JSON.parse(stripped); return true; } catch { return false; }
-
+      # JSON validity, field types, distribution bounds + sum-to-1, and non-empty
+      # strings are all enforced by the shared schema mirror (the single
+      # documented mirror of VoiceCardSchema). It also strips the code fence.
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
+      # Vocabulary length bound (1–30) is not part of the schema, so it stays
+      # inline here.
       - type: javascript
         value: |
           try {
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
-            const dist = parsed.sentenceLengthDistribution;
-            if (!dist || typeof dist !== "object") return false;
-            const { short, medium, long } = dist;
-            if (typeof short !== "number" || typeof medium !== "number" || typeof long !== "number") return false;
-            const sum = short + medium + long;
-            return sum >= 90 && sum <= 110;
-          } catch {
-            return false;
-          }
-
-      - type: javascript
-        value: |
-          try {
+            // canonical: src/lib/voice-card/fence.ts — keep in sync
             const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
             const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
             const parsed = JSON.parse(stripped);
