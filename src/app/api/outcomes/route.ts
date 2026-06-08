@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import type { DB } from "@/db/client";
 import { outcomes } from "@/db/schema";
 import { resolveActiveUserId } from "@/lib/db/user";
 import { hasOutcomeTrackingConsent } from "@/lib/outcomes/consent";
@@ -11,6 +12,37 @@ import { aggregateWeeklySeries } from "@/lib/outcomes/aggregation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function insertOutcomeWithConsentCheck(
+  tx: DB,
+  internalUserId: string,
+  data: ReturnType<typeof selfReportSchema.parse>
+): Promise<{ id: string }[] | null> {
+  const hasConsent = await hasOutcomeTrackingConsent(internalUserId, tx);
+  if (!hasConsent) return null;
+
+  return tx
+    .insert(outcomes)
+    .values({
+      userId: internalUserId,
+      weekOf: data.weekOf,
+      profileViews: data.profileViews,
+      searchAppearances: data.searchAppearances,
+      recruiterMsgs: data.recruiterMsgs,
+      postImpressions: data.postImpressions,
+      source: "self_report",
+    })
+    .onConflictDoUpdate({
+      target: [outcomes.userId, outcomes.weekOf, outcomes.source],
+      set: {
+        profileViews: data.profileViews,
+        searchAppearances: data.searchAppearances,
+        recruiterMsgs: data.recruiterMsgs,
+        postImpressions: data.postImpressions,
+      },
+    })
+    .returning({ id: outcomes.id });
+}
 
 /**
  * POST /api/outcomes — submit a weekly self-reported outcome.
@@ -55,35 +87,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "user_not_found" }, { status: 404 });
   }
 
-  const r = parsed.data;
-
   // Wrap the consent check and INSERT in a transaction to prevent a TOCTOU
   // race where the user revokes consent between the check and the write.
   const inserted = await db.transaction(async (tx) => {
-    const hasConsent = await hasOutcomeTrackingConsent(internalUserId);
-    if (!hasConsent) return null;
-
-    return tx
-      .insert(outcomes)
-      .values({
-        userId: internalUserId,
-        weekOf: r.weekOf,
-        profileViews: r.profileViews,
-        searchAppearances: r.searchAppearances,
-        recruiterMsgs: r.recruiterMsgs,
-        postImpressions: r.postImpressions,
-        source: "self_report",
-      })
-      .onConflictDoUpdate({
-        target: [outcomes.userId, outcomes.weekOf, outcomes.source],
-        set: {
-          profileViews: r.profileViews,
-          searchAppearances: r.searchAppearances,
-          recruiterMsgs: r.recruiterMsgs,
-          postImpressions: r.postImpressions,
-        },
-      })
-      .returning({ id: outcomes.id });
+    return insertOutcomeWithConsentCheck(tx as unknown as DB, internalUserId, parsed.data);
   });
 
   if (!inserted) {

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import type { DB } from "@/db/client";
 import { users } from "@/db/schema";
 
 /**
@@ -38,8 +39,11 @@ export async function revokeOutcomeTrackingConsent(userId: string): Promise<void
 }
 
 /** True when the user currently has outcome-tracking consent. */
-export async function hasOutcomeTrackingConsent(userId: string): Promise<boolean> {
-  const rows = await db
+export async function hasOutcomeTrackingConsent(
+  userId: string,
+  client: DB = db
+): Promise<boolean> {
+  const rows = await client
     .select({ at: users.outcomeTrackingConsentAt })
     .from(users)
     .where(eq(users.id, userId))
