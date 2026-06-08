@@ -1,8 +1,7 @@
-# promptfoo eval for rationale.md
-# RED: lib/prompts/rationale.md does not exist yet — fails until Wk 3
+# promptfoo eval for src/lib/prompts/rationale.md
 description: "Per-field rationale prompt eval"
 prompts:
-  - file://../../lib/prompts/rationale.md
+  - file://../../src/lib/prompts/rationale.md
 
 providers:
   - id: anthropic:claude-opus-4-7

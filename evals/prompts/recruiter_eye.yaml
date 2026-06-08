@@ -1,8 +1,7 @@
-# promptfoo eval for recruiter_eye.md
-# RED: lib/prompts/recruiter_eye.md does not exist yet — fails until Wk 3
+# promptfoo eval for src/lib/prompts/recruiter_eye.md
 description: "Recruiter 7-second skim simulation prompt eval"
 prompts:
-  - file://../../lib/prompts/recruiter_eye.md
+  - file://../../src/lib/prompts/recruiter_eye.md
 
 providers:
   - id: anthropic:claude-opus-4-7
