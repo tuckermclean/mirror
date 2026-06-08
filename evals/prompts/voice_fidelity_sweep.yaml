@@ -35,6 +35,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like an academic researcher with precise, evidence-based language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['researcher','scientist','nlp']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # customer-success-mid-01
@@ -57,6 +59,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a customer success manager — relationship-oriented, outcome-focused language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['customer success','csm']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # data-scientist-senior-01
@@ -79,6 +83,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior data scientist — analytical, quantitative, model-focused language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['data scientist','data science']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # devops-senior-01
@@ -101,6 +107,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior DevOps/infrastructure engineer — systems-focused, automation-oriented language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['infrastructure','devops','platform']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # finance-manager-senior-01
@@ -123,6 +131,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior finance manager — precise, commercially focused, numbers-grounded language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['finance','fp&a']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # founder-ceo-01
@@ -145,6 +155,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a founder/CEO — mission-driven, visionary, high-stakes ownership language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['founder','ceo','co-founder']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # healthcare-mid-01
@@ -167,6 +179,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a clinical/health informatics professional — patient-centred, evidence-based language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['clinical','health','informatics']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # legal-compliance-senior-01
@@ -189,6 +203,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior legal/compliance professional — precise, risk-aware, formal but not stiff? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['legal','compliance','counsel']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # marketing-manager-mid-01
@@ -211,6 +227,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a marketing manager — pipeline-focused, audience-aware, results-oriented language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['marketing','demand gen']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # ml-engineer-mid-01
@@ -233,6 +251,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like an ML engineer — model-lifecycle aware, experiment-driven, technically precise? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['ml engineer','machine learning']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # operations-manager-mid-01
@@ -255,6 +275,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like an operations manager — process-oriented, efficiency-focused, cross-functional language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['operations','ops']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # pm-mid-02
@@ -277,6 +299,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a mid-level product manager — user-obsessed, outcome-driven, cross-functional language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['product','manager']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # pm-senior-01
@@ -299,6 +323,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior product manager — strategic, stakeholder-aware, market-focused language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['product','pm']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # recruiter-senior-01
@@ -321,6 +347,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior technical recruiter — people-focused, talent-pipeline language, warm but direct? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['recruiter','recruiting','talent']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # sales-ae-senior-01
@@ -343,6 +371,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior AE — quota-driven, relationship-focused, deal-narrative language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['account executive','ae','sales']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # sales-sdr-junior-01
@@ -365,6 +395,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a junior SDR — high-energy, prospecting-focused, eager but grounded? Pass if >= 3."
+      - type: javascript
+        value: "const kw = ['sdr','sales development']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # sre-senior-01
@@ -387,6 +419,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior SRE — reliability-vocabulary (SLO, toil, error budget), direct, dry? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['platform','reliability','infra']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # swe-backend-mid-01
@@ -409,6 +443,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a mid-level backend engineer — systems-thinking, concise, reliability-focused language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['engineer','backend']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # swe-frontend-senior-01
@@ -431,6 +467,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior frontend engineer — UX-aware, performance-conscious, component-architecture language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['frontend','engineer']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # swe-fullstack-junior-01
@@ -453,6 +491,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a junior fullstack developer — growth-oriented, breadth-excited, hands-on language? Pass if >= 3."
+      - type: javascript
+        value: "const kw = ['developer','engineer','fullstack']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # ux-designer-senior-01
@@ -475,6 +515,8 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a senior UX/product designer — human-centred, research-grounded, empathy-first language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['designer','design']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
 
   # ---------------------------------------------------------------------------
   # vp-sales-enterprise-01
@@ -497,3 +539,5 @@ tests:
             skills: { type: array, items: { type: string } }
       - type: llm-rubric
         value: "Rate voice fidelity 1-5: does the profile sound like a VP of Sales — revenue-growth narrative, executive presence, enterprise deal language? Pass if >= 4."
+      - type: javascript
+        value: "const kw = ['vp','sales','revenue']; const h = (JSON.parse(output).headline || '').toLowerCase(); return kw.some(k => h.includes(k));"
