@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, type DB } from "@/db/client";
-import { auditLog, imports, interviews } from "@/db/schema";
+import { auditLog, imports, interviews, linkedinSnapshots } from "@/db/schema";
 import { ValidationError } from "@/lib/errors";
 
 type PiiReadParams = {
@@ -190,6 +190,49 @@ export async function readImportParsed(
       rowId: importId,
       fieldName: "parsed",
       reason,
+    }
+  );
+  return rows[0];
+}
+
+/**
+ * Fetches the raw_html and parsed fields of a linkedin_snapshots row through the
+ * PII audit wrapper.
+ *
+ * Both columns hold a user's full LinkedIn profile (raw scraped HTML and the
+ * parsed structure) — PII that the generation pipeline reads to produce a
+ * rewrite. Callers must use this rather than referencing
+ * `linkedinSnapshots.rawHtml` / `linkedinSnapshots.parsed` directly — the ESLint
+ * PII guard enforces this. The query runs first; data is returned only if the
+ * audit write also succeeds (fail-closed).
+ */
+export async function readLinkedinSnapshot(
+  snapshotId: string,
+  userId: string,
+  reason: string,
+  ipAddress?: string
+): Promise<{ rawHtml: string | null; parsed: unknown } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
+  const rows = await readPii(
+    () =>
+      db
+        .select({
+          rawHtml: linkedinSnapshots.rawHtml,
+          parsed: linkedinSnapshots.parsed,
+        })
+        .from(linkedinSnapshots)
+        .where(and(eq(linkedinSnapshots.id, snapshotId), eq(linkedinSnapshots.userId, userId)))
+        .limit(1),
+    {
+      userId,
+      accessorId: userId,
+      tableName: "linkedin_snapshots",
+      rowId: snapshotId,
+      fieldName: "raw_html,parsed",
+      reason,
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
     }
   );
   return rows[0];

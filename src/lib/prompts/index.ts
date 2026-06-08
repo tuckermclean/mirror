@@ -14,5 +14,6 @@ function loadPrompt(filename: string): { content: string; hash: string } {
 
 export const prompts = {
   interviewSystem: loadPrompt("interview_system.md"),
-  // Wk 3+: voiceExtraction, profileGeneration, rationale, recruiterEye
+  profileGeneration: loadPrompt("generation_system.md"),
+  // Wk 3+: voiceExtraction, rationale, recruiterEye
 } as const;

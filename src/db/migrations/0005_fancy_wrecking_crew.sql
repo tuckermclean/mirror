@@ -1,0 +1,1 @@
+CREATE INDEX "generations_prompt_hash_idx" ON "generations" USING btree ("prompt_hash");
