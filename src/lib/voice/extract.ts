@@ -195,6 +195,50 @@ function extractText(message: Anthropic.Message): string {
 export type VoiceExtractionOptions = { userId: string };
 
 /**
+ * Stream a voice-extraction request, record spend, validate schema, and write
+ * to the generation cache. Separated from {@link extractVoiceCardLlm} to keep
+ * each function under the 40-line AGENTS.md limit.
+ */
+async function streamAndRecord(
+  transcript: string,
+  userId: string,
+  promptHash: string,
+): Promise<VoiceCard> {
+  const stream = await getAnthropicClient().messages.stream({
+    model: VOICE_EXTRACTION_MODEL,
+    max_tokens: VOICE_EXTRACTION_MAX_TOKENS,
+    system: VOICE_EXTRACTION_PROMPT,
+    messages: [{ role: "user", content: transcript }],
+  });
+  const final = await stream.finalMessage();
+
+  await recordLlmSpend({
+    userId,
+    model: VOICE_EXTRACTION_MODEL,
+    inputTokens: final.usage.input_tokens,
+    outputTokens: final.usage.output_tokens,
+    costUsd: computeCostUsd(
+      VOICE_EXTRACTION_MODEL,
+      final.usage.input_tokens,
+      final.usage.output_tokens,
+    ),
+  });
+
+  const parsed = parseVoiceCardOutput(extractText(final));
+  if (!parsed.ok) {
+    const detail =
+      parsed.error.kind === "invalid_json"
+        ? "model did not return JSON"
+        : JSON.stringify(parsed.error.issues);
+    logger.warn("voice-extraction: output failed schema validation", { userId, detail });
+    throw new GenerationSchemaError(detail);
+  }
+
+  await recordGeneration({ userId, model: VOICE_EXTRACTION_MODEL, promptHash, output: parsed.value });
+  return parsed.value;
+}
+
+/**
  * Extract a Voice Card from a transcript using the `voice_extraction.md` prompt.
  *
  * Throws {@link MonthlyCapError} if the platform spend cap is reached and
@@ -217,7 +261,6 @@ export async function extractVoiceCardLlm(
     logger.warn("voice-extraction: cached output failed schema, regenerating", {
       userId: options.userId,
     });
-    // Evict the invalid row so future calls skip re-validation overhead.
     await evictGeneration(cached.id);
   }
 
@@ -227,46 +270,5 @@ export async function extractVoiceCardLlm(
     throw new MonthlyCapError(cap.resets_at);
   }
 
-  const stream = await getAnthropicClient().messages.stream({
-    model: VOICE_EXTRACTION_MODEL,
-    max_tokens: VOICE_EXTRACTION_MAX_TOKENS,
-    system: VOICE_EXTRACTION_PROMPT,
-    messages: [{ role: "user", content: transcript }],
-  });
-  const final = await stream.finalMessage();
-
-  await recordLlmSpend({
-    userId: options.userId,
-    model: VOICE_EXTRACTION_MODEL,
-    inputTokens: final.usage.input_tokens,
-    outputTokens: final.usage.output_tokens,
-    costUsd: computeCostUsd(
-      VOICE_EXTRACTION_MODEL,
-      final.usage.input_tokens,
-      final.usage.output_tokens,
-    ),
-  });
-
-  const parsed = parseVoiceCardOutput(extractText(final));
-  if (!parsed.ok) {
-    const detail =
-      parsed.error.kind === "invalid_json"
-        ? "model did not return JSON"
-        : JSON.stringify(parsed.error.issues);
-    logger.warn("voice-extraction: output failed schema validation", {
-      userId: options.userId,
-      detail,
-    });
-    throw new GenerationSchemaError(detail);
-  }
-
-  // Cache the successful result so subsequent identical calls hit the cache.
-  await recordGeneration({
-    userId: options.userId,
-    model: VOICE_EXTRACTION_MODEL,
-    promptHash,
-    output: parsed.value,
-  });
-
-  return parsed.value;
+  return streamAndRecord(transcript, options.userId, promptHash);
 }
