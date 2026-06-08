@@ -1,0 +1,102 @@
+import { vi, describe, it, expect, beforeEach } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Mocks — keep the unit test free of DB and network.
+// ---------------------------------------------------------------------------
+
+const checkMonthlyCap = vi.fn();
+const recordLlmSpend = vi.fn();
+const computeCostUsd = vi.fn(() => 0.01);
+
+vi.mock("@/lib/llm/cost-guard", () => ({
+  checkMonthlyCap: (...a: unknown[]) => checkMonthlyCap(...a),
+  recordLlmSpend: (...a: unknown[]) => recordLlmSpend(...a),
+  computeCostUsd: (...a: unknown[]) => computeCostUsd(...a),
+}));
+
+const findCachedGeneration = vi.fn();
+const computePromptHash = vi.fn(() => "hash-123");
+
+vi.mock("@/lib/llm/prompt-cache", () => ({
+  findCachedGeneration: (...a: unknown[]) => findCachedGeneration(...a),
+  computePromptHash: (...a: unknown[]) => computePromptHash(...a),
+}));
+
+const streamMock = vi.fn();
+
+vi.mock("@anthropic-ai/sdk", () => ({
+  default: class {
+    messages = { stream: (...a: unknown[]) => streamMock(...a) };
+  },
+}));
+
+const VALID_CARD = {
+  vocabulary: ["reliability", "observability"],
+  hedgesAvoided: ["sort of"],
+  sentenceLengthDistribution: { short: 0.4, medium: 0.4, long: 0.2 },
+  emotionalRegister: "direct, technical",
+  jargonHated: ["synergy"],
+};
+
+function mockStreamReturning(text: string, usage = { input_tokens: 100, output_tokens: 50 }) {
+  streamMock.mockResolvedValue({
+    finalMessage: async () => ({
+      content: [{ type: "text", text }],
+      usage,
+    }),
+  });
+}
+
+import { extractVoiceCardLlm } from "@/lib/voice/extract";
+
+describe("extractVoiceCardLlm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    checkMonthlyCap.mockResolvedValue({ allowed: true });
+    findCachedGeneration.mockResolvedValue(null);
+    computeCostUsd.mockReturnValue(0.01);
+  });
+
+  it("throws MonthlyCapError when the spend cap is reached (no LLM call)", async () => {
+    checkMonthlyCap.mockResolvedValue({ allowed: false, resets_at: "2026-07-01T00:00:00Z" });
+
+    await expect(
+      extractVoiceCardLlm("transcript", { userId: "u1" }),
+    ).rejects.toMatchObject({ name: "MonthlyCapError" });
+
+    expect(streamMock).not.toHaveBeenCalled();
+    expect(recordLlmSpend).not.toHaveBeenCalled();
+  });
+
+  it("returns the cached VoiceCard without calling the LLM when a 24h cache hit exists", async () => {
+    findCachedGeneration.mockResolvedValue({ id: "g1", output: VALID_CARD });
+
+    const result = await extractVoiceCardLlm("transcript", { userId: "u1" });
+
+    expect(result).toEqual(VALID_CARD);
+    expect(streamMock).not.toHaveBeenCalled();
+    expect(recordLlmSpend).not.toHaveBeenCalled();
+  });
+
+  it("streams, parses, and records actual usage cost on a cache miss", async () => {
+    mockStreamReturning(JSON.stringify(VALID_CARD), { input_tokens: 120, output_tokens: 60 });
+
+    const result = await extractVoiceCardLlm("transcript", { userId: "u1" });
+
+    expect(result).toEqual(VALID_CARD);
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(recordLlmSpend).toHaveBeenCalledTimes(1);
+    const spendArg = recordLlmSpend.mock.calls[0]![0] as Record<string, unknown>;
+    expect(spendArg["userId"]).toBe("u1");
+    expect(spendArg["inputTokens"]).toBe(120);
+    expect(spendArg["outputTokens"]).toBe(60);
+  });
+
+  it("throws when the model output fails the VoiceCard schema", async () => {
+    mockStreamReturning("not json at all");
+
+    await expect(
+      extractVoiceCardLlm("transcript", { userId: "u1" }),
+    ).rejects.toThrow();
+  });
+});

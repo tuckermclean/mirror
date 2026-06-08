@@ -7,7 +7,6 @@ import { VoiceCardSchema } from "@/lib/voice-card/schema";
 // if the two drift apart: for every fixture, the cjs `pass` flag must match the
 // Zod `safeParse(...).success` flag.
 const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- CJS mirror has no ESM entry
 const assertVoiceCardSchema = require("../../../evals/helpers/assert-voice-card-schema.cjs") as (
   output: string,
 ) => { pass: boolean; score: number; reason: string };
