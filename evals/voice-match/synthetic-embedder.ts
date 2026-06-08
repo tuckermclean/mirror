@@ -30,7 +30,8 @@ function hashToDim(token: string): number {
 export function syntheticEmbed(text: string): number[] {
   const vec = new Array<number>(DIMENSIONS).fill(0);
   for (const token of tokenize(text)) {
-    vec[hashToDim(token)] += 1;
+    const dim = hashToDim(token);
+    vec[dim] = (vec[dim] ?? 0) + 1;
   }
   const norm = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
   if (norm === 0) return vec;
