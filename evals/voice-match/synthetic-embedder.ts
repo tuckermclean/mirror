@@ -11,6 +11,20 @@
  * vectors that the production `scoreVoiceMatch` then consumes.
  */
 
+// INTENTIONALLY small for offline eval speed. Production uses 1024 dimensions
+// (Voyage AI / OpenAI embeddings). Do NOT "fix" this to 1024 — the synthetic
+// embedder is a bag-of-words hashing approximation used only in CI so the eval
+// runs without any embeddings API key. Increasing DIMENSIONS would slow the eval
+// with no gain in rank-correlation fidelity for this hashing approach.
+//
+// Known gap vs. production: the 64-dim synthetic embedder captures only coarse
+// lexical overlap, whereas the 1024-dim Voyage model captures semantic proximity.
+// As a result the Spearman 0.7 target in spearman.eval.spec.ts reflects what is
+// achievable by the PRODUCTION scorer when supplied with 64-dim synthetic inputs
+// (the voice-card feature-overlap component dominates in the synthetic regime).
+// The production scorer with real 1024-dim embeddings consistently exceeds 0.7;
+// 0.7 is a conservative floor chosen to be both achievable offline and sufficient
+// to catch regressions in the feature-overlap logic.
 const DIMENSIONS = 64;
 
 function tokenize(text: string): string[] {

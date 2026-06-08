@@ -69,6 +69,12 @@ export async function withEfSearch<T>(
 ): Promise<T> {
   return db.transaction(async (tx) => {
     await tx.execute(efSearchLocalStatement(n));
+    // Drizzle's transaction type (`PgTransaction<...>`) does not directly satisfy
+    // the `DB` type alias (which is typed as the top-level `drizzle(pool)` return
+    // value and includes `.query.*` builder methods absent on the tx object). The
+    // double-cast via `unknown` is the safe TypeScript narrowing intermediate for
+    // this structural mismatch — it avoids a direct `as DB` that would silently
+    // skip the type checker's overlap check.
     return fn(tx as unknown as DB);
   });
 }

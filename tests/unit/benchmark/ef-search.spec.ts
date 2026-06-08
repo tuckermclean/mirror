@@ -51,7 +51,7 @@ describe("clampEfSearch", () => {
 });
 
 describe("efSearchStatement", () => {
-  it("produces a SET LOCAL hnsw.ef_search statement with the clamped value", () => {
+  it("produces a session-level SET hnsw.ef_search statement with the clamped value", () => {
     const stmt = efSearchStatement(40);
     // Drizzle SQL chunks expose the assembled query via .queryChunks; assert the
     // rendered SQL text contains the directive and the numeric literal.

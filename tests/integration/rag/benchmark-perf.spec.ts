@@ -53,14 +53,13 @@ describeWithDb("retrieval latency at 5k vectors", () => {
 
   it("retrieves top-5 in under 200ms (median of 5 runs)", async () => {
     const { retrieveSimilarProfiles } = await import("@/lib/rag/retrieval");
-    const { setEfSearch } = await import("@/lib/rag/ef-search");
-    await setEfSearch(40);
+    const { withEfSearch } = await import("@/lib/rag/ef-search");
 
     const latencies: number[] = [];
     for (let i = 0; i < 5; i++) {
       const q = randomVector();
       const start = performance.now();
-      const results = await retrieveSimilarProfiles(q, { limit: 5 });
+      const results = await withEfSearch(40, () => retrieveSimilarProfiles(q, { limit: 5 }));
       latencies.push(performance.now() - start);
       expect(results.length).toBeGreaterThan(0);
     }
