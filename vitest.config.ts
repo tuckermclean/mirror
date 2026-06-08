@@ -19,7 +19,7 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
-      include: ["src/**", "src/lib/voice-card/**"],
+      include: ["src/**"],
       thresholds: {
         // TODO: AGENTS.md promises ≥80% global src/ coverage. Actual measured
         // (unit + infra tests; integration tests omitted — require live DB):
