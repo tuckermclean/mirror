@@ -45,7 +45,7 @@ export async function embedVoiceProfile(
     `Register: ${voiceCard.emotionalRegister}`,
     `Hedges avoided: ${voiceCard.hedgesAvoided.join(", ")}`,
     `Jargon hated: ${voiceCard.jargonHated.join(", ")}`,
-    `Sentence rhythm: ${short}% short / ${medium}% medium / ${long}% long`,
+    `Sentence rhythm: ${Math.round(short * 100)}% short / ${Math.round(medium * 100)}% medium / ${Math.round(long * 100)}% long`,
     userText.slice(0, 4000),
   ]
     .filter(Boolean)
