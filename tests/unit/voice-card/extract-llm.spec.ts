@@ -16,10 +16,14 @@ vi.mock("@/lib/llm/cost-guard", () => ({
 
 const findCachedGeneration = vi.fn();
 const computePromptHash = vi.fn(() => "hash-123");
+const recordGeneration = vi.fn();
+const evictGeneration = vi.fn();
 
 vi.mock("@/lib/llm/prompt-cache", () => ({
   findCachedGeneration: (...a: unknown[]) => findCachedGeneration(...a),
   computePromptHash: (...a: unknown[]) => computePromptHash(...a),
+  recordGeneration: (...a: unknown[]) => recordGeneration(...a),
+  evictGeneration: (...a: unknown[]) => evictGeneration(...a),
 }));
 
 const streamMock = vi.fn();
@@ -55,6 +59,8 @@ describe("extractVoiceCardLlm", () => {
     checkMonthlyCap.mockResolvedValue({ allowed: true });
     findCachedGeneration.mockResolvedValue(null);
     computeCostUsd.mockReturnValue(0.01);
+    recordGeneration.mockResolvedValue(undefined);
+    evictGeneration.mockResolvedValue(undefined);
   });
 
   it("throws MonthlyCapError when the spend cap is reached (no LLM call)", async () => {
@@ -76,6 +82,21 @@ describe("extractVoiceCardLlm", () => {
     expect(result).toEqual(VALID_CARD);
     expect(streamMock).not.toHaveBeenCalled();
     expect(recordLlmSpend).not.toHaveBeenCalled();
+    expect(checkMonthlyCap).not.toHaveBeenCalled();
+  });
+
+  it("logs a warning and falls through to the LLM when the cached output fails schema validation", async () => {
+    // Cache returns a row whose output does not conform to VoiceCard schema
+    findCachedGeneration.mockResolvedValue({ id: "g-bad", output: { invalid: true } });
+    mockStreamReturning(JSON.stringify(VALID_CARD));
+
+    const result = await extractVoiceCardLlm("transcript", { userId: "u1" });
+
+    expect(result).toEqual(VALID_CARD);
+    // The LLM must have been called because the cache row was invalid
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    // The invalid cache row should be evicted so future calls skip re-validation
+    expect(evictGeneration).toHaveBeenCalledWith("g-bad");
   });
 
   it("streams, parses, and records actual usage cost on a cache miss", async () => {
@@ -90,6 +111,9 @@ describe("extractVoiceCardLlm", () => {
     expect(spendArg["userId"]).toBe("u1");
     expect(spendArg["inputTokens"]).toBe(120);
     expect(spendArg["outputTokens"]).toBe(60);
+    // The result must be written to the cache after a successful LLM call
+    expect(recordGeneration).toHaveBeenCalledTimes(1);
+    expect(computePromptHash).toHaveBeenCalledTimes(1);
   });
 
   it("throws when the model output fails the VoiceCard schema", async () => {
@@ -97,6 +121,6 @@ describe("extractVoiceCardLlm", () => {
 
     await expect(
       extractVoiceCardLlm("transcript", { userId: "u1" }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ name: "GenerationSchemaError" });
   });
 });
