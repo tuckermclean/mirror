@@ -71,4 +71,16 @@ describe("embedVoiceProfile", () => {
     const { ConfigurationError } = await import("@/lib/errors");
     await expect(embedVoiceProfile(baseHistory, baseVoiceCard)).rejects.toThrow(ConfigurationError);
   });
+
+  it("includes sentence rhythm (sentenceLengthDistribution) in the embed input", async () => {
+    const { embedVoiceProfile } = await import("@/lib/embeddings");
+    await embedVoiceProfile(baseHistory, baseVoiceCard);
+    const embedCall = mockEmbed.mock.calls[0][0] as { input: string[] };
+    const inputText = embedCall.input[0];
+    // The signal text must contain sentence rhythm percentages derived from
+    // sentenceLengthDistribution: { short: 40, medium: 45, long: 15 }
+    expect(inputText).toMatch(/40%.*short|short.*40%/i);
+    expect(inputText).toMatch(/45%.*medium|medium.*45%/i);
+    expect(inputText).toMatch(/15%.*long|long.*15%/i);
+  });
 });

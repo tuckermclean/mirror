@@ -301,4 +301,24 @@ describe("worker/scraper — scrapeLinkedInProfile", () => {
     expect(mockContextClose).toHaveBeenCalled();
     expect(mockBrowserClose).toHaveBeenCalled();
   });
+
+  it("throws AuthWallError when both name and headline are empty (expired cookie / login redirect)", async () => {
+    // Simulate LinkedIn returning the login page — h1 may exist but name/headline
+    // will be empty because the user is not authenticated.
+    fixture.evaluate = () =>
+      Promise.resolve({
+        name: "",
+        headline: "",
+        about: "",
+        experience: [],
+        skills: [],
+      });
+    const { scrapeLinkedInProfile } = await import("../../../worker/scraper.js");
+    await expect(
+      scrapeLinkedInProfile(
+        "https://www.linkedin.com/in/janedoe",
+        "li_at=expired-token"
+      )
+    ).rejects.toThrow(/auth.wall|AuthWall|expired|authentication/i);
+  });
 });
