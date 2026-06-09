@@ -9,6 +9,7 @@ import {
   date,
   customType,
   index,
+  uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -47,6 +48,14 @@ export const users = pgTable(
       (): AnyPgColumn => imports.id,
       { onDelete: "set null" }
     ),
+    // Outcome-tracking consent (COMPLIANCE.md §2.2 — consent is the lawful
+    // basis under GDPR Art. 6(1)(a) for the optional outcome-tracking feature).
+    // NULL means consent has never been granted or has been revoked; a non-null
+    // timestamp records when the user opted in. Revoke MUST set this back to
+    // NULL so collection stops. Capture/read paths gate on IS NOT NULL.
+    outcomeTrackingConsentAt: timestamp("outcome_tracking_consent_at", {
+      withTimezone: true,
+    }),
   },
   // Backs the ON DELETE SET NULL cascade fired when an import is removed
   (table) => [index("users_voice_profile_id_idx").on(table.voiceProfileId)]
@@ -189,7 +198,23 @@ export const outcomes = pgTable(
     postImpressions: integer("post_impressions").notNull().default(0),
     source: text("source").notNull(),
   },
-  (table) => [index("outcomes_user_id_idx").on(table.userId)]
+  (table) => [
+    // Composite index replaces the single-column outcomes_user_id_idx:
+    // satisfies the FK backing-index requirement (leading column = user_id)
+    // while also covering the common (user_id, week_of) filter pattern.
+    index("outcomes_user_id_week_of_idx").on(table.userId, table.weekOf),
+    // Prevents duplicate rows for the same user/week/source combination.
+    uniqueIndex("outcomes_user_week_source_idx").on(
+      table.userId,
+      table.weekOf,
+      table.source
+    ),
+    // Guard against unknown source values at the DB layer.
+    check(
+      "outcomes_source_check",
+      sql`${table.source} IN ('self_report', 'extension')`
+    ),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -202,7 +227,7 @@ export const benchmarkProfiles = pgTable(
     industry: text("industry").notNull(),
     role: text("role").notNull(),
     seniority: text("seniority").notNull(),
-    publicUrl: text("public_url").notNull(),
+    publicUrl: text("public_url").notNull().unique(),
     parsed: jsonb("parsed"),
     embedding: vectorColumn("embedding", 1024),
     performanceSignals: jsonb("performance_signals"),

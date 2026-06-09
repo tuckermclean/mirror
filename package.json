@@ -20,10 +20,12 @@
     "eval:interview": "promptfoo eval --config evals/prompts/interview_system.yaml",
     "eval:voice": "promptfoo eval --config evals/voice-extraction.yaml",
     "eval:prompts": "pnpm run eval:interview; pnpm run eval:voice",
+    "eval:spearman": "vitest run evals/voice-match/spearman.eval.spec.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "setup:clerk": "bash scripts/setup-clerk.sh",
+    "benchmark:seed": "tsx scripts/benchmark/seed.ts",
     "coverage": "vitest run --coverage tests/unit tests/integration tests/infra"
   },
   "devDependencies": {
@@ -38,6 +40,7 @@
     "eslint-config-next": "^16.2.6",
     "promptfoo": "^0.121.0",
     "shadcn": "^4.8.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.59.3",
     "vite-tsconfig-paths": "^6.1.1",

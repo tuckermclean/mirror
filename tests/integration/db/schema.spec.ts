@@ -408,7 +408,108 @@ describe("btree index on audit_log(user_id, accessed_at)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. btree index on audit_log(accessor_id) for RESTRICT FK enforcement
+// 9. unique index on benchmark_profiles.public_url (Blocker 3)
+// ---------------------------------------------------------------------------
+describe("unique index on benchmark_profiles.public_url", () => {
+  it("benchmark_profiles_public_url_unique exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'benchmark_profiles'
+        AND  indexname  = 'benchmark_profiles_public_url_unique'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("public_url unique index is actually unique", async () => {
+    const rows = await sql`
+      SELECT ix.indisunique
+      FROM   pg_class    t
+      JOIN   pg_index    ix ON ix.indrelid   = t.oid
+      JOIN   pg_class    i  ON i.oid         = ix.indexrelid
+      WHERE  t.relname = 'benchmark_profiles'
+        AND  i.relname = 'benchmark_profiles_public_url_unique'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indisunique).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 10. composite index + unique index on outcomes (Blocker 2 + Suggestion 7)
+// ---------------------------------------------------------------------------
+describe("outcomes table indexes and constraints", () => {
+  it("outcomes_user_id_week_of_idx composite index exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'outcomes'
+        AND  indexname  = 'outcomes_user_id_week_of_idx'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("outcomes_user_id_week_of_idx covers both user_id and week_of", async () => {
+    const rows = await sql`
+      SELECT indexdef
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  indexname  = 'outcomes_user_id_week_of_idx'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indexdef).toContain("user_id");
+    expect(rows[0]?.indexdef).toContain("week_of");
+  });
+
+  it("outcomes_user_week_source_idx unique index exists", async () => {
+    const rows = await sql`
+      SELECT indexname
+      FROM   pg_indexes
+      WHERE  schemaname = 'public'
+        AND  tablename  = 'outcomes'
+        AND  indexname  = 'outcomes_user_week_source_idx'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("outcomes_user_week_source_idx is unique", async () => {
+    const rows = await sql`
+      SELECT ix.indisunique
+      FROM   pg_class    t
+      JOIN   pg_index    ix ON ix.indrelid   = t.oid
+      JOIN   pg_class    i  ON i.oid         = ix.indexrelid
+      WHERE  t.relname = 'outcomes'
+        AND  i.relname = 'outcomes_user_week_source_idx'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.indisunique).toBe(true);
+  });
+
+  it("outcomes has a CHECK constraint on source values", async () => {
+    const rows = await sql`
+      SELECT conname
+      FROM   pg_constraint
+      WHERE  conrelid = 'outcomes'::regclass
+        AND  contype  = 'c'
+        AND  conname  = 'outcomes_source_check'
+    `;
+    expect(rows).toHaveLength(1);
+  });
+
+  it("outcomes.source rejects an invalid value", async () => {
+    await expect(
+      sql`
+        INSERT INTO outcomes(user_id, week_of, source)
+        VALUES (gen_random_uuid(), '2026-01-01', 'invalid_source')
+      `
+    ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. btree index on audit_log(accessor_id) for RESTRICT FK enforcement
 // ---------------------------------------------------------------------------
 describe("btree index on audit_log(accessor_id)", () => {
   // PostgreSQL must verify no referencing rows exist before DELETE/UPDATE on users
