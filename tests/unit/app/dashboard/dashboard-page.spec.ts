@@ -128,6 +128,7 @@ vi.mock("@/components/dashboard/onboarding-steps", () => ({
 // ---------------------------------------------------------------------------
 import DashboardPage from "@/app/dashboard/page";
 import { users } from "@/db/schema";
+import { DELETED_PLAN } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helper: invoke the page and ignore JSX render errors from node env
@@ -174,9 +175,9 @@ describe("tombstone guard", () => {
 
     await invokeDashboardPage();
 
-    expect(mockNe, "ne() must be called with users.plan and 'deleted'").toHaveBeenCalledWith(
+    expect(mockNe, "ne() must be called with users.plan and DELETED_PLAN").toHaveBeenCalledWith(
       users.plan,
-      "deleted"
+      DELETED_PLAN
     );
   });
 

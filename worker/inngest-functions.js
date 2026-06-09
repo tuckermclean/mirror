@@ -16,14 +16,7 @@
 import { inngest } from "./inngest-client.js";
 import { decryptCookie } from "./crypto.js";
 import { scrapeLinkedInProfile } from "./scraper.js";
-
-// ---------------------------------------------------------------------------
-// Structured logger — JSON to stdout
-// ---------------------------------------------------------------------------
-
-function log(level, msg, meta = {}) {
-  process.stdout.write(JSON.stringify({ level, msg, ...meta }) + "\n");
-}
+import { log } from "./logger.js";
 
 // ---------------------------------------------------------------------------
 // Helper: POST parsed snapshot to the main app's internal API

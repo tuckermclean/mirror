@@ -19,7 +19,7 @@ const baseHistory = {
 const baseVoiceCard = {
   vocabulary: ["systems", "engineer"],
   hedgesAvoided: ["I think", "maybe"],
-  sentenceLengthDistribution: { short: 0.4, medium: 0.45, long: 0.15 },
+  sentenceLengthDistribution: { short: 40, medium: 45, long: 15 },
   emotionalRegister: "direct, technical",
   jargonHated: ["synergy", "leverage"],
 };
@@ -77,13 +77,13 @@ describe("embedVoiceProfile", () => {
     await embedVoiceProfile(baseHistory, baseVoiceCard);
     const embedCall = mockEmbed.mock.calls[0][0] as { input: string[] };
     const inputText = embedCall.input[0];
-    // sentenceLengthDistribution holds 0–1 proportions; the rendered signal
-    // text must convert them to whole-percent values, e.g. 0.4 -> "40%".
-    // sentenceLengthDistribution: { short: 0.4, medium: 0.45, long: 0.15 }
+    // sentenceLengthDistribution holds integer percentages (0–100); the
+    // rendered signal text emits them directly, e.g. 40 -> "40%".
+    // sentenceLengthDistribution: { short: 40, medium: 45, long: 15 }
     expect(inputText).toMatch(/40%.*short|short.*40%/i);
     expect(inputText).toMatch(/45%.*medium|medium.*45%/i);
     expect(inputText).toMatch(/15%.*long|long.*15%/i);
-    // Guard against regressing to raw-proportion rendering ("0.4% short").
+    // Guard against regressing to raw-fraction rendering ("0.4% short").
     expect(inputText).not.toMatch(/0\.4%/);
   });
 });

@@ -10,7 +10,11 @@ prompts:
 
 # EVAL_MODEL defaults to 'claude-sonnet-4-6'. Override per-run with EVAL_MODEL=… pnpm eval:voice.
 providers:
-  - id: "anthropic:messages:{{env.EVAL_MODEL || 'claude-sonnet-4-6'}}"
+  # TODO(infra): there is no project-wide eval model constant/env var yet
+  # (no ANTHROPIC_MODEL / EVAL_MODEL in .env.example, and src/inngest/generation.ts
+  # hardcodes its own MODEL). Once a shared model identifier exists, reference it
+  # here (e.g. anthropic:messages:${env:EVAL_MODEL}) instead of hardcoding.
+  - id: anthropic:messages:claude-sonnet-4-6
     config:
       temperature: 0
 
@@ -21,9 +25,10 @@ defaultTest:
 tests:
   - description: "VoiceCard schema — all structural assertions against one model output"
     assert:
-      # JSON validity, field types, distribution bounds + sum-to-1, and non-empty
-      # strings are all enforced by the shared schema mirror (the single
-      # documented mirror of VoiceCardSchema). It also strips the code fence.
+      - type: javascript
+        value: "file://./helpers/assert-json-parseable.cjs"
+
+
       - type: javascript
         value: "file://./helpers/assert-voice-card-schema.cjs"
 
@@ -35,14 +40,10 @@ tests:
       # vocabulary becomes a hard requirement, add .min(1) to VoiceCardSchema
       # first, then restore the lower bound in this assertion.
       - type: javascript
-        value: |
-          try {
-            // canonical: src/lib/voice-card/fence.ts — keep in sync
-            const FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i;
-            const stripped = FENCE_RE.exec(output.trim())?.[1]?.trim() ?? output.trim();
-            const parsed = JSON.parse(stripped);
-            const len = Array.isArray(parsed.vocabulary) ? parsed.vocabulary.length : -1;
-            return len >= 0 && len <= 30;
-          } catch {
-            return false;
-          }
+        value: "file://./helpers/assert-sentence-length-distribution.cjs"
+
+      - type: javascript
+        value: "file://./helpers/assert-vocabulary-length.cjs"
+
+      - type: llm-rubric
+        value: "Output does NOT invent job titles, companies, or skills not present in input. Pass/fail."

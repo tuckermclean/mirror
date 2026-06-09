@@ -11,6 +11,10 @@ import type { ParsedChatHistory } from "./types";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = join(__dirname, "../prompts");
 
+// TODO(#154): hardcoded model id. There is currently no project-wide model
+// constant/env var (chat, generate, and route-issue each pin their own). When a
+// shared model registry is introduced, reference it here so this parser tracks
+// model upgrades centrally instead of needing a manual bump.
 const MODEL = "claude-sonnet-4-6";
 
 // Loaded once at module init — the prompt is static at runtime

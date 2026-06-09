@@ -12,6 +12,9 @@ import { submitLinkedInForm } from "./_actions";
 
 type FormStatus = "idle" | "loading" | "success" | "error";
 
+/** How long to hold the success state before redirecting to the dashboard. */
+const SUCCESS_REDIRECT_DELAY_MS = 900;
+
 /** Human-readable label for each status — mirrored in the aria-live region. */
 function buttonLabel(status: FormStatus): string {
   if (status === "loading") return "Connecting…";
@@ -37,7 +40,9 @@ export function LinkedInForm() {
       if (result.success) {
         setStatus("success");
         // Brief success animation before redirect
-        await new Promise((resolve) => setTimeout(resolve, 900));
+        await new Promise((resolve) =>
+          setTimeout(resolve, SUCCESS_REDIRECT_DELAY_MS)
+        );
         router.push("/dashboard");
       } else {
         setStatus("error");

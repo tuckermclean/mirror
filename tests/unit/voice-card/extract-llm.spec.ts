@@ -37,7 +37,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
 const VALID_CARD = {
   vocabulary: ["reliability", "observability"],
   hedgesAvoided: ["sort of"],
-  sentenceLengthDistribution: { short: 0.4, medium: 0.4, long: 0.2 },
+  sentenceLengthDistribution: { short: 40, medium: 40, long: 20 },
   emotionalRegister: "direct, technical",
   jargonHated: ["synergy"],
 };

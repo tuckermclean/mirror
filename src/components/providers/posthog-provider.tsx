@@ -36,6 +36,13 @@ export const POSTHOG_CONFIG: Partial<PostHogConfig> = {
     properties: Record<string, unknown>,
     _eventName: string
   ) {
+    // Intentionally filters by PROPERTY KEY name only, not by value. This
+    // catches the well-known PII-bearing keys (cookie/session/token/auth) the
+    // app emits today. It does NOT inspect values, so it would not catch PII
+    // smuggled under an innocuous key name (e.g. { note: "<a li_at cookie>" }).
+    // That is acceptable for the current, small set of hand-written events.
+    // Consideration for the future: as new events are added, re-evaluate
+    // whether value-level scrubbing (regex on values) is warranted.
     return Object.fromEntries(
       Object.entries(properties).filter(([k]) => !PII_KEY_PATTERN.test(k))
     )
@@ -53,7 +60,13 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     initialized = true
   }, [key])
 
-  if (!key) return <>{children}</>
-
+  // Always wrap children in PHProvider so the posthog context is available
+  // everywhere in the tree, regardless of whether a key is configured.
+  //
+  // Graceful no-op path: when NEXT_PUBLIC_POSTHOG_KEY is absent, the effect
+  // above never calls posthog.init(). An uninitialized posthog client treats
+  // capture()/identify() as safe no-ops, so telemetry simply degrades to
+  // nothing instead of throwing — and feature code can call posthog.capture()
+  // unconditionally without first checking whether analytics is enabled.
   return <PHProvider client={posthog}>{children}</PHProvider>
 }

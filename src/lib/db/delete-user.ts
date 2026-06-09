@@ -12,12 +12,11 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-/**
- * Sentinel written to `users.plan` after redaction. Callers that list active
- * users must filter `ne(users.plan, DELETED_PLAN)` to exclude tombstone rows.
- * Downstream guard implementation tracked in issue #36.
- */
-export const DELETED_PLAN = "deleted" as const;
+// DELETED_PLAN now lives in the dependency-free constants module so that
+// route/page files can import it without pulling in this DB-heavy module.
+// Re-exported here for backward compatibility with existing call sites.
+import { DELETED_PLAN } from "@/lib/constants";
+export { DELETED_PLAN };
 
 /**
  * GDPR Article 17 erasure — redaction-in-place ("soft delete"). See ADR-009.

@@ -2,7 +2,7 @@ import { and, eq, ne } from "drizzle-orm"
 
 import { db } from "@/db/client"
 import { users } from "@/db/schema"
-import { DELETED_PLAN } from "@/lib/db/delete-user"
+import { DELETED_PLAN } from "@/lib/constants"
 
 /**
  * Resolve the internal user row from a Clerk id, excluding tombstones (ADR-009).

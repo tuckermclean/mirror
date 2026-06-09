@@ -1,8 +1,7 @@
-# promptfoo eval for voice_extraction.md
-# RED: lib/prompts/voice_extraction.md does not exist yet — fails until Wk 2
+# promptfoo eval for the Voice Card extraction prompt.
 description: "Voice Card extraction prompt eval"
 prompts:
-  - file://../../lib/prompts/voice_extraction.md
+  - file://../../src/lib/prompts/voice_extraction.md
 
 providers:
   - id: anthropic:claude-opus-4-7

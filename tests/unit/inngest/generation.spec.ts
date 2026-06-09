@@ -270,8 +270,8 @@ describe("generation — buildUserMessage", () => {
     expect(capturedMessages.length).toBeGreaterThan(0);
     const userContent = capturedMessages[0]?.[0]?.content ?? "";
 
-    // The transcript must appear as an explicitly-labelled section.
-    expect(userContent).toContain("Interview transcript:");
+    // The transcript must appear as an explicitly-labelled, fenced section.
+    expect(userContent).toContain("=== INTERVIEW TRANSCRIPT ===");
     expect(userContent).toContain("Acme Corp");
   });
 
@@ -294,7 +294,7 @@ describe("generation — buildUserMessage", () => {
 
     // Voice samples section must only contain the vector count metadata,
     // not the raw transcript text.
-    const voiceSamplesMatch = userContent.match(/Voice samples:(.*)/s);
+    const voiceSamplesMatch = userContent.match(/=== VOICE SAMPLES ===(.*)/s);
     expect(voiceSamplesMatch).not.toBeNull();
     const voiceSamplesSection = voiceSamplesMatch![1] ?? "";
     expect(voiceSamplesSection).not.toContain("Acme Corp");
@@ -316,8 +316,33 @@ describe("generation — buildUserMessage", () => {
     });
 
     const userContent = capturedMessages[0]?.[0]?.content ?? "";
-    expect(userContent).toContain("Profile:");
+    expect(userContent).toContain("=== PROFILE ===");
     expect(userContent).toContain("My LinkedIn profile");
+  });
+
+  it("separates sections with an unambiguous delimiter line", async () => {
+    const mod = await import("@/inngest/generation");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = (mod.runGeneration as any).__rawFn as (ctx: {
+      event: { data: { userId: string; snapshotId: string; generationId: string } };
+      step: ReturnType<typeof makeMockStep>;
+    }) => Promise<unknown>;
+
+    const mockStep = makeMockStep();
+    await fn({
+      event: { data: { userId: "user-1", snapshotId: "snap-1", generationId: "gen-1" } },
+      step: mockStep,
+    });
+
+    const userContent = capturedMessages[0]?.[0]?.content ?? "";
+    // A blank line is ambiguous (content can contain blank lines). Each section
+    // boundary must be a fenced delimiter the model cannot confuse with data.
+    const delimiter = "=== ";
+    // One delimiter per section header: Profile, Interview transcript,
+    // Voice samples, Benchmark exemplars.
+    const count = userContent.split(delimiter).length - 1;
+    expect(count).toBeGreaterThanOrEqual(4);
   });
 
   it("throws NonRetriableError (not plain MonthlyCapError) when monthly cap is exhausted", async () => {

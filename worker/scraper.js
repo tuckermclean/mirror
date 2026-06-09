@@ -12,14 +12,7 @@
  */
 
 import { chromium } from "playwright";
-
-// ---------------------------------------------------------------------------
-// Structured logger — writes JSON to stdout, never logs cookie values
-// ---------------------------------------------------------------------------
-
-function log(level, msg, meta = {}) {
-  process.stdout.write(JSON.stringify({ level, msg, ...meta }) + "\n");
-}
+import { log } from "./logger.js";
 
 // ---------------------------------------------------------------------------
 // DOM extraction — runs inside the browser (serialisable function)
@@ -175,8 +168,13 @@ export async function scrapeLinkedInProfile(profileUrl, sessionCookie) {
       // Non-fatal — profile page might use different selectors
     });
 
-    // Extract profile data from DOM
-    const parsed = await extractData(page);
+    // Extract profile data from the DOM. If both name and headline are empty
+    // the page is almost certainly the LinkedIn login page returned because the
+    // li_at cookie has expired — surface that as an AuthWallError.
+    const parsed = await page.evaluate(extractProfileFromDom);
+    if (!parsed.name && !parsed.headline) {
+      throw new AuthWallError();
+    }
 
     await page.close();
     log("info", "[scraper] profile scrape complete", { profileSlug });
@@ -202,23 +200,4 @@ export class AuthWallError extends Error {
     );
     this.name = "AuthWallError";
   }
-}
-
-/**
- * Run the DOM extraction and handle auth-wall detection.
- *
- * If both `name` and `headline` are empty strings the page is almost certainly
- * the LinkedIn login page returned because `li_at` has expired.
- *
- * @param {import('playwright').Page} page
- * @returns {Promise<Object>}
- */
-async function extractData(page) {
-  const result = await page.evaluate(extractProfileFromDom);
-
-  if (!result.name && !result.headline) {
-    throw new AuthWallError();
-  }
-
-  return result;
 }

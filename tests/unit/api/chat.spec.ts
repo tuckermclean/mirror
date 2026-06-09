@@ -5,7 +5,7 @@
  * ne(users.plan, DELETED_PLAN) so soft-deleted ("tombstone") users are
  * excluded from active-user queries.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — must appear before any SUT import
@@ -22,7 +22,12 @@ const mockNe = vi.hoisted(() => vi.fn());
 
 const mockAnthropicStream = vi.hoisted(() => {
   const on = vi.fn();
-  const finalMessage = vi.fn();
+  // Resolve finalMessage() with a usage payload so the route's post-stream
+  // billing path (finalMessage.usage.input_tokens/output_tokens) does not throw
+  // — an unset mock returns undefined and produces unhandled-rejection noise.
+  const finalMessage = vi
+    .fn()
+    .mockResolvedValue({ usage: { input_tokens: 10, output_tokens: 20 } });
   const stream = vi.fn().mockResolvedValue({ on, finalMessage });
   return { stream, on, finalMessage };
 });
@@ -114,7 +119,7 @@ vi.mock("@/db/schema", () => ({
 import { POST } from "@/app/api/chat/route";
 import { NextRequest } from "next/server";
 import { users } from "@/db/schema";
-import { DELETED_PLAN } from "@/lib/db/delete-user";
+import { DELETED_PLAN } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -150,10 +155,6 @@ beforeEach(() => {
 
   // Default: empty transcript
   mockReadInterviewTranscript.mockResolvedValue({ transcript: [] });
-});
-
-afterEach(() => {
-  vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

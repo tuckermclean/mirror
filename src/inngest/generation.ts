@@ -4,13 +4,10 @@ import { eq, isNotNull, and, sql } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { db } from "@/db/client";
 import { generations, imports, interviews, users } from "@/db/schema";
-// `readLinkedinSnapshot` (added to pii-read.ts) is owned by a teammate and
-// lands in a separate PR. We import — never define — it here per the
-// PII-wrapper architecture rule. Until that upstream PR merges, `pnpm
-// typecheck` reports a "missing member" error for exactly this symbol; it
-// resolves on merge. Tests mock the module so the function is verified in
-// isolation. The prompt-hash cache key is owned entirely by the POST
-// /api/generate route, so this function never computes a hash itself.
+// PII reads go through the audit wrapper (per the PII-wrapper architecture
+// rule) — we import these readers here, never define them. The prompt-hash
+// cache key is owned entirely by the POST /api/generate route, so this
+// function never computes a hash itself.
 import { readLinkedinSnapshot, readInterviewTranscript } from "@/lib/db/pii-read";
 import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
 import { prompts } from "@/lib/prompts";
@@ -23,6 +20,10 @@ import { assembleRationaleBundle } from "@/lib/generation/rationale";
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 4096;
 const RATIONALE_MAX_TOKENS = 2048;
+// How many of the user's voice-sample embeddings to pull for voice context.
+// 5 mirrors EXEMPLAR_TOP_K: enough samples to characterize the user's voice
+// without inflating the prompt (and, once wk4 wiring lands, token cost). Tune
+// alongside EXEMPLAR_TOP_K if prompt size or voice fidelity needs change.
 const VOICE_TOP_K = 5;
 const EXEMPLAR_TOP_K = 5;
 
@@ -143,20 +144,18 @@ function buildUserMessage(
   voiceSamples: string,
   exemplars: string
 ): string {
+  // Sections are fenced with an unambiguous `=== <NAME> ===` delimiter rather
+  // than a blank line. Section bodies (HTML snapshots, transcripts) routinely
+  // contain blank lines, so a blank-line separator would let one section bleed
+  // into the next; the fenced delimiter cannot be confused with body content.
+  const section = (name: string, body: string): string => `=== ${name} ===\n${body}`;
   return [
     "Rewrite this LinkedIn profile in the user's voice.",
-    "",
-    "Profile:",
-    snapshot,
-    "",
-    "Interview transcript:",
-    transcript,
-    "",
-    `Voice samples: ${voiceSamples}`,
-    "",
-    "Benchmark exemplars:",
-    exemplars,
-  ].join("\n");
+    section("PROFILE", snapshot),
+    section("INTERVIEW TRANSCRIPT", transcript),
+    section("VOICE SAMPLES", voiceSamples),
+    section("BENCHMARK EXEMPLARS", exemplars),
+  ].join("\n\n");
 }
 
 /**
@@ -292,6 +291,10 @@ export const runGeneration = inngest.createFunction(
         : []
     );
 
+    // TODO(wk4): placeholder — we currently send only the COUNT of retrieved
+    // voice vectors, not the voice content itself. Wire actual voice-sample
+    // text/features (or a faithful summary) into the prompt once the wk4 voice
+    // pipeline lands so the model can match the user's voice.
     const voiceSamples = `[voice vectors: ${voiceEmbeddings.length}]`;
     const userMessage = buildUserMessage(
       snapshot,

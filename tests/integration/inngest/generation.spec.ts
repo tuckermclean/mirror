@@ -33,22 +33,46 @@ const INTERVIEW_ID = "00000000-0000-0000-0000-0000000000d4";
 const ACTIVE_IMPORT_ID = "00000000-0000-0000-0000-0000000000e5";
 
 const MODEL = "claude-sonnet-4-6";
-const GENERATED_OUTPUT = '{"headline":"Engineer who ships","about":"I build things."}';
+// A schema-valid generated profile so validateProfile() does not throw. The
+// handler makes two streaming calls (generation, then rationale); the mock
+// returns the right payload per call (see finalMessageMock) so both resolve
+// cleanly with no unhandled-rejection noise.
+const GENERATED_OUTPUT = JSON.stringify({
+  headline: "Engineer who ships",
+  about: "I build things.",
+  experience: [{ company: "Acme", title: "Engineer", bullets: ["Shipped features"] }],
+  education: [{ school: "State University", degree: "BS CS" }],
+  skills: ["TypeScript", "Postgres"],
+});
+const RATIONALE_OUTPUT = JSON.stringify({
+  headline: "Leads with a concrete role signal.",
+  about: "Opens in the person's own voice.",
+  experience: ["Quantifies impact."],
+  skills: "Front-loads in-demand skills.",
+  recruiterEye: [{ rank: 1, observation: "Clear role.", section: "headline" }],
+  confidence: { headline: 90, about: 80, experience: 75, skills: 60 },
+});
 
 // ---------------------------------------------------------------------------
 // Anthropic SDK mock — streaming client
 // ---------------------------------------------------------------------------
-const finalMessageMock = vi.fn().mockResolvedValue({
-  content: [{ type: "text", text: GENERATED_OUTPUT }],
-  usage: { input_tokens: 1200, output_tokens: 340 },
-});
+// finalMessage MUST be set on every stream result, or awaiting it rejects and
+// surfaces as unhandled-rejection noise. We key the payload off the system
+// prompt so the generation call gets a profile and the rationale call gets a
+// rationale bundle.
+function payloadFor(system: unknown): string {
+  return typeof system === "string" && /RATIONALE|RECRUITER|recruiterEye|rationale/i.test(system)
+    ? RATIONALE_OUTPUT
+    : GENERATED_OUTPUT;
+}
 const streamOn = vi.fn();
-const messagesStream = vi.fn().mockResolvedValue({
+const messagesStream = vi.fn().mockImplementation(async (params: { system?: unknown }) => ({
   on: streamOn,
-  finalMessage: finalMessageMock,
-  // some call sites read text via finalMessage; expose content too
-  finalText: vi.fn().mockResolvedValue(GENERATED_OUTPUT),
-});
+  finalMessage: vi.fn().mockResolvedValue({
+    content: [{ type: "text", text: payloadFor(params?.system) }],
+    usage: { input_tokens: 1200, output_tokens: 340 },
+  }),
+}));
 
 vi.mock("@anthropic-ai/sdk", () => {
   class Anthropic {
@@ -177,38 +201,46 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
     // Reset the select call counter so each test starts at call #1 = interviews lookup.
     selectCall = 0;
     checkMonthlyCap.mockResolvedValue({ allowed: true });
-    finalMessageMock.mockResolvedValue({
-      content: [{ type: "text", text: GENERATED_OUTPUT }],
-      usage: { input_tokens: 1200, output_tokens: 340 },
-    });
-    messagesStream.mockResolvedValue({
+    // Re-establish the per-call payload impl after clearAllMocks(). finalMessage
+    // is always set so awaiting it resolves cleanly.
+    messagesStream.mockImplementation(async (params: { system?: unknown }) => ({
       on: streamOn,
-      finalMessage: finalMessageMock,
-      finalText: vi.fn().mockResolvedValue(GENERATED_OUTPUT),
-    });
+      finalMessage: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: payloadFor(params?.system) }],
+        usage: { input_tokens: 1200, output_tokens: 340 },
+      }),
+    }));
   });
 
   it("calls the Anthropic STREAMING API (not a blocking create)", async () => {
     await invoke();
-    expect(messagesStream).toHaveBeenCalledTimes(1);
+    // Two streaming calls: profile generation, then rationale + recruiter-eye.
+    expect(messagesStream).toHaveBeenCalledTimes(2);
     const arg = messagesStream.mock.calls[0]?.[0] as { model: string; system: string };
     expect(arg.model).toBe(MODEL);
     expect(typeof arg.system).toBe("string");
     expect(arg.system.length).toBeGreaterThan(0);
   });
 
-  it("checks the monthly cap BEFORE the Anthropic call", async () => {
+  it("checks the monthly cap BEFORE the first Anthropic call", async () => {
     const order: string[] = [];
-    checkMonthlyCap.mockImplementationOnce(async () => {
+    checkMonthlyCap.mockImplementation(async () => {
       order.push("cap");
       return { allowed: true };
     });
-    messagesStream.mockImplementationOnce(async () => {
+    messagesStream.mockImplementation(async (params: { system?: unknown }) => {
       order.push("stream");
-      return { on: streamOn, finalMessage: finalMessageMock };
+      return {
+        on: streamOn,
+        finalMessage: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: payloadFor(params?.system) }],
+          usage: { input_tokens: 1200, output_tokens: 340 },
+        }),
+      };
     });
     await invoke();
-    expect(order).toEqual(["cap", "stream"]);
+    // Cap is always checked before its corresponding stream call (generation + rationale).
+    expect(order).toEqual(["cap", "stream", "cap", "stream"]);
   });
 
   it("throws NonRetriableError wrapping MonthlyCapError when the cap is reached", async () => {
@@ -223,7 +255,8 @@ describe("runGeneration — generation/start (DB-mocked integration)", () => {
   it("writes actual token usage to the spend ledger (never estimated)", async () => {
     await invoke();
     expect(computeCostUsd).toHaveBeenCalledWith(MODEL, 1200, 340);
-    expect(recordLlmSpend).toHaveBeenCalledTimes(1);
+    // One ledger write per Anthropic call (generation + rationale).
+    expect(recordLlmSpend).toHaveBeenCalledTimes(2);
     const arg = recordLlmSpend.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(arg).toMatchObject({
       userId: USER_ID,
