@@ -10,7 +10,7 @@ lint:
 	pnpm lint
 
 test-unit:
-	pnpm test:unit
+	pnpm test:unit; E1=$$?; pnpm eval:spearman; E2=$$?; exit $$((E1 | E2))
 
 # Runs db + health + rag suites. Requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
 test-integration:
