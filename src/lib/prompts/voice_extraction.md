@@ -16,9 +16,9 @@ Output ONLY a valid JSON object matching this exact schema:
   "vocabulary": [],
   "hedgesAvoided": [],
   "sentenceLengthDistribution": {
-    "short": 0.33,
-    "medium": 0.34,
-    "long": 0.33
+    "short": 33,
+    "medium": 34,
+    "long": 33
   },
   "emotionalRegister": "",
   "jargonHated": []
@@ -28,7 +28,7 @@ Output ONLY a valid JSON object matching this exact schema:
 Field definitions:
 - `vocabulary`: 5–15 distinctive words or short phrases this person uses. Only include words that are genuinely distinctive — not common English words.
 - `hedgesAvoided`: Hedging language or qualifier phrases absent from their writing (may be empty array if they use hedges normally).
-- `sentenceLengthDistribution`: Proportions in the range 0–1 that MUST sum to 1 (e.g., `{"short": 0.4, "medium": 0.4, "long": 0.2}`). Short = under 10 words, Medium = 10–25 words, Long = over 25 words.
+- `sentenceLengthDistribution`: Integer percentages that MUST sum to approximately 100 (±10 tolerance, e.g., `{"short": 40, "medium": 40, "long": 20}`). Short = under 10 words, Medium = 10–25 words, Long = over 25 words.
 - `emotionalRegister`: A single descriptive phrase characterizing their overall tone (e.g., "analytical and precise", "warm but direct", "casual and curious").
 - `jargonHated`: Industry buzzwords, corporate-speak, or overused phrases they push back against or conspicuously avoid (may be empty array).
 
