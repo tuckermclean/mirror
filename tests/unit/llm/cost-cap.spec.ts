@@ -5,12 +5,15 @@ import { UnknownModelError } from "@/lib/errors";
 // ---------------------------------------------------------------------------
 // Drizzle builder chain mocks (factory idiom — no vi.resetModules needed)
 // ---------------------------------------------------------------------------
-const mockGroupBy = vi.fn();
-const mockWhere = vi.fn();
-const mockFrom = vi.fn(() => ({ where: mockWhere }));
-const mockSelect = vi.fn(() => ({ from: mockFrom }));
-const mockValues = vi.fn().mockResolvedValue(undefined);
-const mockInsert = vi.fn(() => ({ values: mockValues }));
+const { mockGroupBy, mockWhere, mockFrom, mockSelect, mockValues, mockInsert } = vi.hoisted(() => {
+  const mockGroupBy = vi.fn();
+  const mockWhere = vi.fn();
+  const mockFrom = vi.fn(() => ({ where: mockWhere }));
+  const mockSelect = vi.fn(() => ({ from: mockFrom }));
+  const mockValues = vi.fn().mockResolvedValue(undefined);
+  const mockInsert = vi.fn(() => ({ values: mockValues }));
+  return { mockGroupBy, mockWhere, mockFrom, mockSelect, mockValues, mockInsert };
+});
 
 vi.mock("@/db/client", () => ({
   db: { select: mockSelect, insert: mockInsert },
