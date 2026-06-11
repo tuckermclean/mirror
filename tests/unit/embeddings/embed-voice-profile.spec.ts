@@ -77,10 +77,13 @@ describe("embedVoiceProfile", () => {
     await embedVoiceProfile(baseHistory, baseVoiceCard);
     const embedCall = mockEmbed.mock.calls[0][0] as { input: string[] };
     const inputText = embedCall.input[0];
-    // The signal text must contain sentence rhythm percentages derived from
+    // sentenceLengthDistribution holds integer percentages (0–100); the
+    // rendered signal text emits them directly, e.g. 40 -> "40%".
     // sentenceLengthDistribution: { short: 40, medium: 45, long: 15 }
     expect(inputText).toMatch(/40%.*short|short.*40%/i);
     expect(inputText).toMatch(/45%.*medium|medium.*45%/i);
     expect(inputText).toMatch(/15%.*long|long.*15%/i);
+    // Guard against regressing to raw-fraction rendering ("0.4% short").
+    expect(inputText).not.toMatch(/0\.4%/);
   });
 });

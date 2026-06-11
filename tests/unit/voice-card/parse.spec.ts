@@ -80,10 +80,10 @@ describe("parseVoiceCardOutput", () => {
     expect(() => parseVoiceCardOutput("{}")).not.toThrow();
   });
 
-  it("returns schema_mismatch when sentenceLengthDistribution sum is far outside 90–110", () => {
+  it("returns schema_mismatch when sentenceLengthDistribution sum is out of range", () => {
     const bad = {
       ...VALID_VOICE_CARD,
-      sentenceLengthDistribution: { short: 1, medium: 1, long: 1 },
+      sentenceLengthDistribution: { short: 50, medium: 50, long: 50 },
     };
     const result = parseVoiceCardOutput(JSON.stringify(bad));
     expect(result.ok).toBe(false);
@@ -97,12 +97,20 @@ describe("parseVoiceCardOutput", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("accepts sentenceLengthDistribution that sums within 90–110 bounds", () => {
+  it("accepts sentenceLengthDistribution within the 90–110 tolerance range", () => {
     const near = {
       ...VALID_VOICE_CARD,
-      sentenceLengthDistribution: { short: 35, medium: 35, long: 30 },
+      sentenceLengthDistribution: { short: 34, medium: 34, long: 33 },
     };
     const result = parseVoiceCardOutput(JSON.stringify(near));
     expect(result.ok).toBe(true);
+  });
+
+  it("returns invalid_json for a fenced block with an empty body", () => {
+    const result = parseVoiceCardOutput("```json\n\n```");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("invalid_json");
+    }
   });
 });

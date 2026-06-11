@@ -1,5 +1,14 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import type { ParsedChatHistory } from "@/lib/parsers/types";
 import type { VoiceCard } from "@/lib/voice-card/schema";
+import { parseVoiceCardOutput } from "@/lib/voice-card/parse";
+import { checkMonthlyCap, computeCostUsd, recordLlmSpend } from "@/lib/llm/cost-guard";
+import { computePromptHash, findCachedGeneration, recordGeneration, evictGeneration } from "@/lib/llm/prompt-cache";
+import { MonthlyCapError, GenerationSchemaError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 const HEDGE_WORDS = [
   "I think",
@@ -98,10 +107,14 @@ function computeSentenceLengthDistribution(
   }
 
   const total = sentences.length;
+  // Emit integer percentages (0–100). Derive `long` as the remainder so the
+  // three always sum to exactly 100 (no floating-point drift).
+  const shortPct = Math.round((short / total) * 100);
+  const mediumPct = Math.round((medium / total) * 100);
   return {
-    short: Math.round((short / total) * 100),
-    medium: Math.round((medium / total) * 100),
-    long: 100 - Math.round((short / total) * 100) - Math.round((medium / total) * 100),
+    short: shortPct,
+    medium: mediumPct,
+    long: 100 - shortPct - mediumPct,
   };
 }
 
@@ -164,4 +177,136 @@ export function extractVoiceCard(history: ParsedChatHistory): VoiceCard {
     emotionalRegister: detectEmotionalRegister(allText),
     jargonHated: detectJargonHated(allText),
   };
+}
+
+// ---------------------------------------------------------------------------
+// LLM-backed extraction
+//
+// The heuristic `extractVoiceCard` above is the cheap, deterministic default.
+// `extractVoiceCardLlm` wires the `voice_extraction.md` prompt to Anthropic for
+// a higher-fidelity Voice Card, honouring the AGENTS.md LLM rules: monthly cap
+// check first, 24h prompt-hash cache, streaming API, actual-usage spend record.
+// ---------------------------------------------------------------------------
+
+const VOICE_EXTRACTION_MODEL = "claude-sonnet-4-6";
+const VOICE_EXTRACTION_MAX_TOKENS = 1024;
+
+// Use _dirname (not __dirname) to avoid shadowing the global ESM name injected
+// by bundlers/Node. Loaded lazily via getVoiceExtractionPrompt() below.
+const _dirname = dirname(fileURLToPath(import.meta.url));
+
+// Lazy-loaded: undefined until first call to getVoiceExtractionPrompt().
+// A missing prompt file throws at call-time (not at module import) so cold
+// starts are not broken by a deploy-time file-system issue.
+let _voiceExtractionPrompt: string | undefined;
+function getVoiceExtractionPrompt(): string {
+  if (!_voiceExtractionPrompt) {
+    _voiceExtractionPrompt = readFileSync(
+      join(_dirname, "../prompts/voice_extraction.md"),
+      "utf-8",
+    );
+  }
+  return _voiceExtractionPrompt;
+}
+
+// Exported so tests can inject a custom instance or reset between runs without
+// re-mocking the entire @anthropic-ai/sdk module. The container object pattern
+// ensures that Object.defineProperty writes from test code (to
+// `_anthropicClient.client`) update the same reference that
+// `getAnthropicClient()` reads, regardless of how the ESM runtime (Vite/Node)
+// compiles `export let` live-bindings.
+export let _anthropicClient: Anthropic | undefined;
+
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) _anthropicClient = new Anthropic();
+  return _anthropicClient;
+}
+
+/** Concatenate the text content of a finished Anthropic message. */
+function extractText(message: Anthropic.Message): string {
+  return message.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
+
+export type VoiceExtractionOptions = { userId: string };
+
+/**
+ * Stream a voice-extraction request, record spend, validate schema, and write
+ * to the generation cache. Separated from {@link extractVoiceCardLlm} to keep
+ * each function under the 40-line AGENTS.md limit.
+ */
+async function streamAndRecord(
+  transcript: string,
+  userId: string,
+  promptHash: string,
+): Promise<VoiceCard> {
+  const stream = await getAnthropicClient().messages.stream({
+    model: VOICE_EXTRACTION_MODEL,
+    max_tokens: VOICE_EXTRACTION_MAX_TOKENS,
+    system: getVoiceExtractionPrompt(),
+    messages: [{ role: "user", content: transcript }],
+  });
+  const final = await stream.finalMessage();
+
+  await recordLlmSpend({
+    userId,
+    model: VOICE_EXTRACTION_MODEL,
+    inputTokens: final.usage.input_tokens,
+    outputTokens: final.usage.output_tokens,
+    costUsd: computeCostUsd(
+      VOICE_EXTRACTION_MODEL,
+      final.usage.input_tokens,
+      final.usage.output_tokens,
+    ),
+  });
+
+  const parsed = parseVoiceCardOutput(extractText(final));
+  if (!parsed.ok) {
+    const detail =
+      parsed.error.kind === "invalid_json"
+        ? "model did not return JSON"
+        : JSON.stringify(parsed.error.issues);
+    logger.warn("voice-extraction: output failed schema validation", { userId, detail });
+    throw new GenerationSchemaError(detail);
+  }
+
+  await recordGeneration({ userId, model: VOICE_EXTRACTION_MODEL, promptHash, output: parsed.value });
+  return parsed.value;
+}
+
+/**
+ * Extract a Voice Card from a transcript using the `voice_extraction.md` prompt.
+ *
+ * Throws {@link MonthlyCapError} if the platform spend cap is reached and
+ * {@link GenerationSchemaError} if the model output fails the VoiceCard schema.
+ */
+export async function extractVoiceCardLlm(
+  transcript: string,
+  options: VoiceExtractionOptions,
+): Promise<VoiceCard> {
+  const promptHash = computePromptHash({
+    systemPrompt: getVoiceExtractionPrompt(),
+    userMessages: [transcript],
+    modelId: VOICE_EXTRACTION_MODEL,
+  });
+
+  const cached = await findCachedGeneration(promptHash);
+  if (cached) {
+    const parsed = parseVoiceCardOutput(JSON.stringify(cached.output));
+    if (parsed.ok) return parsed.value;
+    logger.warn("voice-extraction: cached output failed schema, regenerating", {
+      userId: options.userId,
+    });
+    await evictGeneration(cached.id);
+  }
+
+  const cap = await checkMonthlyCap();
+  if (!cap.allowed) {
+    logger.warn("voice-extraction: monthly cap reached", { userId: options.userId });
+    throw new MonthlyCapError(cap.resets_at);
+  }
+
+  return streamAndRecord(transcript, options.userId, promptHash);
 }

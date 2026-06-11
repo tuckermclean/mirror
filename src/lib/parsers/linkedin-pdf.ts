@@ -127,7 +127,7 @@ export async function parseLinkedInPdf(
 
   let response: Anthropic.Message;
   try {
-    response = await client.messages.create({
+    const stream = await client.messages.stream({
       model: MODEL,
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
@@ -151,6 +151,7 @@ export async function parseLinkedInPdf(
         },
       ],
     });
+    response = await stream.finalMessage();
   } catch (err) {
     throw new ApiError(
       `Anthropic API error: ${err instanceof Error ? err.message : String(err)}`
@@ -175,6 +176,11 @@ export async function parseLinkedInPdf(
   let parsed: unknown;
   try {
     const raw = textBlock.text.trim();
+    // Defensive fence stripping: pdf_parse.md instructs Claude to return raw
+    // JSON with no markdown fences, but models occasionally wrap output in
+    // ```json ... ``` anyway. We strip a leading/trailing fence if present so
+    // a stray fence never causes a parse failure. This is intentionally
+    // belt-and-suspenders with the prompt rule, not a contradiction.
     const jsonText = raw.startsWith("```")
       ? raw.replace(/^```(?:json)?/i, "").replace(/\n?```$/, "")
       : raw;

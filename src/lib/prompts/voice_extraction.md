@@ -5,7 +5,7 @@ Given a chat history transcript, extract a Voice Card that captures how this per
 Analyze:
 1. Distinctive vocabulary and phrases they use (not common words)
 2. Hedging language they avoid (direct communicators don't say "sort of" / "maybe" / "I think")
-3. Sentence length patterns (what percentage are short / medium / long)
+3. Sentence length patterns (what proportion are short / medium / long)
 4. Emotional register (analytical, warm, assertive, playful, formal, casual, etc.)
 5. Jargon or buzzwords they actively avoid or push back against
 
@@ -16,9 +16,9 @@ Output ONLY a valid JSON object matching this exact schema:
   "vocabulary": [],
   "hedgesAvoided": [],
   "sentenceLengthDistribution": {
-    "short": 0,
-    "medium": 0,
-    "long": 0
+    "short": 33,
+    "medium": 34,
+    "long": 33
   },
   "emotionalRegister": "",
   "jargonHated": []
@@ -28,7 +28,7 @@ Output ONLY a valid JSON object matching this exact schema:
 Field definitions:
 - `vocabulary`: 5–15 distinctive words or short phrases this person uses. Only include words that are genuinely distinctive — not common English words.
 - `hedgesAvoided`: Hedging language or qualifier phrases absent from their writing (may be empty array if they use hedges normally).
-- `sentenceLengthDistribution`: Approximate percentages (must sum to ~100). Short = under 10 words, Medium = 10–25 words, Long = over 25 words.
+- `sentenceLengthDistribution`: Integer percentages that MUST sum to approximately 100 (±10 tolerance, e.g., `{"short": 40, "medium": 40, "long": 20}`). Short = under 10 words, Medium = 10–25 words, Long = over 25 words.
 - `emotionalRegister`: A single descriptive phrase characterizing their overall tone (e.g., "analytical and precise", "warm but direct", "casual and curious").
 - `jargonHated`: Industry buzzwords, corporate-speak, or overused phrases they push back against or conspicuously avoid (may be empty array).
 
@@ -40,6 +40,4 @@ Important constraints:
 - The JSON object MUST have exactly these 5 top-level keys and no others: `vocabulary`, `hedgesAvoided`, `sentenceLengthDistribution`, `emotionalRegister`, `jargonHated`
 
 Your output must be exactly this shape (values filled in):
-```
 {"vocabulary":[...],"hedgesAvoided":[...],"sentenceLengthDistribution":{"short":N,"medium":N,"long":N},"emotionalRegister":"...","jargonHated":[...]}
-```

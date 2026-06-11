@@ -15,8 +15,48 @@ type PiiReadParams = {
 /**
  * Records a PII field access in the audit_log table.
  *
- * @deprecated Use `readPii()` instead — it provides a richer audit row (userId)
- * and returns the data only after the audit write succeeds (fail-safe).
+ * @deprecated Superseded by `readPii()` — scheduled for removal in the Week 6
+ * milestone (see issue #158). New callers must not use this function.
+ *
+ * This helper logs an access *after the fact* and cannot guarantee the read was
+ * actually audited (the read can succeed while a later `recordPiiRead` is
+ * forgotten or throws). Use `readPii()` instead: it runs the query, writes a
+ * richer audit row (including `userId`), and returns the data only if the audit
+ * write succeeds (fail-closed).
+ *
+ * Migration — replace:
+ *
+ * ```ts
+ * const rows = await db
+ *   .select({ transcript: interviews.transcript })
+ *   .from(interviews)
+ *   .where(eq(interviews.id, id));
+ * await recordPiiRead({
+ *   tableName: "interviews",
+ *   rowId: id,
+ *   fieldName: "transcript",
+ *   accessorId: userId,
+ *   reason,
+ * });
+ * ```
+ *
+ * with:
+ *
+ * ```ts
+ * const rows = await readPii(
+ *   () =>
+ *     db
+ *       .select({ transcript: interviews.transcript })
+ *       .from(interviews)
+ *       .where(eq(interviews.id, id)),
+ *   { userId, accessorId: userId, tableName: "interviews", rowId: id,
+ *     fieldName: "transcript", reason },
+ * );
+ * ```
+ *
+ * For the four canonical PII columns, prefer the purpose-built readers in this
+ * module (`readInterviewTranscript`, `readImportRawPath`, `readImportParsed`,
+ * `readLinkedinSnapshot`) which call `readPii()` for you.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({
@@ -121,7 +161,7 @@ export async function readImportRawPath(
       db
         .select({ rawPath: imports.rawPath })
         .from(imports)
-        .where(eq(imports.id, importId))
+        .where(and(eq(imports.id, importId), eq(imports.userId, accessorId)))
         .limit(1),
     {
       userId: accessorId,
@@ -136,28 +176,43 @@ export async function readImportRawPath(
   return rows[0];
 }
 
+type ReadInterviewTranscriptOptions = {
+  ipAddress?: string;
+  accessorId?: string;
+};
+
 /**
  * Fetches the transcript of a single interview row through the PII audit wrapper.
  *
  * Callers in other modules should use this rather than referencing
  * `interviews.transcript` directly — the ESLint PII guard enforces this.
+ *
+ * `options.accessorId` identifies the principal performing the read and defaults
+ * to `userId` (the subject reading their own transcript). Pass an explicit
+ * `accessorId` for service-account or support reads so the audit row
+ * distinguishes who accessed the data from whose data it is — never let a
+ * staff/automated read masquerade as a subject self-read.
  */
 export async function readInterviewTranscript(
   interviewId: string,
   userId: string,
   reason: string,
-  ipAddress?: string
+  options: ReadInterviewTranscriptOptions = {}
 ): Promise<{ transcript: unknown } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
+  const { ipAddress, accessorId = userId } = options;
   const rows = await readPii(
     () =>
       db
         .select({ transcript: interviews.transcript })
         .from(interviews)
-        .where(eq(interviews.id, interviewId))
+        .where(and(eq(interviews.id, interviewId), eq(interviews.userId, userId)))
         .limit(1),
     {
       userId,
-      accessorId: userId,
+      accessorId,
       tableName: "interviews",
       rowId: interviewId,
       fieldName: "transcript",
@@ -176,12 +231,15 @@ export async function readImportParsed(
   userId: string,
   reason: string
 ): Promise<{ parsed: unknown } | undefined> {
+  if (!reason.trim()) {
+    throw new ValidationError("reason must not be empty");
+  }
   const rows = await readPii(
     () =>
       db
         .select({ parsed: imports.parsed })
         .from(imports)
-        .where(eq(imports.id, importId))
+        .where(and(eq(imports.id, importId), eq(imports.userId, userId)))
         .limit(1),
     {
       userId,

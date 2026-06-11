@@ -85,22 +85,24 @@ beforeEach(() => {
   vi.resetModules();
 
   vi.doMock("@anthropic-ai/sdk", () => {
-    const mockCreate = vi.fn(async (_params: { messages: Array<{ content: Array<{ source?: { data?: string }; type: string }> }> }) => {
+    const mockStream = vi.fn(async (_params: { messages: Array<{ content: Array<{ source?: { data?: string }; type: string }> }> }) => {
       // Determine which fixture by inspecting PDF content size
       // (in real usage the PDF bytes differ; here all our fixtures are the same small PDF)
       // We use the fixture index from test context via a closure variable set before mock
       const responseText = JSON.stringify(currentMockSnapshot);
       return {
-        content: [{ type: "text", text: responseText }],
-        usage: { input_tokens: 1000, output_tokens: 200 },
+        finalMessage: async () => ({
+          content: [{ type: "text", text: responseText }],
+          usage: { input_tokens: 1000, output_tokens: 200 },
+        }),
       };
     });
 
     return {
       default: vi.fn().mockImplementation(() => ({
-        messages: { create: mockCreate },
+        messages: { stream: mockStream },
       })),
-      __mockCreate: mockCreate,
+      __mockStream: mockStream,
     };
   });
 
@@ -187,9 +189,11 @@ describe("parseLinkedInPdf — fixture PDFs", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [{ type: "text", text: "Sorry, I cannot parse this document." }],
-            usage: { input_tokens: 100, output_tokens: 20 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [{ type: "text", text: "Sorry, I cannot parse this document." }],
+              usage: { input_tokens: 100, output_tokens: 20 },
+            }),
           }),
         },
       })),
@@ -219,9 +223,11 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [{ type: "text", text: "not json {{" }],
-            usage: { input_tokens: 100, output_tokens: 10 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [{ type: "text", text: "not json {{" }],
+              usage: { input_tokens: 100, output_tokens: 10 },
+            }),
           }),
         },
       })),
@@ -239,9 +245,11 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [],
-            usage: { input_tokens: 100, output_tokens: 0 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [],
+              usage: { input_tokens: 100, output_tokens: 0 },
+            }),
           }),
         },
       })),
@@ -259,9 +267,11 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [{ type: "text", text: "```json\n" + JSON.stringify(snap) + "\n```" }],
-            usage: { input_tokens: 100, output_tokens: 50 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [{ type: "text", text: "```json\n" + JSON.stringify(snap) + "\n```" }],
+              usage: { input_tokens: 100, output_tokens: 50 },
+            }),
           }),
         },
       })),
@@ -280,9 +290,11 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [{ type: "text", text: "```JSON\n" + JSON.stringify(snap) + "\n```" }],
-            usage: { input_tokens: 100, output_tokens: 50 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [{ type: "text", text: "```JSON\n" + JSON.stringify(snap) + "\n```" }],
+              usage: { input_tokens: 100, output_tokens: 50 },
+            }),
           }),
         },
       })),
@@ -300,7 +312,7 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
+          stream: vi.fn().mockRejectedValue(new Error("Rate limit exceeded")),
         },
       })),
     }));
@@ -336,9 +348,11 @@ describe("parseLinkedInPdf — core behaviors", () => {
     vi.doMock("@anthropic-ai/sdk", () => ({
       default: vi.fn().mockImplementation(() => ({
         messages: {
-          create: vi.fn().mockResolvedValue({
-            content: [{ type: "text", text: JSON.stringify(snap) }],
-            usage: { input_tokens: 100, output_tokens: 20 },
+          stream: vi.fn().mockResolvedValue({
+            finalMessage: async () => ({
+              content: [{ type: "text", text: JSON.stringify(snap) }],
+              usage: { input_tokens: 100, output_tokens: 20 },
+            }),
           }),
         },
       })),

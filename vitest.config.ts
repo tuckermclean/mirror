@@ -43,6 +43,15 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        // The Voice Card vertical (schema, parse, fence) is fully unit-tested.
+        // errors.ts is type-only (compiles to nothing) so it does not affect
+        // these aggregates. Kept below 100 to leave headroom for new helpers.
+        "src/lib/voice-card/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
       },
     },
   },
