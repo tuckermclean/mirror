@@ -35,18 +35,26 @@ export type FillResult =
 
 type EditableElement = HTMLInputElement | HTMLTextAreaElement;
 
+type AsEditableResult =
+  | { found: false }
+  | { found: true; editable: false }
+  | { found: true; editable: true; el: EditableElement };
+
 /**
  * Duck-typed editability check that works across realms (happy-dom's element
  * classes are not the global `HTMLInputElement`, so `instanceof` against the
  * global is unreliable). We accept INPUT and TEXTAREA elements that expose a
  * string `value`.
+ *
+ * Returns a discriminated result so callers can distinguish "not found" from
+ * "found but wrong tag/type" — enabling `FillFailureReason "not_editable"`.
  */
-function asEditable(el: Element | null): EditableElement | null {
-  if (!el) return null;
+function asEditable(el: Element | null): AsEditableResult {
+  if (!el) return { found: false };
   const tag = el.tagName?.toUpperCase();
-  if (tag !== "INPUT" && tag !== "TEXTAREA") return null;
-  if (typeof (el as { value?: unknown }).value !== "string") return null;
-  return el as EditableElement;
+  if (tag !== "INPUT" && tag !== "TEXTAREA") return { found: true, editable: false };
+  if (typeof (el as { value?: unknown }).value !== "string") return { found: true, editable: false };
+  return { found: true, editable: true, el: el as EditableElement };
 }
 
 /**
@@ -82,14 +90,15 @@ export function fillField(
   doc: Document,
   field: Required<Pick<AssistedField, "confirm">> & AssistedField,
 ): FillResult {
-  const el = asEditable(doc.querySelector(field.selector));
-  if (!el) return { ok: false, reason: "not_found", label: field.label };
+  const result = asEditable(doc.querySelector(field.selector));
+  if (!result.found) return { ok: false, reason: "not_found", label: field.label };
+  if (!result.editable) return { ok: false, reason: "not_editable", label: field.label };
 
   if (!field.confirm(field)) {
     return { ok: false, reason: "declined", label: field.label };
   }
 
-  setValueAndNotify(el, field.value);
+  setValueAndNotify(result.el, field.value);
   return { ok: true, label: field.label };
 }
 

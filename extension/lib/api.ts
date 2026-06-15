@@ -12,10 +12,30 @@
  *   409 { error: "missing_voice_embedding" }
  */
 
-/** Base URL for the Mirror backend. Overridable at build time via Plasmo env. */
-export const API_BASE: string =
-  (typeof process !== "undefined" && process.env?.PLASMO_PUBLIC_API_BASE) ||
-  "http://localhost:3000";
+/**
+ * Base URL for the Mirror backend. Must be set via `PLASMO_PUBLIC_API_BASE` at
+ * build time. In development it falls back to localhost. In production, an
+ * unset env var is a build-time error — we throw rather than silently sending
+ * `credentials: "include"` requests to an arbitrary local service on port 3000.
+ */
+function resolveApiBase(): string {
+  const envBase =
+    typeof process !== "undefined" ? process.env?.PLASMO_PUBLIC_API_BASE : undefined;
+  if (envBase) return envBase;
+
+  // Allow localhost in development (NODE_ENV !== "production").
+  const isProd =
+    typeof process !== "undefined" && process.env?.NODE_ENV === "production";
+  if (isProd) {
+    throw new Error(
+      "[mirror] PLASMO_PUBLIC_API_BASE must be set for production builds. " +
+        "Refusing to default to localhost — this would leak session cookies.",
+    );
+  }
+  return "http://localhost:3000";
+}
+
+export const API_BASE: string = resolveApiBase();
 
 export interface VoiceMatchComponents {
   cosine: number;
@@ -61,14 +81,19 @@ export async function getVoiceMatch(
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ profileText }),
+      signal: AbortSignal.timeout(10_000),
     });
   } catch {
     return { ok: false, code: "network", error: "network_error" };
   }
 
   if (response.status === 200) {
-    const data = (await response.json()) as VoiceMatchSuccess;
-    return { ok: true, data };
+    try {
+      const data = (await response.json()) as VoiceMatchSuccess;
+      return { ok: true, data };
+    } catch {
+      return { ok: false, code: "network", error: "json_parse_error" };
+    }
   }
 
   let error = `http_${response.status}`;

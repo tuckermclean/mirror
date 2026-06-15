@@ -32,6 +32,8 @@ export function VoiceMatchBadge({ profileText }: VoiceMatchBadgeProps): React.Re
       } else {
         if (result.code === "network") {
           logger.warn("voice-match request failed", { error: result.error });
+        } else {
+          logger.warn("voice-match-badge", { code: result.code });
         }
         setState({ status: "error", code: result.code });
       }
