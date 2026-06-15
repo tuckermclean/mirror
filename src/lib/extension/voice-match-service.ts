@@ -12,11 +12,11 @@ import { scoreVoiceMatch } from "@/lib/voice-match";
 import type { VoiceMatchScore } from "@/lib/voice-match";
 
 /**
- * Service errors surfaced to the route as discriminated strings. `not_found`
- * maps to 404; `missing_voice_embedding` maps to 409 (the user has not yet
- * built a voice profile, so there is nothing to score against).
+ * Service errors surfaced to the route as discriminated strings.
+ * `missing_voice_embedding` maps to 409 (the user has not yet built a voice
+ * profile, so there is nothing to score against).
  */
-export type VoiceMatchServiceError = "not_found" | "missing_voice_embedding";
+export type VoiceMatchServiceError = "missing_voice_embedding";
 
 /**
  * A neutral voice card used to embed the *candidate* profile text. The shared
@@ -92,6 +92,7 @@ export async function computeVoiceMatch(
   const profile = await loadVoiceProfile(internalUserId);
   if (!profile.ok) return profile;
 
+  // Voyage AI embeddings are not tracked in llm_spend_ledger (Anthropic-only ledger)
   const candidateEmbedding = await embedVoiceProfile(
     { source: "plain_text", messages: [{ role: "user", content: profileText }] },
     NEUTRAL_VOICE_CARD

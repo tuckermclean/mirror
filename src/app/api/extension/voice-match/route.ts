@@ -41,13 +41,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return json({ error: "invalid_json" }, 400, origin);
   }
   if (!profileText) return json({ error: "profileText is required" }, 400, origin);
+  if (profileText.length > 50_000)
+    return json({ error: "profileText too large" }, 422, origin);
 
   const internalUserId = await resolveActiveUserId(clerkUserId);
   if (!internalUserId) return json({ error: "user_not_found" }, 404, origin);
 
   const result = await computeVoiceMatch(internalUserId, profileText);
   if (!result.ok) {
-    if (result.error === "not_found") return json({ error: "user_not_found" }, 404, origin);
     return json({ error: "missing_voice_embedding" }, 409, origin);
   }
   return json(result.value, 200, origin);
