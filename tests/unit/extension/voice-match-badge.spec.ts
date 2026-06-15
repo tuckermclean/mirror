@@ -76,9 +76,11 @@ describe("VoiceMatchBadgeView — renders each state to markup", () => {
   });
 
   it("renders the cap fallback on 402", () => {
-    expect(html({ status: "error", code: 402 }).toLowerCase()).toContain(
-      "this month's cap".toLowerCase(),
-    );
+    // React escapes the apostrophe in the rendered markup (&#x27;), so assert on
+    // the apostrophe-free fragments of the cap copy.
+    const markup = html({ status: "error", code: 402 }).toLowerCase();
+    expect(markup).toContain("this month");
+    expect(markup).toContain("cap");
   });
 
   it("renders the interview fallback on 409", () => {
