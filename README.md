@@ -6,12 +6,15 @@ Mirror learns who you actually are — through a life-story interview, your AI c
 
 ## Getting Started
 
+> New here? **[SETUP.md](SETUP.md)** is the full step-by-step local dev guide —
+> prerequisites, secrets, the Docker stack, and getting every test suite green.
+
 ### Prerequisites
 
 Before you begin, ensure you have:
 
-- **Node.js** 18+ ([install](https://nodejs.org/))
-- **pnpm** 8+ (install with `npm install -g pnpm`)
+- **Node.js** 20+ ([install](https://nodejs.org/))
+- **pnpm** 10+ (`corepack enable && corepack prepare pnpm@latest --activate`)
 - **Docker** and **Docker Compose** ([install Docker Desktop](https://www.docker.com/products/docker-desktop))
 - **Git**
 
