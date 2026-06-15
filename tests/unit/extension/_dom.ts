@@ -13,7 +13,9 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-// eslint-disable-next-line import/no-unresolved -- resolved at runtime from extension/node_modules
+// happy-dom is a devDependency of the *extension* package; it is resolved here
+// at runtime via its concrete path inside extension/node_modules so the root
+// package.json / lockfile stay untouched (per the assignment constraints).
 import { Window } from "../../../extension/node_modules/happy-dom/lib/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
