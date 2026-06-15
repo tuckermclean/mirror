@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "lint": "eslint .",
     "test:unit": "vitest run tests/unit",
+    "test:extension": "pnpm -C extension install && pnpm -C extension test",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test tests/e2e",
     "test:visual": "playwright test tests/visual",

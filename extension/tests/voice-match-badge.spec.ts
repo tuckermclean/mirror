@@ -5,7 +5,7 @@ import {
   voiceMatchView,
   VoiceMatchBadgeView,
   type VoiceMatchState,
-} from "../../../extension/components/VoiceMatchBadge";
+} from "../components/VoiceMatchBadge";
 
 describe("voiceMatchView — maps state to display copy", () => {
   it("renders the score on a successful (200) result", () => {

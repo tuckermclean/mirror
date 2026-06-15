@@ -4,7 +4,7 @@ import {
   fillField,
   runAssistedWrite,
   type AssistedField,
-} from "../../../extension/lib/assisted-write";
+} from "../lib/assisted-write";
 
 // A minimal stand-in for LinkedIn's edit modal: a headline input, an about
 // textarea, and a Save button inside a form. The assisted-write helper must
@@ -49,8 +49,7 @@ describe("fillField — targets the right element without submitting", () => {
       confirm: () => false,
     });
 
-    expect(result.ok).toBe(false);
-    expect(result.reason).toBe("declined");
+    expect(result).toMatchObject({ ok: false, reason: "declined" });
     expect(input.value).toBe("old headline");
   });
 
@@ -62,8 +61,7 @@ describe("fillField — targets the right element without submitting", () => {
       value: "x",
       confirm: () => true,
     });
-    expect(result.ok).toBe(false);
-    expect(result.reason).toBe("not_found");
+    expect(result).toMatchObject({ ok: false, reason: "not_found" });
   });
 
   it("dispatches an input event so the host app observes the change", () => {
