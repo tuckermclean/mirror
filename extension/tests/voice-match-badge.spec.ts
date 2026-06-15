@@ -54,6 +54,12 @@ describe("voiceMatchView — maps state to display copy", () => {
       /couldn'?t|offline|connection|try again/i,
     );
   });
+
+  it("422 → explains the profile is too large", () => {
+    const view = voiceMatchView({ status: "error", code: 422 });
+    expect(view.tone).toBe("error");
+    expect(view.body).toMatch(/too large|profile|shorter/i);
+  });
 });
 
 describe("VoiceMatchBadgeView — renders each state to markup", () => {
@@ -87,5 +93,10 @@ describe("VoiceMatchBadgeView — renders each state to markup", () => {
     expect(html({ status: "error", code: 409 }).toLowerCase()).toContain(
       "complete your interview",
     );
+  });
+
+  it("renders the too-large fallback on 422", () => {
+    const markup = html({ status: "error", code: 422 }).toLowerCase();
+    expect(markup).toMatch(/too large|profile|shorter/);
   });
 });

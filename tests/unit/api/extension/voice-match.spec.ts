@@ -121,6 +121,17 @@ describe("body validation", () => {
     await POST(postRequest({}));
     expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
   });
+
+  it("returns 422 when profileText exceeds 50,000 characters", async () => {
+    const res = await POST(postRequest({ profileText: "a".repeat(50_001) }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("profileText too large");
+  });
+
+  it("does not call the scorer when profileText is too large", async () => {
+    await POST(postRequest({ profileText: "a".repeat(50_001) }));
+    expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------

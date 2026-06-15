@@ -101,6 +101,21 @@ describe("getVoiceMatch — 409 no voice profile", () => {
   });
 });
 
+describe("getVoiceMatch — 422 profileText too large", () => {
+  it("returns ok:false with code 422 when the server returns 422", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeJsonErrorResponse(422));
+
+    const result = await getVoiceMatch("x".repeat(50_001), {
+      fetchImpl: mockFetch,
+      apiBase: "https://test.example.com",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe(422);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Network / transport errors
 // ---------------------------------------------------------------------------
