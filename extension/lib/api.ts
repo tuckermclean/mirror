@@ -48,13 +48,13 @@ export interface VoiceMatchSuccess {
 }
 
 /** Non-200 HTTP codes the contract defines, plus "network" for transport errors. */
-export type VoiceMatchErrorCode = 400 | 401 | 402 | 404 | 409 | "network";
+export type VoiceMatchErrorCode = 400 | 401 | 402 | 404 | 409 | 422 | "network";
 
 export type VoiceMatchResult =
   | { ok: true; data: VoiceMatchSuccess }
   | { ok: false; code: VoiceMatchErrorCode; error: string };
 
-const KNOWN_ERROR_CODES: ReadonlySet<number> = new Set([400, 401, 402, 404, 409]);
+const KNOWN_ERROR_CODES: ReadonlySet<number> = new Set([400, 401, 402, 404, 409, 422]);
 
 function toErrorCode(status: number): VoiceMatchErrorCode {
   return KNOWN_ERROR_CODES.has(status)

@@ -14,7 +14,7 @@ import React from "react";
 export type VoiceMatchState =
   | { status: "loading" }
   | { status: "ok"; score: number; components: { cosine: number; feature: number } }
-  | { status: "error"; code: 400 | 401 | 402 | 404 | 409 | "network" };
+  | { status: "error"; code: 400 | 401 | 402 | 404 | 409 | 422 | "network" };
 
 export type ViewTone = "loading" | "score" | "info" | "error";
 
@@ -44,7 +44,7 @@ export function voiceMatchView(state: VoiceMatchState): VoiceMatchViewModel {
   return errorView(state.code);
 }
 
-type VoiceMatchErrorCode = 400 | 401 | 402 | 404 | 409 | "network";
+type VoiceMatchErrorCode = 400 | 401 | 402 | 404 | 409 | 422 | "network";
 
 function errorView(code: VoiceMatchErrorCode): VoiceMatchViewModel {
   switch (code) {
@@ -56,6 +56,8 @@ function errorView(code: VoiceMatchErrorCode): VoiceMatchViewModel {
       return { tone: "info", headline: HEADLINE, body: "Complete your interview to see your Voice Match Score." };
     case 404:
       return { tone: "info", headline: HEADLINE, body: "No Mirror account yet — sign up to get your Voice Match Score." };
+    case 422:
+      return { tone: "error", headline: HEADLINE, body: "This profile is too large to analyse — try a shorter one." };
     case 400:
       return { tone: "error", headline: HEADLINE, body: "We couldn't read this profile. Try again." };
     case "network":
