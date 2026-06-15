@@ -46,12 +46,17 @@ export default function LinkedInProfileOverlay(): ReactElement | null {
   );
 
   useEffect(() => {
+    // Track the pending re-read timer so we can cancel it on unmount.
+    const timerId: { current: ReturnType<typeof setTimeout> | undefined } = {
+      current: undefined,
+    };
+
     /** Re-read the profile after a small delay so the SPA DOM settles. */
     function handleUrlChange(): void {
       // Only act on /in/* paths.
       if (!/^\/in\//.test(window.location.pathname)) return;
       // Give the SPA a tick to render the new profile content.
-      setTimeout(() => {
+      timerId.current = setTimeout(() => {
         setProfileText(readCurrentProfileText());
       }, 500);
     }
@@ -78,6 +83,8 @@ export default function LinkedInProfileOverlay(): ReactElement | null {
     window.addEventListener("popstate", handleUrlChange);
 
     return () => {
+      // Cancel any in-flight re-read so callbacks don't fire on an unmounted component.
+      clearTimeout(timerId.current);
       // Restore originals on unmount (guards against double-injection).
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
