@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "framer-motion": "12.40.0",
@@ -22,7 +24,8 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "happy-dom": "15.11.7",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
   },
   "manifest": {
     "host_permissions": [

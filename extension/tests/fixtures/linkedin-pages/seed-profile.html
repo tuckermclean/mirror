@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>John Doe - Senior Software Engineer at Acme Corp | LinkedIn</title>
+</head>
+<body>
+  <!-- Top card -->
+  <section class="top-card-layout">
+    <div class="top-card-layout__title">John Doe</div>
+    <div class="top-card-layout__headline">
+      Senior Software Engineer at Acme Corp
+    </div>
+    <div class="top-card-layout__location">San Francisco Bay Area</div>
+    <div class="top-card-layout__first-subline">
+      <span class="top-card__subline-text">500+ connections</span>
+    </div>
+  </section>
+
+  <!-- About section -->
+  <section class="core-section-container" data-section="summary">
+    <div class="core-section-container__title">About</div>
+    <div class="core-section-container__content">
+      <div class="inline-show-more-text">
+        <p>
+          I build distributed systems that handle millions of requests per day without falling over.
+          Eight years of backend engineering — mostly in Go and Python — with a focus on
+          observability, reliability, and keeping on-call rotations boring.
+        </p>
+        <p>
+          Currently at Acme Corp where I own the payments infrastructure serving 3M+ daily
+          transactions. Previously at Nimbus and Pulsar Labs.
+        </p>
+        <p>
+          I care about clean APIs, thorough post-mortems, and code that junior engineers
+          can actually read.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Experience section -->
+  <section class="core-section-container" data-section="experience">
+    <div class="core-section-container__title">Experience</div>
+    <div class="core-section-container__content">
+
+      <!-- Experience item 1 -->
+      <li class="artdeco-list__item">
+        <div class="experience-item">
+          <div class="experience-item__title">Senior Software Engineer</div>
+          <div class="experience-item__subtitle">Acme Corp</div>
+          <div class="experience-item__duration">
+            <span class="date-range">
+              <time>Jan 2021</time>
+              <span> – </span>
+              <time>Present</time>
+            </span>
+          </div>
+          <div class="experience-item__location">San Francisco, CA</div>
+          <div class="experience-item__description">
+            <ul>
+              <li>Redesigned payment processing pipeline to handle 3M+ daily transactions with 99.99% uptime</li>
+              <li>Reduced P99 API latency from 480ms to 62ms through query optimization and connection pooling</li>
+              <li>Led incident response and post-mortem culture improvements; MTTR dropped 55% over 12 months</li>
+              <li>Mentored 4 junior engineers through bi-weekly 1:1s and structured code review feedback</li>
+            </ul>
+          </div>
+        </div>
+      </li>
+
+      <!-- Experience item 2 -->
+      <li class="artdeco-list__item">
+        <div class="experience-item">
+          <div class="experience-item__title">Software Engineer</div>
+          <div class="experience-item__subtitle">Nimbus Technologies</div>
+          <div class="experience-item__duration">
+            <span class="date-range">
+              <time>Mar 2018</time>
+              <span> – </span>
+              <time>Dec 2020</time>
+            </span>
+          </div>
+          <div class="experience-item__location">Seattle, WA</div>
+          <div class="experience-item__description">
+            <ul>
+              <li>Built event-driven microservices architecture in Go; handled 800K messages per day via Kafka</li>
+              <li>Implemented distributed tracing with Jaeger across 14 services; cut mean debug time by 40%</li>
+              <li>Contributed to on-call rotation for core data pipeline with zero missed SLA in 18 months</li>
+            </ul>
+          </div>
+        </div>
+      </li>
+
+      <!-- Experience item 3 -->
+      <li class="artdeco-list__item">
+        <div class="experience-item">
+          <div class="experience-item__title">Junior Software Engineer</div>
+          <div class="experience-item__subtitle">Pulsar Labs</div>
+          <div class="experience-item__duration">
+            <span class="date-range">
+              <time>Jun 2016</time>
+              <span> – </span>
+              <time>Feb 2018</time>
+            </span>
+          </div>
+          <div class="experience-item__location">Austin, TX</div>
+          <div class="experience-item__description">
+            <ul>
+              <li>Developed REST API endpoints for a real-time analytics dashboard used by 500+ enterprise clients</li>
+              <li>Wrote automated integration tests that reduced QA cycle from 5 days to 1 day</li>
+            </ul>
+          </div>
+        </div>
+      </li>
+
+    </div>
+  </section>
+
+  <!-- Education section -->
+  <section class="core-section-container" data-section="education">
+    <div class="core-section-container__title">Education</div>
+    <div class="core-section-container__content">
+      <li class="artdeco-list__item">
+        <div class="education-item">
+          <div class="education-item__school-name">University of Texas at Austin</div>
+          <div class="education-item__degree-info">
+            <span class="education-item__degree">B.S. Computer Science</span>
+          </div>
+          <div class="education-item__duration">
+            <time>2012</time>
+            <span> – </span>
+            <time>2016</time>
+          </div>
+        </div>
+      </li>
+    </div>
+  </section>
+
+  <!-- Skills section -->
+  <section class="core-section-container" data-section="skills">
+    <div class="core-section-container__title">Skills</div>
+    <div class="core-section-container__content">
+      <div class="skills-section">
+        <span class="skill">Go</span>
+        <span class="skill">Python</span>
+        <span class="skill">Kubernetes</span>
+        <span class="skill">PostgreSQL</span>
+        <span class="skill">Kafka</span>
+        <span class="skill">Distributed Systems</span>
+        <span class="skill">Observability</span>
+        <span class="skill">gRPC</span>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
