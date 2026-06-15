@@ -4,7 +4,7 @@ import {
   readProfile,
   profileToText,
   type ProfileFields,
-} from "../../../extension/lib/dom-reader";
+} from "../lib/dom-reader";
 
 describe("readProfile — structural extraction across all 5 fixtures", () => {
   it("extracts a headline, about, and at least one experience for every fixture", () => {
