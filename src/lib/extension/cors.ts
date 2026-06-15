@@ -22,6 +22,8 @@
  * cross-origin callers (fail-closed).
  */
 
+import { logger } from "@/lib/logger";
+
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 
 /** Parse the comma-separated allow-list from the environment. */
@@ -29,7 +31,14 @@ function configuredOrigins(): string[] {
   return (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
     .split(",")
     .map((o) => o.trim())
-    .filter((o) => o.length > 0);
+    .filter((o) => o.length > 0)
+    .filter((o) => {
+      if (CHROME_EXTENSION_ORIGIN.test(o)) return true;
+      logger.warn("cors: skipping invalid EXTENSION_ALLOWED_ORIGINS entry", {
+        entry: o,
+      });
+      return false;
+    });
 }
 
 /**
