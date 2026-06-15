@@ -114,6 +114,34 @@ describe("resolveAllowedOrigin — non-production fallback (no allow-list config
   });
 });
 
+describe("resolveAllowedOrigin — allowlist validation rejects non-extension configured origins", () => {
+  it("returns null when EXTENSION_ALLOWED_ORIGINS contains a plain web origin (not reflected)", () => {
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: "https://attacker.com" });
+    expect(resolveAllowedOrigin("https://attacker.com")).toBeNull();
+  });
+
+  it("still reflects valid extension origins when the list contains a mix of valid and invalid entries", () => {
+    setEnv({
+      EXTENSION_ALLOWED_ORIGINS: `https://attacker.com,${EXT_A}`,
+    });
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+    expect(resolveAllowedOrigin("https://attacker.com")).toBeNull();
+  });
+
+  it("returns null when the configured origin has invalid extension ID chars (not a-p)", () => {
+    const badExtOrigin =
+      "chrome-extension://qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: badExtOrigin });
+    expect(resolveAllowedOrigin(badExtOrigin)).toBeNull();
+  });
+
+  it("returns null when the configured origin has a too-short extension ID", () => {
+    const shortExtOrigin = "chrome-extension://tooshort";
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: shortExtOrigin });
+    expect(resolveAllowedOrigin(shortExtOrigin)).toBeNull();
+  });
+});
+
 describe("corsHeaders — with a valid allowed origin", () => {
   beforeEach(() => {
     setEnv({
