@@ -1,4 +1,4 @@
-.PHONY: install typecheck lint test-unit test-integration coverage build smoke e2e eval-prompts eval-spearman helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
+.PHONY: install typecheck lint test-unit test-extension test-integration coverage build smoke e2e eval-prompts eval-spearman helm-lint helm-kubeconform ci db-push playwright-install e2e-ci install-no-scripts audit-workflows
 
 install:
 	pnpm install --frozen-lockfile
@@ -11,6 +11,12 @@ lint:
 
 test-unit:
 	pnpm test:unit; E1=$$?; pnpm eval:spearman; E2=$$?; exit $$((E1 | E2))
+
+# Self-contained Plasmo Chrome extension vitest suite (extension/ has its own deps).
+# Installs the extension package first, then runs its 36 tests. Kept independent of
+# test-unit so a root-only run stays fast and the extension install stays isolated.
+test-extension:
+	pnpm test:extension
 
 # Runs db + health + rag suites. Requires DATABASE_URL pointing at a migrated postgres+pgvector instance.
 test-integration:
@@ -82,4 +88,4 @@ audit-workflows:
 #   - Docker build, Helm lint, and Helm kubeconform require local tooling; run `make helm-lint`
 #     and `make helm-kubeconform` separately if you have the tools installed.
 # Run this before pushing to catch the common failure modes without a CI round-trip.
-ci: install typecheck lint test-unit test-integration build smoke
+ci: install typecheck lint test-unit test-extension test-integration build smoke
