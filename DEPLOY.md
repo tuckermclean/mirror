@@ -145,6 +145,63 @@ kubectl run db-migrate --image=ghcr.io/YOUR_ORG/mirror-web:latest \
 **ArgoCD / GitOps path:**
 Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the appropriate values overlay. Releases are triggered by pushing a semver tag — CI builds and pushes both images + the chart, then ArgoCD syncs automatically.
 
+**DB migrations run automatically** via a Helm post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
+
+---
+
+## Staging deploy (manual)
+
+The `release.yml` CI workflow builds and pushes images on every semver tag but does **not** automatically deploy to staging (the workflow step is a placeholder pending cluster credentials). After a release tag is pushed, trigger the staging upgrade manually:
+
+```bash
+# 1. Ensure kubectl is pointed at your staging cluster context
+kubectl config use-context <your-staging-context>
+
+# 2. Pull the latest chart from GHCR (replace VERSION with the release tag, e.g. 0.2.0)
+helm registry login ghcr.io -u YOUR_GITHUB_USER -p YOUR_PAT
+
+# 3. Upgrade mirror-web to staging
+helm upgrade mirror-web oci://ghcr.io/YOUR_ORG/mirror-web \
+  --version VERSION \
+  -f infra/helm/mirror-web/values-staging.yaml \
+  --set image.tag=VERSION \
+  --namespace mirror
+
+# 4. Upgrade mirror-worker to staging
+helm upgrade mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
+  --version VERSION \
+  -f infra/helm/mirror-worker/values-freetier.yaml \
+  --set image.tag=VERSION \
+  --namespace mirror
+
+# 5. Verify rollout
+kubectl rollout status deployment/mirror-web -n mirror
+kubectl rollout status deployment/mirror-worker -n mirror
+```
+
+The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+
+```bash
+kubectl get jobs -n mirror -w
+kubectl logs job/mirror-web-db-migrate -n mirror
+```
+
+---
+
+## DB migration hook
+
+Migrations run automatically via a Helm `post-install,post-upgrade` Job — no manual `kubectl run` step required. The Job:
+- Uses the same image as the web deployment
+- Reads `DATABASE_URL` from the `existingSecret`
+- Has `backoffLimit: 3` and `restartPolicy: OnFailure`
+- Cleans up on success (`hook-delete-policy: before-hook-creation,hook-succeeded`)
+
+To **disable** the hook (e.g. you want to run migrations manually before the deploy):
+
+```bash
+helm upgrade mirror-web ... --set migration.enabled=false
+```
+
 ---
 
 ## Path D: Free-tier (Oracle Cloud + k3s)
