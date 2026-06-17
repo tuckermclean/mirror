@@ -10,19 +10,22 @@
 #   needs-human           — CI failing, agent didn't finish, no issue number found
 #
 # Usage: decide-stale-action.sh <redispatch_count> <ci_runs> <has_converge> \
-#                                <failing_count> <has_issue_num>
+#                                <failing_count> <has_issue_num> <has_diff>
 #
 #   redispatch_count  integer   how many times reconciler already re-dispatched
 #   ci_runs           integer   how many CI check-runs on HEAD (0 = never ran)
 #   has_converge      0|1       whether the PR already carries the converge label
 #   failing_count     integer   count of failing blocking CI checks
 #   has_issue_num     0|1       whether a closing issue number was found in PR body
+#   has_diff          0|1       whether the PR contains any changes vs. master
+#                               (0 = empty branch — agent opened the PR but never
+#                               produced work, e.g. exited before integrating)
 #
 # Exit 2 on usage error (wrong argument count).
 set -uo pipefail
 
-if [ $# -ne 5 ]; then
-  echo "usage: decide-stale-action.sh <redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue_num>" >&2
+if [ $# -ne 6 ]; then
+  echo "usage: decide-stale-action.sh <redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue_num> <has_diff>" >&2
   exit 2
 fi
 
@@ -31,6 +34,7 @@ ci_runs="$2"
 has_converge="$3"
 failing_count="$4"
 has_issue_num="$5"
+has_diff="$6"
 
 # Priority 1: redispatch cap reached — escalate regardless of other state.
 if [ "$redispatch_count" -ge 3 ]; then
@@ -41,6 +45,20 @@ fi
 # Priority 2: CI never ran on HEAD — trigger it before making any other decision.
 if [ "$ci_runs" -eq 0 ]; then
   echo "trigger-ci"
+  exit 0
+fi
+
+# Priority 2.5: empty PR — the branch has no diff vs. master, so the agent opened
+# the PR but never produced work (it exited before integrating). The converge
+# label is added at PR-creation time, so its presence is NOT evidence of a
+# finished agent. Resume the work rather than marking an empty PR ready (which
+# would converge/approve a zero-line diff and silently drop the issue).
+if [ "$has_diff" -eq 0 ]; then
+  if [ "$has_issue_num" -ne 0 ]; then
+    echo "redispatch"
+  else
+    echo "needs-human"
+  fi
   exit 0
 fi
 

@@ -23,10 +23,10 @@ If you catch yourself about to write a function, a type, a test, a schema — st
 ## Durability — same rules as implementation-contract.md
 
 1. **If EXISTING BRANCH is set:** check it out and push additional work there. Do NOT open a new PR.
-2. **If no existing branch:** create a branch (`feat/<slug>`, `fix/<slug>`, etc. from `master`), make your **first commit as early as possible** (even just the branch creation commit), then **immediately** open a DRAFT PR:
+2. **If no existing branch:** create a branch (`feat/<slug>`, `fix/<slug>`, etc. from `master`), make your **first commit as early as possible** (even just the branch creation commit), then **immediately** open a DRAFT PR. Do **not** add the `converge` label yet — that label means "ready to converge" and you add it only at Step 7. Tag the PR `agent:orchestrated` so the converge swarm knows its provenance:
    ```
    gh pr create --draft --base master --head <branch> \
-     --title "<title>" --label "converge,agent:orchestrated" \
+     --title "<title>" --label "agent:orchestrated" \
      --body "Closes #<ISSUE NUMBER>\n\n🚧 Orchestrator spinning up specialists."
    ```
 3. **Commit and push after each meaningful step** — never batch everything into one final commit.
@@ -64,15 +64,30 @@ gh issue comment <ISSUE NUMBER> --body "🗺️ Plan: calling [spec-A, spec-B, s
 
 ---
 
-## Step 3 — Spawn specialists in parallel
+## Step 3 — Spawn specialists (synchronously)
 
-For each chosen specialist, spawn an Agent with this pattern:
+> ⚠️ **Single-shot runtime.** You run inside GitHub Actions
+> (`anthropics/claude-code-action`), not an interactive Claude Code session.
+> **There is no auto-resume.** If you end your turn to "wait" for background
+> agents, the process exits and everything you planned is lost — the PR is left
+> empty and no `✅`/`⏸` sentinel is posted. You MUST complete
+> spawn → integrate → mark ready → `✅` in **one continuous turn loop**, never
+> yielding your turn while work is still owed.
+
+Spawn each specialist as a **blocking** Agent call (`run_in_background: false`):
+the call returns the specialist's result *within your turn*, so you stay alive to
+integrate it. Spawn them **one at a time**, in dependency order (schema/db →
+backend → AI/prompts → frontend → infra). Sequential blocking spawns trade some
+wall-clock for correctness — a parallel background fan-out would force you to
+yield your turn, which exits the run.
+
+For each specialist, use this pattern:
 
 ```
 Agent(
   subagent_type: "general-purpose",
   isolation: "worktree",
-  run_in_background: true,
+  run_in_background: false,
   prompt: """
     Act as the agent defined in .agents/<AGENT_FILE>.md. Read that file first.
 
@@ -109,17 +124,19 @@ Agent(
 )
 ```
 
-Spawn all specialists at once (background=true). They run in parallel.
+Each spawn blocks until that specialist returns, then you move to the next. Do
+**not** spawn in the background and do **not** end your turn to wait.
 
 ### Degradation (if worktree isolation is unavailable)
-If the `isolation: "worktree"` parameter errors, fall back to sequential spawns on the PR branch
-directly. Partition file scopes carefully so specialists don't touch the same files.
+If the `isolation: "worktree"` parameter errors, fall back to sequential blocking spawns on the PR
+branch directly. Partition file scopes carefully so specialists don't touch the same files.
 
 ---
 
-## Step 4 — Wait and collect
+## Step 4 — Collect
 
-Wait for all background agents to complete. As each returns, note:
+Because spawns are blocking, each specialist's result is already in hand when its
+Agent call returns. As each returns, note:
 - What it built
 - Whether it reported ✅ or ⏸ (partial)
 - Any errors or blockers it flagged
@@ -181,12 +198,19 @@ cross-domain seam issues. Converge owns all review and fix quality from here.
 | Each implementation specialist | general-purpose | ~20 |
 
 Sub-agent turns are **independent** of yours. Use your turns for coordination only.
+Because you spawn specialists **synchronously**, their work returns within your
+turn — you never wait on a background queue, and you never yield your turn to
+"resume later" (there is no resume; the run would simply exit).
 
-**If you are running low on turns:** open the draft PR (if not already open), commit whatever integration work exists, and exit with:
+**If you are running low on turns:** commit whatever integration work exists,
+push it, and **post the `⏸` sentinel before your turn ends** — a silent exit is
+the exact failure mode this contract guards against:
 ```
 gh pr comment <n> --body "⏸ Paused at turn limit: specialists [list] completed, integration [status]. Remaining: [what's left]."
 ```
-The reconciler will detect the draft and re-dispatch.
+Leave the PR a **draft** (do not add `converge`). The reconciler will detect the
+draft — and, because you pushed real work, re-dispatch it rather than mistaking
+it for finished.
 
 ---
 
