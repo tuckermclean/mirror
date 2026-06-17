@@ -110,10 +110,162 @@ docker compose up -d --wait
 > Multi-region, HA, enterprise scale. Targets any conformant k8s cluster.
 
 ### Prerequisites
-- A running Kubernetes cluster (EKS/GKE/AKS/k3s)
+
+**Cluster add-ons** — every item below must be installed before running `helm install`. The chart will silently misbehave or fail to start if any are missing.
+
+#### 1. nginx-ingress controller
+
+Required by: `values-prod.yaml` `ingress.className: nginx` and all TLS annotations.
+
+```bash
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  --set controller.service.type=LoadBalancer
+
+# Verify
+kubectl get pods -n ingress-nginx
+# Expect: ingress-nginx-controller-* Running
+```
+
+**What breaks if missing:** Ingress resources are created but no external IP is assigned. The app is unreachable from outside the cluster.
+
+#### 2. cert-manager + letsencrypt-prod ClusterIssuer
+
+Required by: `values-prod.yaml` annotation `cert-manager.io/cluster-issuer: letsencrypt-prod`. The chart does not create the ClusterIssuer — you must create it after installing cert-manager.
+
+```bash
+helm upgrade --install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --namespace cert-manager --create-namespace \
+  --set installCRDs=true
+
+# Verify CRDs exist
+kubectl get crd certificates.cert-manager.io
+
+# Create the letsencrypt-prod ClusterIssuer (replace YOUR_EMAIL)
+kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: YOUR_EMAIL
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+EOF
+
+# Verify ClusterIssuer is ready
+kubectl get clusterissuer letsencrypt-prod
+# READY should be True
+```
+
+**What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
+
+#### 3. Prometheus Operator + ServiceMonitor CRD
+
+Required by: `values-prod.yaml` `serviceMonitor.enabled: true`. The chart creates a ServiceMonitor resource; if the CRD is absent, `helm install` fails with "no matches for kind ServiceMonitor".
+
+```bash
+helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --namespace monitoring --create-namespace \
+  --set grafana.enabled=false \
+  --set alertmanager.enabled=false
+
+# Verify CRD exists
+kubectl get crd servicemonitors.monitoring.coreos.com
+```
+
+**What breaks if missing:** `helm install` / `helm upgrade` fails immediately with a CRD not found error.
+
+#### 4. prometheus-adapter with custom metrics API (`generations_in_flight`)
+
+Required by: `values-prod.yaml` `autoscaling.customMetric.enabled: true` (metric name: `generations_in_flight`). The HPA targets this custom metric via the custom metrics API served by prometheus-adapter.
+
+```bash
+helm upgrade --install prometheus-adapter prometheus-adapter \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --namespace monitoring \
+  --set prometheus.url=http://kube-prometheus-stack-prometheus.monitoring.svc \
+  --set rules.custom[0].seriesQuery='generations_in_flight{namespace!="",pod!=""}' \
+  --set rules.custom[0].resources.overrides.namespace.resource=namespace \
+  --set rules.custom[0].resources.overrides.pod.resource=pod \
+  --set rules.custom[0].name.matches='^(.*)$' \
+  --set rules.custom[0].name.as='${1}' \
+  --set rules.custom[0].metricsQuery='avg(<<.Series>>{<<.LabelMatchers>>})'
+
+# Verify the custom metric is available
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1" | jq '.resources[] | select(.name | contains("generations_in_flight"))'
+```
+
+**What breaks if missing:** The HPA is created but stays in `Unknown` state because it cannot fetch the `generations_in_flight` metric. The deployment does not autoscale. No pods crash, but scale-out under load is silently broken.
+
+#### 5. CNI that enforces NetworkPolicy
+
+Required by: `values-prod.yaml` `networkPolicy.enabled: true`. k3s ships Flannel by default which does **not** enforce NetworkPolicy. You must replace or augment it with a CNI that does (Calico, Cilium, or Weave Net).
+
+```bash
+# Option A: Calico (most common on bare-metal / OCI k3s)
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+
+# Verify
+kubectl get pods -n kube-system -l k8s-app=calico-node
+# All nodes should show Running
+
+# Option B: Cilium (preferred for eBPF-based policy enforcement)
+helm upgrade --install cilium cilium \
+  --repo https://helm.cilium.io \
+  --namespace kube-system \
+  --set kubeProxyReplacement=strict
+
+# Verify NetworkPolicy enforcement
+kubectl get crd networkpolicies.networking.k8s.io 2>/dev/null || echo "Built-in — check CNI enforcement"
+```
+
+**What breaks if missing:** `networkPolicy.enabled: true` creates NetworkPolicy objects but they are not enforced. All pod-to-pod traffic flows unrestricted. This is a **security misconfiguration**, not a functional failure — the app starts and runs normally but is exposed to lateral movement within the cluster.
+
+#### 6. KEDA + Inngest external scaler (mirror-worker only)
+
+Required by: `infra/helm/mirror-worker/values-prod.yaml` `scaledObject.enabled: true`. KEDA must be installed and the Inngest external scaler must be reachable.
+
+```bash
+helm upgrade --install keda keda \
+  --repo https://kedacore.github.io/charts \
+  --namespace keda --create-namespace
+
+# Verify CRD exists
+kubectl get crd scaledobjects.keda.sh
+
+# The Inngest external scaler runs as a sidecar or separate service.
+# See infra/helm/mirror-worker/ values for inngest.queueDepthTarget config.
+```
+
+**What breaks if missing:** `helm install mirror-worker` fails with "no matches for kind ScaledObject" if `scaledObject.enabled: true`. With `scaledObject.enabled: false` (default), KEDA is not required and the worker uses a standard Deployment + HPA.
+
+---
+
+**Summary: required add-ons per overlay**
+
+| Add-on | values-prod.yaml | values-freetier.yaml | values-staging.yaml |
+|---|---|---|---|
+| nginx-ingress | Required | Required | Required |
+| cert-manager + ClusterIssuer | Required | Required | Required |
+| Prometheus Operator | Required | Not required | Not required |
+| prometheus-adapter | Required | Not required | Not required |
+| NetworkPolicy-capable CNI | Required | Optional | Optional |
+| KEDA (worker chart) | Required | Optional (scale-to-zero) | Not required |
+
+---
+
+- A running Kubernetes cluster (EKS/GKE/AKS/k3s) with the add-ons above installed
 - `kubectl` access + `helm` 3.x
-- cert-manager installed for TLS
-- nginx ingress controller
 - `mirror-secrets` k8s Secret created (see Secrets pattern above)
 
 ### Steps
