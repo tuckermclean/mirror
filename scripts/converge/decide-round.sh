@@ -55,6 +55,16 @@ if [[ "$BLOCKERS" != "unknown" ]] && ! [[ "$BLOCKERS" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+# The init sentinel marks "reviewer never wrote a verdict this round" — not a
+# real, stable blocker signature. Each round seeds the verdict file with it; a
+# reviewer that fails or no-ops never overwrites it. Normalize it to the empty
+# set so it is treated like [] ("no machine verdict"), never as evidence the
+# fixer is stuck on the same blockers. resolve-blockers.sh does the equivalent
+# for the blocker count.
+SENTINEL_SIGS='["verdict-file-not-written"]'
+[ "$CURR_SIGS" = "$SENTINEL_SIGS" ] && CURR_SIGS="[]"
+[ "$PREV_SIGS" = "$SENTINEL_SIGS" ] && PREV_SIGS="[]"
+
 # Approve when fully clear — blockers gone AND CI green.
 if [ "$BLOCKERS" = "0" ] && [ "$CI_GREEN" = "true" ]; then
   echo "approve"
@@ -68,8 +78,9 @@ if [ "$ROUND" = "1" ]; then
 fi
 
 # Rounds 2 and 3: detect no-progress (same non-empty blocker signatures, still blocked).
-# Exclude the both-empty case: two reviewers both omitting blocker_signatures is not evidence
-# of being stuck — it means the reviewer didn't emit signatures, not that progress stalled.
+# Exclude the empty/sentinel case (both normalized to [] above): a reviewer omitting
+# blocker_signatures — or never writing a verdict at all — is not evidence of being stuck.
+# It means the reviewer didn't emit signatures, not that progress stalled.
 if [ "$CURR_SIGS" = "$PREV_SIGS" ] && [ "$CURR_SIGS" != "[]" ] && \
    [ "$BLOCKERS" != "0" ] && [ "$BLOCKERS" != "unknown" ]; then
   echo "escalate:no-progress"
