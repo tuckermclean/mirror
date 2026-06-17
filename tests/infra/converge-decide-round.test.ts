@@ -235,4 +235,71 @@ describe("converge decide-round", () => {
       }),
     ).toBe("escalate:no-progress");
   });
+
+  // ── Sentinel false-positive guard ─────────────────────────────────────────
+  // Each round seeds the verdict file with the init sentinel
+  // ["verdict-file-not-written"].  When a reviewer step fails or no-ops and
+  // never overwrites it, the saved verdict keeps the sentinel.  Two such rounds
+  // are NOT evidence the fixer is stuck — the reviewer wrote no verdict.  The
+  // sentinel must be treated like [], never as a repeated real blocker signature.
+
+  it("returns fix at R2 when both arrays are the init sentinel (no verdict written twice)", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "1",
+        CI_GREEN: "false",
+        PREV_SIGS: '["verdict-file-not-written"]',
+        CURR_SIGS: '["verdict-file-not-written"]',
+      }),
+    ).toBe("fix");
+  });
+
+  it("returns fix at R2 when prev is sentinel and curr is a real signature", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "1",
+        CI_GREEN: "false",
+        PREV_SIGS: '["verdict-file-not-written"]',
+        CURR_SIGS: '["missing-auth-check"]',
+      }),
+    ).toBe("fix");
+  });
+
+  it("returns fix at R2 when prev is a real signature and curr is the sentinel", () => {
+    expect(
+      decide({
+        ROUND: "2",
+        BLOCKERS: "1",
+        CI_GREEN: "false",
+        PREV_SIGS: '["missing-auth-check"]',
+        CURR_SIGS: '["verdict-file-not-written"]',
+      }),
+    ).toBe("fix");
+  });
+
+  it("escalates no-verdict at R3 when both arrays are the sentinel and blockers unknown", () => {
+    expect(
+      decide({
+        ROUND: "3",
+        BLOCKERS: "unknown",
+        CI_GREEN: "false",
+        PREV_SIGS: '["verdict-file-not-written"]',
+        CURR_SIGS: '["verdict-file-not-written"]',
+      }),
+    ).toBe("escalate:no-verdict");
+  });
+
+  it("escalates cap-reached at R3 when both arrays are the sentinel but blockers remain", () => {
+    expect(
+      decide({
+        ROUND: "3",
+        BLOCKERS: "1",
+        CI_GREEN: "false",
+        PREV_SIGS: '["verdict-file-not-written"]',
+        CURR_SIGS: '["verdict-file-not-written"]',
+      }),
+    ).toBe("escalate:cap-reached");
+  });
 });

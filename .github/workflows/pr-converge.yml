@@ -26,14 +26,51 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Idempotency guard. The reconciler (agent-reconciler.yml) re-arms converge via
+  # workflow_dispatch whenever it sees no converge running and no terminal label —
+  # which can fire while a cap-reached fix is still in flight. Without this gate a
+  # re-armed run re-reviews (and could falsely re-escalate) a PR a prior run already
+  # finished. A run-step `exit 0` cannot stop a job, so the skip is a separate job
+  # the converge job depends on.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - id: check
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || inputs.pr_number }}"
+          PROCEED=true
+          if [ -n "$PR_NUMBER" ]; then
+            PR_STATE=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json state --jq '.state' 2>/dev/null || echo "")
+            LABELS=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+            echo "PR #$PR_NUMBER state=${PR_STATE:-?} labels=$(echo "$LABELS" | paste -sd, -)"
+            # Closed/merged → skip. Empty (read failed) → fail open and let it run.
+            [ "$PR_STATE" = "OPEN" ] || { [ -n "$PR_STATE" ] && PROCEED=false; }
+            # Already escalated or approved by a prior run → skip.
+            echo "$LABELS" | grep -qE '^(needs-human|agent:ready)$' && PROCEED=false
+          fi
+          [ "$PROCEED" = "true" ] || echo "PR already terminal — skipping converge."
+          echo "proceed=$PROCEED" >> "$GITHUB_OUTPUT"
+
   converge:
+    needs: gate
     # PR events: must be non-draft and carry the `converge` label.
     # workflow_dispatch: always runs (caller is responsible for correct PR).
+    # In all cases, the gate job must not have flagged the PR as already terminal.
     if: |
-      github.event_name == 'workflow_dispatch' || (
-        github.event.pull_request.draft == false && (
-          (github.event.action == 'ready_for_review' && contains(github.event.pull_request.labels.*.name, 'converge')) ||
-          (github.event.action == 'labeled' && github.event.label.name == 'converge')
+      needs.gate.outputs.proceed == 'true' && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.pull_request.draft == false && (
+            (github.event.action == 'ready_for_review' && contains(github.event.pull_request.labels.*.name, 'converge')) ||
+            (github.event.action == 'labeled' && github.event.label.name == 'converge')
+          )
         )
       )
     runs-on: ubuntu-latest
@@ -446,9 +483,11 @@ jobs:
             REASON="${FINAL_ACTION#escalate:}"
             case "$REASON" in
               no-progress)
-                # Same blocker signatures two rounds running — genuine human decision.
+                # Same real blocker signatures two consecutive rounds running —
+                # genuine human decision. (The init sentinel — "reviewer wrote no
+                # verdict" — is normalized away in decide-round.sh and never lands here.)
                 gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
-                SUMMARY="Escalated to human — same blockers in rounds 2 and 3, fixer is stuck. Reviewed $ROUNDS round(s)."
+                SUMMARY="Escalated to human — same blockers across two consecutive rounds; fixer is stuck. Reviewed $ROUNDS round(s)."
                 ;;
               no-verdict)
                 # Reviewer exhausted turns without writing a machine verdict — likely a
