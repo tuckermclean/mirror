@@ -1,9 +1,29 @@
 replicaCount: 1
 
 image:
+  # Replace YOUR_ORG with your GitHub organisation name (e.g. acme-corp).
+  # Example: ghcr.io/acme-corp/mirror-web
   repository: ghcr.io/YOUR_ORG/mirror-web
   tag: latest
   pullPolicy: IfNotPresent
+
+# imagePullSecrets: list of k8s Secrets containing Docker registry credentials.
+# Required when the GHCR image is private. Leave empty for public images.
+# To create the secret for a private GHCR image:
+#   kubectl create secret docker-registry ghcr-pull-secret \
+#     --docker-server=ghcr.io \
+#     --docker-username=YOUR_GITHUB_USER \
+#     --docker-password=YOUR_PAT \
+#     --namespace mirror
+# Then set:
+#   imagePullSecrets:
+#     - name: ghcr-pull-secret
+imagePullSecrets: []
+
+# DB migration Helm hook — runs "pnpm db:migrate" as a post-install/post-upgrade Job.
+# Set migration.enabled=false if you want to run migrations manually before the deploy.
+migration:
+  enabled: true
 
 service:
   type: ClusterIP
