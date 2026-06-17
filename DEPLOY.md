@@ -1,5 +1,8 @@
 # Mirror — Deployment Guide
 
+> Setting up a local development environment instead? See **[SETUP.md](SETUP.md)**.
+> This guide covers production deployment only.
+
 Four first-class deployment paths. All four reach a working app from seed data.
 
 | Path | Best for | One-line |
