@@ -150,21 +150,60 @@ Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the 
 ## Path D: Free-tier (Oracle Cloud + k3s)
 
 > Run the real Helm path on genuinely free infrastructure. Under $25/month (Anthropic API only).
+>
+> **Note:** This path is provisioned manually — there is no Terraform in this repo for OCI. The steps below cover the full process from zero.
 
-### Infrastructure provisioning
+### Infrastructure provisioning (manual)
+
+#### 1. Create 4 ARM Ampere A1 VMs on Oracle Cloud Free Tier
+
+1. Sign in to the [Oracle Cloud Console](https://cloud.oracle.com).
+2. Navigate to **Compute → Instances → Create Instance**.
+3. Repeat for **4 VMs** with these settings each time:
+   - **Shape**: VM.Standard.A1.Flex — 1 OCPU, 6 GB RAM (totals: 4 OCPU / 24 GB free-tier allowance)
+   - **Image**: Ubuntu 22.04 (Canonical) — arm64
+   - **Boot volume**: 50 GB (200 GB total across 4 nodes fits free-tier block storage)
+   - **VCN / subnet**: place all 4 in the same VCN subnet so they can reach each other over private IPs
+   - **SSH key**: paste your public key
+4. In the VCN's **Security List**, open inbound TCP on:
+   - 6443 (k3s API server)
+   - 10250 (kubelet)
+   - 8472/UDP (Flannel VXLAN)
+   - 80, 443 (Ingress)
+   - 22 (SSH)
+
+#### 2. Bootstrap k3s on the first node (server)
 
 ```bash
-# Provision 4x ARM Ampere A1 VMs on Oracle Cloud Free Tier
-cd infra/terraform/oci
-cp terraform.tfvars.example terraform.tfvars
-# Fill in OCI credentials
-terraform init && terraform apply
+# SSH to node-1 (replace <NODE1_IP> with its public IP)
+ssh ubuntu@<NODE1_IP>
 
-# Bootstrap k3s cluster across the 4 nodes
-# (Terraform output includes the k3s install commands)
-# SSH to the first node and run:
-curl -sfL https://get.k3s.io | sh -
-# On remaining nodes, join the cluster with the token from /var/lib/rancher/k3s/server/node-token
+# Install k3s server (disables Traefik — we use nginx-ingress instead)
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik" sh -
+
+# Retrieve the node join token (needed for worker nodes)
+sudo cat /var/lib/rancher/k3s/server/node-token
+# Copy this token for the next step
+
+# Copy the kubeconfig to your local machine
+sudo cat /etc/rancher/k3s/k3s.yaml
+# On your local machine: save to ~/.kube/config, replace 127.0.0.1 with <NODE1_IP>
+```
+
+#### 3. Join the remaining 3 nodes as k3s agents
+
+```bash
+# Repeat on node-2, node-3, node-4 (replace placeholders)
+ssh ubuntu@<NODE_IP>
+curl -sfL https://get.k3s.io | K3S_URL=https://<NODE1_IP>:6443 K3S_TOKEN=<TOKEN_FROM_ABOVE> sh -
+```
+
+#### 4. Verify the cluster
+
+```bash
+# From your local machine (kubectl configured to the k3s cluster)
+kubectl get nodes
+# Expect 4 nodes in Ready state
 ```
 
 ### Install the chart (free-tier profile)
