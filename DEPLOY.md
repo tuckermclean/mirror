@@ -268,6 +268,30 @@ kubectl get crd scaledobjects.keda.sh
 - `kubectl` access + `helm` 3.x
 - `mirror-secrets` k8s Secret created (see Secrets pattern above)
 
+### Image repository setup
+
+`values.yaml` ships with `image.repository: ghcr.io/YOUR_ORG/mirror-web` (and `mirror-worker`). Before deploying:
+
+1. **Replace `YOUR_ORG`** with your actual GitHub organisation name in any `--set` flag or values overlay:
+   ```bash
+   --set image.repository=ghcr.io/acme-corp/mirror-web
+   ```
+   Or edit `values-prod.yaml` directly (recommended for GitOps).
+
+2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it:
+   ```bash
+   # Create the pull secret once per namespace
+   kubectl create secret docker-registry ghcr-pull-secret \
+     --docker-server=ghcr.io \
+     --docker-username=YOUR_GITHUB_USER \
+     --docker-password=YOUR_GITHUB_PAT \
+     --namespace mirror
+
+   # Then pass it at install/upgrade time
+   --set "imagePullSecrets[0].name=ghcr-pull-secret"
+   ```
+   Public images (the default for open-source mirrors) do not require a pull secret.
+
 ### Steps
 
 ```bash
