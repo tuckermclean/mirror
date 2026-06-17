@@ -35,7 +35,8 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      pull-requests: write
+      issues: write
     env:
       GH_TOKEN: ${{ github.token }}
     outputs:
@@ -55,6 +56,26 @@ jobs:
             [ "$PR_STATE" = "OPEN" ] || { [ -n "$PR_STATE" ] && PROCEED=false; }
             # Already escalated or approved by a prior run → skip.
             echo "$LABELS" | grep -qE '^(needs-human|agent:ready)$' && PROCEED=false
+
+            # Empty-PR guard: a PR with no changed files vs. master means the
+            # agent opened the PR but never produced work (it exited before
+            # integrating). Converging a zero-line diff burns review rounds and
+            # spins through the no-verdict retry loop on nothing. Escalate to a
+            # human instead of running the loop. Only check when still proceeding
+            # and the PR is OPEN — a read failure returns "" (fail open).
+            if [ "$PROCEED" = "true" ] && [ "$PR_STATE" = "OPEN" ]; then
+              CHANGED_FILES=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+                --json files --jq '.files | length' 2>/dev/null || echo "1")
+              if [ "${CHANGED_FILES:-1}" = "0" ]; then
+                PROCEED=false
+                printf '⚠️ This PR has **no changes vs. `master`** — the implementing agent opened it but never produced any work (it likely exited before integrating).\n\nConverge will not review an empty diff. A human should re-dispatch the original issue or close this PR.\n' \
+                  > /tmp/empty-pr-comment.md
+                gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/empty-pr-comment.md || true
+                gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+                  --add-label "needs-human" --remove-label "converge" 2>/dev/null || true
+                echo "PR #$PR_NUMBER is empty (0 changed files) — escalating to human, skipping converge."
+              fi
+            fi
           fi
           [ "$PROCEED" = "true" ] || echo "PR already terminal — skipping converge."
           echo "proceed=$PROCEED" >> "$GITHUB_OUTPUT"

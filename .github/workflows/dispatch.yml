@@ -184,15 +184,19 @@ jobs:
         run: |
           BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
           if [ -n "$BRANCH" ] && [ "$BRANCH" != "master" ]; then
-            PR=$(gh pr list --state open --head "$BRANCH" --json number,labels \
-              --jq '.[0] | {number,labels:[.labels[].name]}' 2>/dev/null || echo "")
+            PR=$(gh pr list --state open --head "$BRANCH" --json number,labels,isDraft \
+              --jq '.[0] | {number,isDraft,labels:[.labels[].name]}' 2>/dev/null || echo "")
             PR_NUM=$(echo "$PR" | jq -r '.number // empty' 2>/dev/null || echo "")
             if [ -n "$PR_NUM" ]; then
               gh pr edit "$PR_NUM" --add-label "agent:implementing" || true
-              # Re-add converge label if it was stripped (e.g. by conflict detection)
-              # and the PR body references an issue labeled agent-work.
+              # Re-add the converge label if it was stripped (e.g. by conflict
+              # detection) from a PR that was already past the draft stage.
+              # The label means "ready to converge" and is added by the agent only
+              # at the ready step — so never re-add it to a DRAFT PR (that would
+              # arm converge on still-in-progress or empty work).
+              IS_DRAFT=$(echo "$PR" | jq -r '.isDraft // true' 2>/dev/null || echo "true")
               HAS_CONVERGE=$(echo "$PR" | jq -r '.labels | map(select(. == "converge")) | length' 2>/dev/null || echo "0")
-              if [ "$HAS_CONVERGE" = "0" ]; then
+              if [ "$IS_DRAFT" = "false" ] && [ "$HAS_CONVERGE" = "0" ]; then
                 CLOSES=$(gh pr view "$PR_NUM" --json body --jq '.body' 2>/dev/null \
                   | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
                 if [ -n "$CLOSES" ]; then

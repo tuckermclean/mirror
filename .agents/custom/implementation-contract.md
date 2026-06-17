@@ -14,10 +14,12 @@ Do this in order:
 
 2. **If no existing branch:** create a new branch (`feat/<slug>`, `fix/<slug>`, `refactor/<slug>`, `docs/<slug>`, `chore/<slug>`, `test/<slug>`, or `design/<slug>` from `master`),
    make your **first commit as early as possible** (even a stub/scaffold), then **immediately**
-   open a DRAFT PR whose description includes `Closes #<ISSUE NUMBER>`:
+   open a DRAFT PR whose description includes `Closes #<ISSUE NUMBER>`. Do **not** add the
+   `converge` label yet — that label means "ready to converge" and you add it only at step 5
+   once the work is complete:
    ```
    gh pr create --draft --base master --head <branch> --title "<title>" \
-     --label converge --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
+     --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
    ```
 
 3. **Commit and `git push` after EACH meaningful step** — never batch all work into one final
