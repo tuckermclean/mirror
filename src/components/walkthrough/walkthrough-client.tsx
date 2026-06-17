@@ -13,6 +13,7 @@ import { logger } from "@/lib/logger"
 import type {
   ProfileSection,
   SectionDecision,
+  VoiceMatchPayload,
   WalkthroughData,
 } from "./types"
 import { LinkedInProfile, type ProfileViewMode } from "./linkedin-profile"
@@ -24,18 +25,12 @@ import { buildExportText, EXPORT_DOC_FILENAME } from "./export-doc"
 const SECTIONS: ProfileSection[] = ["headline", "about", "experience", "skills"]
 
 /**
- * Optional Voice Match payload the generation pipeline may attach to
- * `WalkthroughData` (`scoreVoiceMatch` output). Read defensively so the
- * walkthrough renders whether or not the score is present yet — the local
- * `WalkthroughData` contract is owned by another file and stays untouched.
+ * Returns the Voice Match payload when present and valid. Reads defensively so
+ * the walkthrough renders correctly whether or not the score has been computed
+ * (absent for legacy rows and the demo fixture).
  */
-interface VoiceMatchPayload {
-  score: number
-  components?: { cosine: number; feature: number }
-}
-
 function readVoiceMatch(data: WalkthroughData): VoiceMatchPayload | undefined {
-  const vm = (data as { voiceMatch?: VoiceMatchPayload }).voiceMatch
+  const vm = data.voiceMatch
   return vm && typeof vm.score === "number" ? vm : undefined
 }
 

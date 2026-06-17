@@ -55,6 +55,12 @@ export interface RationaleBundle {
   confidence: ConfidenceScores;
 }
 
+/** Voice Match payload the generation pipeline may attach to WalkthroughData. */
+export interface VoiceMatchPayload {
+  score: number;
+  components?: { cosine: number; feature: number };
+}
+
 /** Everything the walkthrough client needs to render. */
 export interface WalkthroughData {
   generationId: string;
@@ -63,6 +69,12 @@ export interface WalkthroughData {
   rationale: RationaleBundle;
   /** True when the row came from the built-in demo fixture rather than the DB. */
   isFixture: boolean;
+  /**
+   * Optional Voice Match payload from `scoreVoiceMatch`. Present when the
+   * generation pipeline has computed a score; absent for legacy rows and
+   * the demo fixture. Read defensively — the walkthrough renders without it.
+   */
+  voiceMatch?: VoiceMatchPayload;
 }
 
 /** Per-section decision the user makes in the walkthrough. */
