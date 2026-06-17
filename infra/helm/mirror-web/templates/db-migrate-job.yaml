@@ -18,8 +18,8 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "mirror-web.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: db-migrate
+        app.kubernetes.io/managed-by: Helm
     spec:
       # Must not restart the pod inline — use Job-level backoffLimit instead.
       restartPolicy: OnFailure
