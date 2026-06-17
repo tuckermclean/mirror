@@ -5,15 +5,20 @@ description: "Voice Card extraction eval — deterministic schema/structural ass
 # A raw: block with an inline JSON string does NOT expand file:// in message content
 # (maybeFilePath returns false for multi-line strings), so the LLM would receive the
 # literal path string instead of the prompt text.
+#
+# Prompt note: src/lib/prompts/voice_extraction.md (loaded via voice-extraction-messages.json)
+# contains a ```json ... ``` code-fence schema example at line 14.  That fence is for
+# HUMAN READABILITY ONLY — the model is explicitly instructed (further down in the same
+# file) to output raw JSON with NO code fence.  The example shape is illustrative; it
+# does not override the "no fence" instruction that follows it.
 prompts:
   - file://helpers/voice-extraction-messages.json
 
-# EVAL_MODEL defaults to 'claude-sonnet-4-6'. Override per-run with EVAL_MODEL=… pnpm eval:voice.
+# EVAL_MODEL is documented in .env.example. Override per-run: EVAL_MODEL=<id> pnpm eval:voice.
+# The fallback below is a hardcoded string — it is NOT derived at runtime from generation.ts
+# (which maintains its own separate MODEL constant). To use a different model, set EVAL_MODEL
+# in .env.local or pass it inline; there is no shared project-wide model constant yet.
 providers:
-  # TODO(infra): there is no project-wide eval model constant/env var yet
-  # (no ANTHROPIC_MODEL / EVAL_MODEL in .env.example, and src/inngest/generation.ts
-  # hardcodes its own MODEL). Once a shared model identifier exists, reference it
-  # here (e.g. anthropic:messages:${env:EVAL_MODEL}) instead of hardcoding.
   - id: anthropic:messages:claude-sonnet-4-6
     config:
       temperature: 0

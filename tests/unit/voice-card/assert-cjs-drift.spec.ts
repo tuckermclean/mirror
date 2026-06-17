@@ -66,3 +66,24 @@ describe("assert-voice-card-schema.cjs drift guard", () => {
     expect(assertVoiceCardSchema(fenced).pass).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// FENCE_RE parity: evals/helpers/strip-fence.cjs must stay identical to
+// src/lib/voice-card/fence.ts (canonical source).  If these drift, fence
+// stripping behaves differently in evals vs. production.
+// ---------------------------------------------------------------------------
+describe("FENCE_RE parity — strip-fence.cjs vs fence.ts", () => {
+  const stripFenceCjs = require("../../../evals/helpers/strip-fence.cjs") as {
+    FENCE_RE: RegExp;
+  };
+
+  it("FENCE_RE source is identical in CJS helper and canonical fence.ts", async () => {
+    // Dynamic import so we pick up the live TS module (compiled by Vitest).
+    const { FENCE_RE: canonicalRe } = await import("@/lib/voice-card/fence");
+    const cjsRe = stripFenceCjs.FENCE_RE;
+
+    // Compare source and flags separately for a clear failure message.
+    expect(cjsRe.source).toBe(canonicalRe.source);
+    expect(cjsRe.flags).toBe(canonicalRe.flags);
+  });
+});

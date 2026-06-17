@@ -6,6 +6,10 @@
  * must stay in sync if the schema changes.
  *
  * Used via file:// in evals/voice-extraction.yaml.
+ *
+ * FENCE_RE copied from src/lib/voice-card/fence.ts — via strip-fence.cjs which
+ * holds the CJS copy of that canonical regex.  Drift is detected by the parity
+ * test in tests/unit/voice-card/assert-cjs-drift.spec.ts.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS (.cjs) helper loaded by promptfoo; require() is the module system here.
