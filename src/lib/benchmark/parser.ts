@@ -49,14 +49,28 @@ function clean(html: string): string {
   return decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 }
 
-/** Inner text of the first element matching attribute `attr="value"`. */
+/**
+ * Inner text of the first element matching attribute `attr="value"`.
+ *
+ * IMPORTANT: `attr` and `value` must be string literals from controlled call
+ * sites (e.g. "data-testid", "profile-headline"). They are interpolated
+ * directly into a RegExp without escaping — passing user-supplied strings
+ * would introduce a ReDoS vector if callers change.
+ */
 function firstByAttr(html: string, attr: string, value: string): string | null {
   const re = new RegExp(`${attr}="${value}"[^>]*>([\\s\\S]*?)<\\/`, "i");
   const m = re.exec(html);
   return m ? clean(m[1] ?? "") : null;
 }
 
-/** Inner text of the first element whose class list contains `cls`. */
+/**
+ * Inner text of the first element whose class list contains `cls`.
+ *
+ * IMPORTANT: `cls` must be a string literal from a controlled call site
+ * (e.g. "top-card-layout__headline"). It is interpolated directly into a
+ * RegExp without escaping — passing user-supplied strings would introduce a
+ * ReDoS vector if callers change.
+ */
 function firstByClass(html: string, cls: string): string | null {
   const re = new RegExp(`class="[^"]*\\b${cls}\\b[^"]*"[^>]*>([\\s\\S]*?)<\\/`, "i");
   const m = re.exec(html);

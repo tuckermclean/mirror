@@ -115,6 +115,13 @@ export function computeOutcomeDelta(
   // UTC calendar boundaries for the 30-day windows. Using addUtcDays instead
   // of epoch-ms multiplication ensures the boundary is always an exact calendar
   // date even when DST transitions fall within the window.
+  //
+  // Note: "30 calendar days" is an approximation — a week-granularity dataset
+  // means the window may include or exclude an edge week depending on which
+  // Monday the `weekOf` key falls on. This is acceptable for outcome reporting
+  // (non-financial, non-billing) and consistent with user expectations. If
+  // sub-week precision ever becomes necessary, switch to a date library (e.g.
+  // date-fns) that can compute exact ISO-week boundaries.
   const commitMs = committedAt.getTime();
   const baselineStartMs = addUtcDays(committedAt, -30).getTime();
   const afterEndMs = addUtcDays(committedAt, 30).getTime();
