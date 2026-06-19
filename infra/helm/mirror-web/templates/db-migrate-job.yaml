@@ -27,7 +27,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/component: db-migrate
-        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
     spec:
       # Must not restart the pod inline — use Job-level backoffLimit instead.
       restartPolicy: OnFailure
@@ -60,6 +60,8 @@ spec:
             capabilities:
               drop:
                 - ALL
+          # Assumes `node` is on PATH in the Docker image. If you change the base
+          # image, verify that `node` remains available at the default PATH.
           command: ["node", "scripts/migrate.mjs"]
           envFrom:
             - secretRef:
@@ -83,5 +85,6 @@ spec:
               mountPath: /tmp
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 64Mi
 {{- end }}
