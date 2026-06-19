@@ -310,12 +310,6 @@ helm install mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
   --version 0.1.0 \
   -f infra/helm/mirror-worker/values-prod.yaml \
   --namespace mirror
-
-# Run migrations (one-off Job)
-kubectl run db-migrate --image=ghcr.io/YOUR_ORG/mirror-web:latest \
-  --restart=Never --rm -it \
-  --env="DATABASE_URL=$(kubectl get secret mirror-secrets -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-  -- pnpm db:migrate
 ```
 
 **ArgoCD / GitOps path:**
