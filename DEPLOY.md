@@ -166,6 +166,8 @@ kubectl get clusterissuer letsencrypt-prod
 # READY should be True
 ```
 
+> **HTTP-01 challenge note:** The `http01` solver requires that port 80 is publicly reachable on your ingress IP — firewall rules or cloud security groups must allow inbound TCP 80. If port 80 is blocked (e.g. corporate firewall) or you need wildcard certificates (e.g. `*.yourdomain.com`), switch to a `dns01` solver instead. See the [cert-manager DNS01 documentation](https://cert-manager.io/docs/configuration/acme/dns01/) for provider-specific setup.
+
 **What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
 
 #### 3. Prometheus Operator + ServiceMonitor CRD
@@ -290,6 +292,8 @@ kubectl get crd scaledobjects.keda.sh
    # Then pass it at install/upgrade time
    --set "imagePullSecrets[0].name=ghcr-pull-secret"
    ```
+   > **Minimum PAT scope:** Grant the PAT only the `read:packages` scope — do not grant write or admin permissions.
+
    Public images (the default for open-source mirrors) do not require a pull secret.
 
 ### Steps
@@ -349,7 +353,7 @@ kubectl rollout status deployment/mirror-web -n mirror
 kubectl rollout status deployment/mirror-worker -n mirror
 ```
 
-The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+The Helm `post-install,post-upgrade` Job hook runs `pnpm db:migrate` automatically after each `helm install` or `helm upgrade` (including fresh installs). Watch it with:
 
 ```bash
 kubectl get jobs -n mirror -w
@@ -360,7 +364,7 @@ kubectl logs job/mirror-web-db-migrate -n mirror
 
 ## DB migration hook
 
-Migrations run automatically via a Helm `post-install,post-upgrade` Job — no manual `kubectl run` step required. The Job:
+Migrations run automatically via a Helm `post-install,post-upgrade` Job — no manual `kubectl run` step required. The hook fires on both `helm install` (fresh installs) **and** `helm upgrade`, so the database is always migrated before traffic is served. The Job:
 - Uses the same image as the web deployment
 - Reads `DATABASE_URL` from the `existingSecret`
 - Has `backoffLimit: 3` and `restartPolicy: OnFailure`
