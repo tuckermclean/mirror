@@ -10,7 +10,7 @@ Four first-class deployment paths. All four reach a working app from seed data.
 | [Vercel + Neon + Railway](#path-a-vercel--neon--railway-worker) | Solo founder, fastest to ship | `vercel deploy` + Railway from `Dockerfile.worker` |
 | [docker-compose on VPS](#path-b-docker-compose-on-a-vps) | Self-host, single-tenant | `docker compose up -d` |
 | [Helm on Kubernetes](#path-c-helm-on-kubernetes) | Multi-region, HA, enterprise | `helm install mirror oci://ghcr.io/.../mirror-web` |
-| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | OCI Console + k3s + Helm |
+| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | k3s + Helm |
 
 ---
 
@@ -382,30 +382,19 @@ helm upgrade mirror-web ... --set migration.enabled=false
 
 ## Path D: Free-tier (Oracle Cloud + k3s)
 
-> Run the real Helm path on genuinely free infrastructure. Under $25/month (Anthropic API only).
->
-> **Note:** This path is provisioned manually — there is no Terraform in this repo for OCI. The steps below cover the full process from zero.
+> Run the real Helm path (Path C) on genuinely free infrastructure. Under $25/month (Anthropic API only).
 
-### Infrastructure provisioning (manual)
+### Cluster requirements
 
-#### 1. Create 4 ARM Ampere A1 VMs on Oracle Cloud Free Tier
+Stand up a 4-node k3s cluster on Oracle Cloud's Always Free tier — **provisioning is left to you** (OCI CLI, Console, or your own IaC). The cluster needs:
 
-1. Sign in to the [Oracle Cloud Console](https://cloud.oracle.com).
-2. Navigate to **Compute → Instances → Create Instance**.
-3. Repeat for **4 VMs** with these settings each time:
-   - **Shape**: VM.Standard.A1.Flex — 1 OCPU, 6 GB RAM (totals: 4 OCPU / 24 GB free-tier allowance)
-   - **Image**: Ubuntu 22.04 (Canonical) — arm64
-   - **Boot volume**: 50 GB (200 GB total across 4 nodes fits free-tier block storage)
-   - **VCN / subnet**: place all 4 in the same VCN subnet so they can reach each other over private IPs
-   - **SSH key**: paste your public key
-4. In the VCN's **Security List**, open inbound TCP on:
-   - 6443 (k3s API server)
-   - 10250 (kubelet)
-   - 8472/UDP (Flannel VXLAN)
-   - 80, 443 (Ingress)
-   - 22 (SSH)
+- **4× VM.Standard.A1.Flex** — 1 OCPU / 6 GB RAM each (4 OCPU / 24 GB total — the free-tier allowance), Ubuntu 22.04 arm64, 50 GB boot volume each.
+- All nodes in the **same VCN subnet** (private-IP reachability).
+- **Security List** inbound TCP: 6443 (k3s API), 10250 (kubelet), 8472/UDP (Flannel VXLAN), 80/443 (Ingress), 22 (SSH).
 
-#### 2. Bootstrap k3s on the first node (server)
+### Bootstrap the k3s cluster
+
+#### 1. On the first node (server)
 
 ```bash
 # SSH to node-1 (replace <NODE1_IP> with its public IP)
@@ -423,7 +412,7 @@ sudo cat /etc/rancher/k3s/k3s.yaml
 # On your local machine: save to ~/.kube/config, replace 127.0.0.1 with <NODE1_IP>
 ```
 
-#### 3. Join the remaining 3 nodes as k3s agents
+#### 2. Join the remaining 3 nodes as k3s agents
 
 ```bash
 # Repeat on node-2, node-3, node-4 (replace placeholders)
@@ -431,7 +420,7 @@ ssh ubuntu@<NODE_IP>
 curl -sfL https://get.k3s.io | K3S_URL=https://<NODE1_IP>:6443 K3S_TOKEN=<TOKEN_FROM_ABOVE> sh -
 ```
 
-#### 4. Verify the cluster
+#### 3. Verify the cluster
 
 ```bash
 # From your local machine (kubectl configured to the k3s cluster)
