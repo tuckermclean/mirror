@@ -26,6 +26,11 @@ set -uo pipefail
 # Maximum converge-initiated re-dispatches before escalating to a human. The loop
 # has already run 3 review rounds by the time this is consulted, so a small bound
 # is plenty — past it, repeated re-dispatch is thrash, not progress.
+#
+# Source of truth for this cap. Two spots in .github/workflows/pr-converge.yml
+# embed the same `2` independently (the empty-PR gate, which has no checkout to
+# call this script, and the stage-step inline fallback) — update both if you
+# change this value. They reference this constant by name in their comments.
 MAX_REDISPATCHES=2
 
 if [ $# -ne 2 ]; then

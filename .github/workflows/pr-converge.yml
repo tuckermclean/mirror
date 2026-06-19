@@ -78,6 +78,9 @@ jobs:
                   | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
                 REDISPATCH_COUNT=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json comments \
                   --jq '[.comments[] | select(.body | contains("<!-- converge-redispatch -->"))] | length' 2>/dev/null || echo "0")
+                # Re-dispatch cap mirrors scripts/converge/decide-cap-action.sh:MAX_REDISPATCHES
+                # (source of truth). The gate job has no checkout, so it cannot call the script —
+                # keep this `2` in sync if MAX_REDISPATCHES changes.
                 if [ -n "$ISSUE_NUM" ] && [ "${REDISPATCH_COUNT:-0}" -lt 2 ]; then
                   ATTEMPT=$(( REDISPATCH_COUNT + 1 ))
                   printf '<!-- converge-redispatch -->⚠️ This PR has **no changes vs. `master`** — the agent opened it but never produced work. Re-dispatching issue #%s to complete it (attempt %d); converge re-runs once a diff exists.\n' \
@@ -211,6 +214,9 @@ jobs:
             "$RUNNER_TEMP/decide-round.sh" \
             $'#!/usr/bin/env bash\necho "fix"'
 
+          # Fallback used only if the script can't be staged from the default branch.
+          # The `2` mirrors scripts/converge/decide-cap-action.sh:MAX_REDISPATCHES
+          # (source of truth) — keep in sync if that constant changes.
           stage decide-cap \
             scripts/converge/decide-cap-action.sh \
             "$RUNNER_TEMP/decide-cap-action.sh" \
