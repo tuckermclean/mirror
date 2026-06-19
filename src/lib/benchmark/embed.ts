@@ -19,17 +19,6 @@ const EMBEDDING_MODEL = "voyage-3";
 
 let _client: VoyageAIClient | undefined;
 
-/**
- * Reset the module-level singleton — for use in tests only.
- *
- * Allows test suites to clear the cached client between tests so that a
- * different VOYAGE_API_KEY value in one test does not leak into another.
- * Calling this in production code is a no-op but should be avoided.
- */
-export function _resetEmbedClient(): void {
-  _client = undefined;
-}
-
 async function getClient(): Promise<VoyageAIClient> {
   if (!_client) {
     const apiKey = process.env["VOYAGE_API_KEY"];

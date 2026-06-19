@@ -16,7 +16,7 @@ type PiiReadParams = {
  * Records a PII field access in the audit_log table.
  *
  * @deprecated Superseded by `readPii()` — scheduled for removal in the Week 6
- * milestone (see future tracking issue #170). New callers must not use this
+ * milestone (tracked in issue #170, closed by this PR). New callers must not use this
  * function; use `readPii()` or the purpose-built column readers instead. It
  * logs access after the fact and cannot guarantee the audit write succeeds.
  * See `docs/MIGRATION.md` for the full migration guide.
