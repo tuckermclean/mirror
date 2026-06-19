@@ -24,11 +24,24 @@
 
 import { logger } from "@/lib/logger";
 
+// Chrome extension IDs are base-16 encoded using the first 16 letters of the
+// alphabet (a–p), making this a 32-character extension ID validator.
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 
-/** Parse the comma-separated allow-list from the environment. */
+/** Memoized result of parsing EXTENSION_ALLOWED_ORIGINS. `null` = not yet computed. */
+let _cachedOrigins: string[] | null = null;
+
+/**
+ * Parse the comma-separated allow-list from the environment. Result is memoized
+ * on first call so repeated requests do not re-split the env string or re-emit
+ * warnings on every call.
+ *
+ * Call `resetOriginCache()` (test helper) to force re-parsing.
+ */
 function configuredOrigins(): string[] {
-  return (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
+  if (_cachedOrigins !== null) return _cachedOrigins;
+
+  const parsed = (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
     .split(",")
     .map((o) => o.trim())
     .filter((o) => o.length > 0)
@@ -39,6 +52,25 @@ function configuredOrigins(): string[] {
       });
       return false;
     });
+
+  if (parsed.length === 0 && process.env["NODE_ENV"] === "production") {
+    logger.warn(
+      "cors: EXTENSION_ALLOWED_ORIGINS is empty in production — " +
+        "all cross-origin extension requests will be denied (fail-closed). " +
+        "Set this env var to the allowed chrome-extension:// origins."
+    );
+  }
+
+  _cachedOrigins = parsed;
+  return _cachedOrigins;
+}
+
+/**
+ * Reset the memoized origin cache. Intended for use in tests only, so that
+ * each test can mutate `process.env` and have the next call re-parse it.
+ */
+export function resetOriginCache(): void {
+  _cachedOrigins = null;
 }
 
 /**

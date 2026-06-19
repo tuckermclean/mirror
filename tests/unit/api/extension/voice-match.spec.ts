@@ -188,6 +188,16 @@ describe("happy path", () => {
       validBody.profileText
     );
   });
+
+  it("trims leading/trailing whitespace from profileText before passing to scorer", async () => {
+    const paddedText = "  I build calm, durable systems.  ";
+    const res = await POST(postRequest({ profileText: paddedText }));
+    expect(res.status).toBe(200);
+    expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      paddedText.trim()
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

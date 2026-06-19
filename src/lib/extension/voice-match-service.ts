@@ -24,17 +24,14 @@ export type VoiceMatchServiceError = "missing_voice_embedding";
  * passing the user's own card would leak their fingerprint into the candidate
  * vector and inflate cosine similarity. A neutral card keeps the candidate
  * embedding a faithful representation of the profile text alone.
- *
- * NOTE: the embeddings module exposes no plain `embedText(text)` helper, which
- * would be the cleaner primitive here — see the summary's "missing exports".
  */
-const NEUTRAL_VOICE_CARD: VoiceCard = {
+const NEUTRAL_VOICE_CARD: VoiceCard = Object.freeze({
   vocabulary: [],
   hedgesAvoided: [],
   sentenceLengthDistribution: { short: 34, medium: 33, long: 33 },
   emotionalRegister: "",
   jargonHated: [],
-};
+});
 
 /** The user's persisted voice fingerprint: embedding + derived voice card. */
 type VoiceProfile = { embedding: number[]; voiceCard: VoiceCard };

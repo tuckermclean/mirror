@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   corsHeaders,
+  resetOriginCache,
   resolveAllowedOrigin,
 } from "@/lib/extension/cors";
 
@@ -22,6 +23,8 @@ beforeEach(() => {
   // Start every test from a clean baseline (no allow-list, non-production).
   delete process.env["EXTENSION_ALLOWED_ORIGINS"];
   process.env["NODE_ENV"] = "test";
+  // Reset the memoized origins cache so each test reads a fresh process.env.
+  resetOriginCache();
 });
 
 afterEach(() => {
@@ -43,6 +46,7 @@ const EXT_B = "chrome-extension://ppppooooaaaabbbbccccddddeeeefffff".slice(
 describe("resolveAllowedOrigin — EXTENSION_ALLOWED_ORIGINS allow-list branch", () => {
   beforeEach(() => {
     setEnv({ EXTENSION_ALLOWED_ORIGINS: `${EXT_A},${EXT_B}` });
+    resetOriginCache();
   });
 
   it("reflects back a matching origin from the allow-list", () => {
@@ -64,6 +68,7 @@ describe("resolveAllowedOrigin — EXTENSION_ALLOWED_ORIGINS allow-list branch",
 
   it("trims whitespace around comma-separated origins", () => {
     setEnv({ EXTENSION_ALLOWED_ORIGINS: ` ${EXT_A} , ${EXT_B} ` });
+    resetOriginCache(); // invalidate cache after env change within this test
     expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
   });
 });
@@ -71,6 +76,7 @@ describe("resolveAllowedOrigin — EXTENSION_ALLOWED_ORIGINS allow-list branch",
 describe("resolveAllowedOrigin — production fail-closed (no allow-list configured)", () => {
   beforeEach(() => {
     setEnv({ NODE_ENV: "production", EXTENSION_ALLOWED_ORIGINS: undefined });
+    resetOriginCache();
   });
 
   it("returns null for a valid chrome-extension origin in production (fail-closed)", () => {
@@ -89,6 +95,7 @@ describe("resolveAllowedOrigin — production fail-closed (no allow-list configu
 describe("resolveAllowedOrigin — non-production fallback (no allow-list configured)", () => {
   beforeEach(() => {
     setEnv({ NODE_ENV: "test", EXTENSION_ALLOWED_ORIGINS: undefined });
+    resetOriginCache();
   });
 
   it("reflects a well-formed chrome-extension origin in non-production", () => {
@@ -117,6 +124,7 @@ describe("resolveAllowedOrigin — non-production fallback (no allow-list config
 describe("resolveAllowedOrigin — allowlist validation rejects non-extension configured origins", () => {
   it("returns null when EXTENSION_ALLOWED_ORIGINS contains a plain web origin (not reflected)", () => {
     setEnv({ EXTENSION_ALLOWED_ORIGINS: "https://attacker.com" });
+    resetOriginCache();
     expect(resolveAllowedOrigin("https://attacker.com")).toBeNull();
   });
 
@@ -124,6 +132,7 @@ describe("resolveAllowedOrigin — allowlist validation rejects non-extension co
     setEnv({
       EXTENSION_ALLOWED_ORIGINS: `https://attacker.com,${EXT_A}`,
     });
+    resetOriginCache();
     expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
     expect(resolveAllowedOrigin("https://attacker.com")).toBeNull();
   });
@@ -132,12 +141,14 @@ describe("resolveAllowedOrigin — allowlist validation rejects non-extension co
     const badExtOrigin =
       "chrome-extension://qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
     setEnv({ EXTENSION_ALLOWED_ORIGINS: badExtOrigin });
+    resetOriginCache();
     expect(resolveAllowedOrigin(badExtOrigin)).toBeNull();
   });
 
   it("returns null when the configured origin has a too-short extension ID", () => {
     const shortExtOrigin = "chrome-extension://tooshort";
     setEnv({ EXTENSION_ALLOWED_ORIGINS: shortExtOrigin });
+    resetOriginCache();
     expect(resolveAllowedOrigin(shortExtOrigin)).toBeNull();
   });
 });
@@ -148,6 +159,7 @@ describe("corsHeaders — with a valid allowed origin", () => {
       NODE_ENV: "test",
       EXTENSION_ALLOWED_ORIGINS: undefined,
     });
+    resetOriginCache();
   });
 
   it("returns the expected CORS header set for an allowed origin", () => {
@@ -178,6 +190,7 @@ describe("corsHeaders — with a disallowed or null origin", () => {
 
   it("returns an empty object in production with no allow-list (fail-closed)", () => {
     setEnv({ NODE_ENV: "production", EXTENSION_ALLOWED_ORIGINS: undefined });
+    resetOriginCache();
     const headers = corsHeaders(EXT_A);
     expect(Object.keys(headers)).toHaveLength(0);
   });
