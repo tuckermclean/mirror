@@ -24,11 +24,35 @@
 
 import { logger } from "@/lib/logger";
 
+/**
+ * Chrome extension IDs use a Base-16 alphabet mapped to a–p (not 0–9a–f),
+ * so a valid ID is exactly 32 lowercase letters from that a–p set.
+ */
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 
-/** Parse the comma-separated allow-list from the environment. */
+/**
+ * Memoized allow-list singleton. `null` means "not yet computed";
+ * an empty array means "computed but empty (or all entries were invalid)".
+ * Use `resetConfiguredOriginsCache()` in tests to flush between runs.
+ */
+let _configuredOriginsCache: string[] | null = null;
+
+/** Flush the memoized allow-list. Only intended for use in tests. */
+export function resetConfiguredOriginsCache(): void {
+  _configuredOriginsCache = null;
+}
+
+/**
+ * Parse the comma-separated allow-list from the environment.
+ * The result is memoized after the first call to avoid repeated string-splitting
+ * and logger.warn calls on the hot request path.
+ * In production, emits a warning if the env var is missing or empty.
+ */
 function configuredOrigins(): string[] {
-  return (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
+  if (_configuredOriginsCache !== null) return _configuredOriginsCache;
+
+  const raw = process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "";
+  const parsed = raw
     .split(",")
     .map((o) => o.trim())
     .filter((o) => o.length > 0)
@@ -39,6 +63,16 @@ function configuredOrigins(): string[] {
       });
       return false;
     });
+
+  if (parsed.length === 0 && process.env["NODE_ENV"] === "production") {
+    logger.warn(
+      "cors: EXTENSION_ALLOWED_ORIGINS is not set or empty in production — all extension cross-origin requests will be denied (fail-closed)",
+      { env: "production" }
+    );
+  }
+
+  _configuredOriginsCache = parsed;
+  return _configuredOriginsCache;
 }
 
 /**
