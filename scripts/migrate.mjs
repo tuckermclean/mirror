@@ -13,7 +13,7 @@ import postgres from 'postgres';
 // remains correct regardless of the process working directory or WORKDIR.
 const migrationsFolder = path.resolve(
   fileURLToPath(new URL('.', import.meta.url)),
-  'src/db/migrations'
+  '../src/db/migrations'
 );
 
 const client = postgres(process.env.DATABASE_URL, { max: 1 });
