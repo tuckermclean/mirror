@@ -10,7 +10,7 @@ Four first-class deployment paths. All four reach a working app from seed data.
 | [Vercel + Neon + Railway](#path-a-vercel--neon--railway-worker) | Solo founder, fastest to ship | `vercel deploy` + Railway from `Dockerfile.worker` |
 | [docker-compose on VPS](#path-b-docker-compose-on-a-vps) | Self-host, single-tenant | `docker compose up -d` |
 | [Helm on Kubernetes](#path-c-helm-on-kubernetes) | Multi-region, HA, enterprise | `helm install mirror oci://ghcr.io/.../mirror-web` |
-| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | Terraform + k3s + Helm |
+| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | k3s + Helm |
 
 ---
 
@@ -33,7 +33,7 @@ cp .env.example .env.local
 ```
 
 Recommended secret management:
-- **k8s**: ExternalSecrets + AWS/GCP Secrets Manager (documented in `infra/terraform/`). Or Sealed Secrets for a simpler path.
+- **k8s**: ExternalSecrets + AWS/GCP Secrets Manager (operator install + an `ExternalSecret` per managed secret). Or Sealed Secrets for a simpler path.
 - **VPS**: `.env.local` with restricted file permissions (`chmod 600`).
 - **Vercel**: Environment variables in project settings.
 
@@ -110,11 +110,187 @@ docker compose up -d --wait
 > Multi-region, HA, enterprise scale. Targets any conformant k8s cluster.
 
 ### Prerequisites
-- A running Kubernetes cluster (EKS/GKE/AKS/k3s)
+
+**Cluster add-ons** — every item below must be installed before running `helm install`. The chart will silently misbehave or fail to start if any are missing.
+
+#### 1. nginx-ingress controller
+
+Required by: `values-prod.yaml` `ingress.className: nginx` and all TLS annotations.
+
+```bash
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  --set controller.service.type=LoadBalancer
+
+# Verify
+kubectl get pods -n ingress-nginx
+# Expect: ingress-nginx-controller-* Running
+```
+
+**What breaks if missing:** Ingress resources are created but no external IP is assigned. The app is unreachable from outside the cluster.
+
+#### 2. cert-manager + letsencrypt-prod ClusterIssuer
+
+Required by: `values-prod.yaml` annotation `cert-manager.io/cluster-issuer: letsencrypt-prod`. The chart does not create the ClusterIssuer — you must create it after installing cert-manager.
+
+```bash
+helm upgrade --install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --namespace cert-manager --create-namespace \
+  --set installCRDs=true
+
+# Verify CRDs exist
+kubectl get crd certificates.cert-manager.io
+
+# Create the letsencrypt-prod ClusterIssuer (replace YOUR_EMAIL)
+kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: YOUR_EMAIL
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+EOF
+
+# Verify ClusterIssuer is ready
+kubectl get clusterissuer letsencrypt-prod
+# READY should be True
+```
+
+**What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
+
+#### 3. Prometheus Operator + ServiceMonitor CRD
+
+Required by: `values-prod.yaml` `serviceMonitor.enabled: true`. The chart creates a ServiceMonitor resource; if the CRD is absent, `helm install` fails with "no matches for kind ServiceMonitor".
+
+```bash
+helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --namespace monitoring --create-namespace \
+  --set grafana.enabled=false \
+  --set alertmanager.enabled=false
+
+# Verify CRD exists
+kubectl get crd servicemonitors.monitoring.coreos.com
+```
+
+**What breaks if missing:** `helm install` / `helm upgrade` fails immediately with a CRD not found error.
+
+#### 4. prometheus-adapter with custom metrics API (`generations_in_flight`)
+
+Required by: `values-prod.yaml` `autoscaling.customMetric.enabled: true` (metric name: `generations_in_flight`). The HPA targets this custom metric via the custom metrics API served by prometheus-adapter.
+
+```bash
+helm upgrade --install prometheus-adapter prometheus-adapter \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --namespace monitoring \
+  --set prometheus.url=http://kube-prometheus-stack-prometheus.monitoring.svc \
+  --set rules.custom[0].seriesQuery='generations_in_flight{namespace!="",pod!=""}' \
+  --set rules.custom[0].resources.overrides.namespace.resource=namespace \
+  --set rules.custom[0].resources.overrides.pod.resource=pod \
+  --set rules.custom[0].name.matches='^(.*)$' \
+  --set rules.custom[0].name.as='${1}' \
+  --set rules.custom[0].metricsQuery='avg(<<.Series>>{<<.LabelMatchers>>})'
+
+# Verify the custom metric is available
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1" | jq '.resources[] | select(.name | contains("generations_in_flight"))'
+```
+
+**What breaks if missing:** The HPA is created but stays in `Unknown` state because it cannot fetch the `generations_in_flight` metric. The deployment does not autoscale. No pods crash, but scale-out under load is silently broken.
+
+#### 5. CNI that enforces NetworkPolicy
+
+Required by: `values-prod.yaml` `networkPolicy.enabled: true`. k3s ships Flannel by default which does **not** enforce NetworkPolicy. You must replace or augment it with a CNI that does (Calico, Cilium, or Weave Net).
+
+```bash
+# Option A: Calico (most common on bare-metal / OCI k3s)
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+
+# Verify
+kubectl get pods -n kube-system -l k8s-app=calico-node
+# All nodes should show Running
+
+# Option B: Cilium (preferred for eBPF-based policy enforcement)
+helm upgrade --install cilium cilium \
+  --repo https://helm.cilium.io \
+  --namespace kube-system \
+  --set kubeProxyReplacement=strict
+
+# Verify NetworkPolicy enforcement
+kubectl get crd networkpolicies.networking.k8s.io 2>/dev/null || echo "Built-in — check CNI enforcement"
+```
+
+**What breaks if missing:** `networkPolicy.enabled: true` creates NetworkPolicy objects but they are not enforced. All pod-to-pod traffic flows unrestricted. This is a **security misconfiguration**, not a functional failure — the app starts and runs normally but is exposed to lateral movement within the cluster.
+
+#### 6. KEDA + Inngest external scaler (mirror-worker only)
+
+Required by: `infra/helm/mirror-worker/values-prod.yaml` `scaledObject.enabled: true`. KEDA must be installed and the Inngest external scaler must be reachable.
+
+```bash
+helm upgrade --install keda keda \
+  --repo https://kedacore.github.io/charts \
+  --namespace keda --create-namespace
+
+# Verify CRD exists
+kubectl get crd scaledobjects.keda.sh
+
+# The Inngest external scaler runs as a sidecar or separate service.
+# See infra/helm/mirror-worker/ values for inngest.queueDepthTarget config.
+```
+
+**What breaks if missing:** `helm install mirror-worker` fails with "no matches for kind ScaledObject" if `scaledObject.enabled: true`. With `scaledObject.enabled: false` (default), KEDA is not required and the worker uses a standard Deployment + HPA.
+
+---
+
+**Summary: required add-ons per overlay**
+
+| Add-on | values-prod.yaml | values-freetier.yaml | values-staging.yaml |
+|---|---|---|---|
+| nginx-ingress | Required | Required | Required |
+| cert-manager + ClusterIssuer | Required | Required | Required |
+| Prometheus Operator | Required | Not required | Not required |
+| prometheus-adapter | Required | Not required | Not required |
+| NetworkPolicy-capable CNI | Required | Optional | Optional |
+| KEDA (worker chart) | Required | Optional (scale-to-zero) | Not required |
+
+---
+
+- A running Kubernetes cluster (EKS/GKE/AKS/k3s) with the add-ons above installed
 - `kubectl` access + `helm` 3.x
-- cert-manager installed for TLS
-- nginx ingress controller
 - `mirror-secrets` k8s Secret created (see Secrets pattern above)
+
+### Image repository setup
+
+`values.yaml` ships with `image.repository: ghcr.io/YOUR_ORG/mirror-web` (and `mirror-worker`). Before deploying:
+
+1. **Replace `YOUR_ORG`** with your actual GitHub organisation name in any `--set` flag or values overlay:
+   ```bash
+   --set image.repository=ghcr.io/acme-corp/mirror-web
+   ```
+   Or edit `values-prod.yaml` directly (recommended for GitOps).
+
+2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it:
+   ```bash
+   # Create the pull secret once per namespace
+   kubectl create secret docker-registry ghcr-pull-secret \
+     --docker-server=ghcr.io \
+     --docker-username=YOUR_GITHUB_USER \
+     --docker-password=YOUR_GITHUB_PAT \
+     --namespace mirror
+
+   # Then pass it at install/upgrade time
+   --set "imagePullSecrets[0].name=ghcr-pull-secret"
+   ```
+   Public images (the default for open-source mirrors) do not require a pull secret.
 
 ### Steps
 
@@ -134,37 +310,116 @@ helm install mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
   --version 0.1.0 \
   -f infra/helm/mirror-worker/values-prod.yaml \
   --namespace mirror
-
-# Run migrations (one-off Job)
-kubectl run db-migrate --image=ghcr.io/YOUR_ORG/mirror-web:latest \
-  --restart=Never --rm -it \
-  --env="DATABASE_URL=$(kubectl get secret mirror-secrets -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-  -- pnpm db:migrate
 ```
 
 **ArgoCD / GitOps path:**
 Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the appropriate values overlay. Releases are triggered by pushing a semver tag — CI builds and pushes both images + the chart, then ArgoCD syncs automatically.
 
+**DB migrations run automatically** via a Helm post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
+
+---
+
+## Staging deploy (manual)
+
+The `release.yml` CI workflow builds and pushes images on every semver tag but does **not** automatically deploy to staging (the workflow step is a placeholder pending cluster credentials). After a release tag is pushed, trigger the staging upgrade manually:
+
+```bash
+# 1. Ensure kubectl is pointed at your staging cluster context
+kubectl config use-context <your-staging-context>
+
+# 2. Pull the latest chart from GHCR (replace VERSION with the release tag, e.g. 0.2.0)
+helm registry login ghcr.io -u YOUR_GITHUB_USER -p YOUR_PAT
+
+# 3. Upgrade mirror-web to staging
+helm upgrade mirror-web oci://ghcr.io/YOUR_ORG/mirror-web \
+  --version VERSION \
+  -f infra/helm/mirror-web/values-staging.yaml \
+  --set image.tag=VERSION \
+  --namespace mirror
+
+# 4. Upgrade mirror-worker to staging
+helm upgrade mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
+  --version VERSION \
+  -f infra/helm/mirror-worker/values-freetier.yaml \
+  --set image.tag=VERSION \
+  --namespace mirror
+
+# 5. Verify rollout
+kubectl rollout status deployment/mirror-web -n mirror
+kubectl rollout status deployment/mirror-worker -n mirror
+```
+
+The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+
+```bash
+kubectl get jobs -n mirror -w
+kubectl logs job/mirror-web-db-migrate -n mirror
+```
+
+---
+
+## DB migration hook
+
+Migrations run automatically via a Helm `post-install,post-upgrade` Job — no manual `kubectl run` step required. The Job:
+- Uses the same image as the web deployment
+- Reads `DATABASE_URL` from the `existingSecret`
+- Has `backoffLimit: 3` and `restartPolicy: OnFailure`
+- Cleans up on success (`hook-delete-policy: before-hook-creation,hook-succeeded`)
+
+To **disable** the hook (e.g. you want to run migrations manually before the deploy):
+
+```bash
+helm upgrade mirror-web ... --set migration.enabled=false
+```
+
 ---
 
 ## Path D: Free-tier (Oracle Cloud + k3s)
 
-> Run the real Helm path on genuinely free infrastructure. Under $25/month (Anthropic API only).
+> Run the real Helm path (Path C) on genuinely free infrastructure. Under $25/month (Anthropic API only).
 
-### Infrastructure provisioning
+### Cluster requirements
+
+Stand up a 4-node k3s cluster on Oracle Cloud's Always Free tier — **provisioning is left to you** (OCI CLI, Console, or your own IaC). The cluster needs:
+
+- **4× VM.Standard.A1.Flex** — 1 OCPU / 6 GB RAM each (4 OCPU / 24 GB total — the free-tier allowance), Ubuntu 22.04 arm64, 50 GB boot volume each.
+- All nodes in the **same VCN subnet** (private-IP reachability).
+- **Security List** inbound TCP: 6443 (k3s API), 10250 (kubelet), 8472/UDP (Flannel VXLAN), 80/443 (Ingress), 22 (SSH).
+
+### Bootstrap the k3s cluster
+
+#### 1. On the first node (server)
 
 ```bash
-# Provision 4x ARM Ampere A1 VMs on Oracle Cloud Free Tier
-cd infra/terraform/oci
-cp terraform.tfvars.example terraform.tfvars
-# Fill in OCI credentials
-terraform init && terraform apply
+# SSH to node-1 (replace <NODE1_IP> with its public IP)
+ssh ubuntu@<NODE1_IP>
 
-# Bootstrap k3s cluster across the 4 nodes
-# (Terraform output includes the k3s install commands)
-# SSH to the first node and run:
-curl -sfL https://get.k3s.io | sh -
-# On remaining nodes, join the cluster with the token from /var/lib/rancher/k3s/server/node-token
+# Install k3s server (disables Traefik — we use nginx-ingress instead)
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik" sh -
+
+# Retrieve the node join token (needed for worker nodes)
+sudo cat /var/lib/rancher/k3s/server/node-token
+# Copy this token for the next step
+
+# Copy the kubeconfig to your local machine
+sudo cat /etc/rancher/k3s/k3s.yaml
+# On your local machine: save to ~/.kube/config, replace 127.0.0.1 with <NODE1_IP>
+```
+
+#### 2. Join the remaining 3 nodes as k3s agents
+
+```bash
+# Repeat on node-2, node-3, node-4 (replace placeholders)
+ssh ubuntu@<NODE_IP>
+curl -sfL https://get.k3s.io | K3S_URL=https://<NODE1_IP>:6443 K3S_TOKEN=<TOKEN_FROM_ABOVE> sh -
+```
+
+#### 3. Verify the cluster
+
+```bash
+# From your local machine (kubectl configured to the k3s cluster)
+kubectl get nodes
+# Expect 4 nodes in Ready state
 ```
 
 ### Install the chart (free-tier profile)

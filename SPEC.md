@@ -172,7 +172,7 @@ The whole point: run the *real Helm path* on genuinely free infrastructure so th
 
 | Component | Free service | Limits / notes |
 |---|---|---|
-| Cluster | **Oracle Cloud Free Tier** — 4× ARM Ampere A1 VMs, 24 GB RAM total, 200 GB block, 10 TB egress/mo | Genuinely free forever, no expiry. Provisioned via Terraform in `infra/terraform/oci/`. Bootstrap `k3s` cluster across the 4 nodes — this is your home k8s. |
+| Cluster | **Oracle Cloud Free Tier** — 4× ARM Ampere A1 VMs, 24 GB RAM total, 200 GB block, 10 TB egress/mo | Genuinely free forever, no expiry. Provisioned manually via the OCI Console (see `DEPLOY.md` Path D). Bootstrap `k3s` cluster across the 4 nodes — this is your home k8s. |
 | Postgres + pgvector | **Neon Free** (0.5 GB storage, autosuspend after 5 min idle) or **Supabase Free** | Autosuspend cold-starts ~300 ms — acceptable pre-launch. Add `values-freetier.yaml` override so the app retries once on cold-start. |
 | Redis / queue | **Upstash Redis Free** (10k commands/day) | Used for Inngest event bus + rate-limiting. Sufficient for < 50 users. |
 | Background jobs | **Inngest Cloud Free** (50k runs/mo) — or self-hosted on k3s | Default to Inngest Cloud for simplicity; document the self-hosted path. |
@@ -404,7 +404,7 @@ When done, the repo contains:
 - `Dockerfile.worker` (Playwright worker image)
 - `docker-compose.yml` — one command brings up the full local stack with seed data
 - `infra/helm/mirror-web/` and `infra/helm/mirror-worker/` (Helm charts + `values.yaml`, `values-staging.yaml`, `values-prod.yaml`, `values-freetier.yaml`)
-- `infra/terraform/oci/` — Terraform to provision the Oracle Cloud Free Tier ARM cluster + k3s bootstrap script
+- `DEPLOY.md` Path D documents manual provisioning of the Oracle Cloud Free Tier ARM cluster + k3s bootstrap (no Terraform — OCI Console steps only)
 - `.github/workflows/ci.yml` and `release.yml` — all gates from §7, multi-arch image publish (linux/amd64 + linux/arm64) to GHCR, Helm chart publish to OCI registry
 - `DEPLOY.md` covering the four deployment paths (Vercel, docker-compose, Helm, free-tier on OCI + k3s) with exact commands
 - `/seed` script loading a demo user, interview, imports, generation

@@ -1,6 +1,6 @@
 // RED: infra/helm/ does not exist yet — fails until Wk 1
 import { describe, it, expect } from "vitest";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { execSync } from "child_process";
 import { resolve } from "path";
 
@@ -46,5 +46,32 @@ describe("Helm charts lint + kubeconform", () => {
         { stdio: "pipe" }
       )
     ).not.toThrow();
+  });
+
+  it("scripts/migrate.mjs exists", () => {
+    expect(existsSync(resolve(ROOT, "scripts/migrate.mjs"))).toBe(true);
+  });
+
+  it("Dockerfile copies migrations folder into runner stage", () => {
+    const dockerfile = readFileSync(resolve(ROOT, "Dockerfile"), "utf8");
+    expect(dockerfile).toContain("src/db/migrations");
+    expect(dockerfile).toContain("migrate.mjs");
+  });
+
+  it("db-migrate-job uses node not pnpm", () => {
+    const job = readFileSync(resolve(ROOT, "infra/helm/mirror-web/templates/db-migrate-job.yaml"), "utf8");
+    expect(job).toContain('"node"');
+    expect(job).not.toMatch(/command:.*pnpm/);
+  });
+
+  it("db-migrate-job has activeDeadlineSeconds", () => {
+    const job = readFileSync(resolve(ROOT, "infra/helm/mirror-web/templates/db-migrate-job.yaml"), "utf8");
+    expect(job).toContain("activeDeadlineSeconds");
+  });
+
+  it("mirror-worker deployment has pod securityContext", () => {
+    const dep = readFileSync(resolve(ROOT, "infra/helm/mirror-worker/templates/deployment.yaml"), "utf8");
+    expect(dep).toContain("runAsNonRoot: true");
+    expect(dep).toContain("allowPrivilegeEscalation: false");
   });
 });

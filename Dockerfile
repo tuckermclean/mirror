@@ -58,6 +58,9 @@ USER 1001:1001
 COPY --from=builder --chown=1001:1001 /app/.next/standalone ./
 COPY --from=builder --chown=1001:1001 /app/.next/static ./.next/static
 COPY --from=builder --chown=1001:1001 /app/public ./public
+# Migration script and SQL files — used by the db-migrate Helm Job
+COPY --from=builder --chown=1001:1001 /app/src/db/migrations ./src/db/migrations
+COPY --from=builder --chown=1001:1001 /app/scripts/migrate.mjs ./scripts/migrate.mjs
 
 EXPOSE 3000
 
