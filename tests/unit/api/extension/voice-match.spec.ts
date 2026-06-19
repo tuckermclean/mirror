@@ -132,6 +132,34 @@ describe("body validation", () => {
     await POST(postRequest({ profileText: "a".repeat(50_001) }));
     expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
   });
+
+  it("returns 422 when trimmed profileText exceeds 50,000 characters (leading/trailing whitespace not counted)", async () => {
+    // A string that is >50k after trimming — 50,001 real chars + surrounding spaces.
+    const res = await POST(
+      postRequest({ profileText: "  " + "a".repeat(50_001) + "  " })
+    );
+    expect(res.status).toBe(422);
+  });
+
+  it("does NOT return 422 when padded profileText is >50k raw but ≤50k after trim", async () => {
+    // Exactly 50,000 real chars padded with 2 spaces on each side = 50,004 raw chars.
+    // After trim it is exactly 50,000 — must pass the length gate.
+    const res = await POST(
+      postRequest({ profileText: "  " + "a".repeat(50_000) + "  " })
+    );
+    // Should proceed to the scorer (which is mocked to succeed) → 200.
+    expect(res.status).toBe(200);
+  });
+
+  it("forwards trimmed profileText to the scorer (no leading/trailing whitespace)", async () => {
+    const paddedText = "  " + validBody.profileText + "  ";
+    await POST(postRequest({ profileText: paddedText }));
+    // The scorer must receive the trimmed string, not the padded one.
+    expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      validBody.profileText
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   corsHeaders,
   resolveAllowedOrigin,
+  resetConfiguredOriginsCache,
 } from "@/lib/extension/cors";
 
 // Helpers to manipulate process.env safely within tests.
@@ -22,6 +23,8 @@ beforeEach(() => {
   // Start every test from a clean baseline (no allow-list, non-production).
   delete process.env["EXTENSION_ALLOWED_ORIGINS"];
   process.env["NODE_ENV"] = "test";
+  // Reset the memoized singleton so each test starts fresh.
+  resetConfiguredOriginsCache();
 });
 
 afterEach(() => {
@@ -30,6 +33,7 @@ afterEach(() => {
   for (const key of Object.keys(process.env)) {
     if (!(key in originalEnv)) delete process.env[key];
   }
+  resetConfiguredOriginsCache();
 });
 
 // A well-formed extension origin (32 lowercase a-p chars after the scheme).
@@ -180,5 +184,51 @@ describe("corsHeaders — with a disallowed or null origin", () => {
     setEnv({ NODE_ENV: "production", EXTENSION_ALLOWED_ORIGINS: undefined });
     const headers = corsHeaders(EXT_A);
     expect(Object.keys(headers)).toHaveLength(0);
+  });
+});
+
+describe("configuredOrigins — memoization", () => {
+  it("caches the allow-list after the first call and ignores subsequent env changes", () => {
+    // First call with EXT_A in the allow-list.
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_A });
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+
+    // Mutate the env — memoized value must NOT update.
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_B });
+
+    // Should still resolve EXT_A (cached) and NOT resolve EXT_B.
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+    expect(resolveAllowedOrigin(EXT_B)).toBeNull();
+  });
+
+  it("resetConfiguredOriginsCache() flushes the singleton so env changes are picked up", () => {
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_A });
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+
+    // Flush the cache, then change the env.
+    resetConfiguredOriginsCache();
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_B });
+
+    // Now only EXT_B is in the (freshly recomputed) allow-list.
+    expect(resolveAllowedOrigin(EXT_B)).toBe(EXT_B);
+    expect(resolveAllowedOrigin(EXT_A)).toBeNull();
+  });
+});
+
+describe("configuredOrigins — production warn on missing env var", () => {
+  it("emits logger.warn when NODE_ENV is production and EXTENSION_ALLOWED_ORIGINS is unset", async () => {
+    // Spy on the real logger before the memoized call so we can capture the warn.
+    const loggerModule = await import("@/lib/logger");
+    const warnSpy = vi.spyOn(loggerModule.logger, "warn");
+
+    setEnv({ NODE_ENV: "production", EXTENSION_ALLOWED_ORIGINS: undefined });
+    resolveAllowedOrigin(EXT_A); // triggers first-call memoization + warn
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("EXTENSION_ALLOWED_ORIGINS"),
+      expect.anything()
+    );
+
+    warnSpy.mockRestore();
   });
 });
