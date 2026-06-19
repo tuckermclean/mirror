@@ -241,7 +241,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
-          allowed_bots: "claude"
+          # Include github-actions: the reconciler re-arm, the no-verdict retry, and
+          # cap-reached all re-trigger converge via workflow_dispatch, which runs as
+          # github-actions[bot]. Without it here, claude-code-action rejects the run
+          # ("Workflow initiated by non-human actor") and every review/fix step no-ops.
+          allowed_bots: "claude,github-actions"
           prompt: |
             Load: .agents/custom/converge-reviewer.md
             Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
@@ -312,7 +316,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 60"
           show_full_output: "true"
-          allowed_bots: "claude"
+          # Include github-actions: the reconciler re-arm, the no-verdict retry, and
+          # cap-reached all re-trigger converge via workflow_dispatch, which runs as
+          # github-actions[bot]. Without it here, claude-code-action rejects the run
+          # ("Workflow initiated by non-human actor") and every review/fix step no-ops.
+          allowed_bots: "claude,github-actions"
           prompt: |
             Load: .agents/custom/converge-fixer.md
             Also load: .agents/custom/converge-orchestrator.md
@@ -339,7 +347,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
-          allowed_bots: "claude"
+          # Include github-actions: the reconciler re-arm, the no-verdict retry, and
+          # cap-reached all re-trigger converge via workflow_dispatch, which runs as
+          # github-actions[bot]. Without it here, claude-code-action rejects the run
+          # ("Workflow initiated by non-human actor") and every review/fix step no-ops.
+          allowed_bots: "claude,github-actions"
           prompt: |
             Load: .agents/custom/converge-reviewer.md
             Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
@@ -418,7 +430,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 60"
           show_full_output: "true"
-          allowed_bots: "claude"
+          # Include github-actions: the reconciler re-arm, the no-verdict retry, and
+          # cap-reached all re-trigger converge via workflow_dispatch, which runs as
+          # github-actions[bot]. Without it here, claude-code-action rejects the run
+          # ("Workflow initiated by non-human actor") and every review/fix step no-ops.
+          allowed_bots: "claude,github-actions"
           prompt: |
             Load: .agents/custom/converge-fixer.md
             Also load: .agents/custom/converge-orchestrator.md
@@ -445,7 +461,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6 --max-turns 50"
           show_full_output: "true"
-          allowed_bots: "claude"
+          # Include github-actions: the reconciler re-arm, the no-verdict retry, and
+          # cap-reached all re-trigger converge via workflow_dispatch, which runs as
+          # github-actions[bot]. Without it here, claude-code-action rejects the run
+          # ("Workflow initiated by non-human actor") and every review/fix step no-ops.
+          allowed_bots: "claude,github-actions"
           prompt: |
             Load: .agents/custom/converge-reviewer.md
             Also load: .agents/custom/converge-orchestrator.md (severity taxonomy + verdict schema)
