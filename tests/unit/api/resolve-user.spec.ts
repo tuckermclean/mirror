@@ -81,4 +81,9 @@ describe("resolveUserOr401Or404", () => {
     await resolveUserOr401Or404("clerk_xyz999");
     expect(mockResolveActiveUserId).toHaveBeenCalledWith("clerk_xyz999");
   });
+
+  it("propagates unexpected errors from resolveActiveUserId", async () => {
+    mockResolveActiveUserId.mockRejectedValueOnce(new Error("DB timeout"));
+    await expect(resolveUserOr401Or404("clerk_abc")).rejects.toThrow("DB timeout");
+  });
 });
