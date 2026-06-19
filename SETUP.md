@@ -159,8 +159,8 @@ Then set the API keys from the [Clerk dashboard](https://dashboard.clerk.com) �
 API Keys into your `.env.local` (and, for CI, as GitHub secrets):
 
 ```bash
-gh secret set CLERK_PUBLISHABLE_KEY               # pk_test_... (Clerk server-side SDK)
-gh secret set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY   # pk_test_... (Next.js build-time injection)
+gh secret set CLERK_PUBLISHABLE_KEY               # pk_test_... (Clerk publishable key — safe to expose in client-side code)
+gh secret set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY   # pk_test_... (same key; NEXT_PUBLIC_ prefix required for Next.js client-side exposure)
 gh secret set CLERK_SECRET_KEY                    # sk_test_...
 ```
 
@@ -361,9 +361,9 @@ make ci   # install → typecheck → lint → test-unit → test-integration �
 | First DB request after idle hangs/errors | Neon (or Postgres) cold-start | Retry; ensure `DATABASE_URL` is reachable and migrated. Locally, confirm the `postgres` container is healthy: `docker compose ps`. |
 | E2E auth/interview specs fail with no clear error | Clerk dev instance only has `email_code`; password sign-in disabled | Run the one-time Clerk setup: `clerk auth login && clerk link && pnpm setup:clerk` ([§3.4](#34-one-time-clerk-setup-required-for-e2e)). |
 | Playwright: "Executable doesn't exist" / missing browser | Browsers/OS deps not installed | `make playwright-install` |
-| Generation returns HTTP 402 `monthly_cap_reached` | Monthly spend hit `LLM_MONTHLY_CAP_USD` (default `$20`) | Raise `LLM_MONTHLY_CAP_USD` in `.env.local` (local dev only) or wait for `resets_at`. |
+| Generation returns HTTP 402 `monthly_cap_reached` | Monthly spend hit `LLM_MONTHLY_CAP_USD` (default `$20`) | Raise `LLM_MONTHLY_CAP_USD` in `.env.local` (local dev only), or wait — `llm_spend_ledger` resets automatically at the month boundary (the `resets_at` field in the 402 response tells you exactly when). |
 | `docker compose up` fails binding a port | Port already in use | Free the conflicting port — the stack uses **3000** (web), **5432** (postgres), **6379** (redis), **8288** (inngest), **1025/8025** (mailhog). |
-| Integration tests fail on connection / missing extension | Postgres not migrated or not pgvector | Use the `pgvector/pgvector:pg16` container and run `pnpm db:push` against it first. |
+| Integration tests fail on connection / missing extension | Postgres not migrated or not pgvector | Use the `pgvector/pgvector:pg16` container and run `make db-push` against it first. |
 | Lockfile / phantom dependency errors | Installed with npm or yarn | Delete `node_modules`, reinstall with `pnpm install` (pnpm only). |
 
 ---
