@@ -166,6 +166,8 @@ kubectl get clusterissuer letsencrypt-prod
 # READY should be True
 ```
 
+> **Port 80 requirement:** The `http01` solver requires port 80 to be publicly accessible so Let's Encrypt can reach the ACME challenge endpoint. If port 80 is blocked by a firewall or cloud security group, certificate issuance will fail. Use a `dns01` solver instead — it requires no inbound port and also supports wildcard certificates (`*.yourdomain.com`). See the [cert-manager dns01 docs](https://cert-manager.io/docs/configuration/acme/dns01/) for provider-specific setup.
+
 **What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
 
 #### 3. Prometheus Operator + ServiceMonitor CRD
@@ -281,6 +283,7 @@ kubectl get crd scaledobjects.keda.sh
 2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it:
    ```bash
    # Create the pull secret once per namespace
+   # Minimum required PAT scope: read:packages (no write or delete scopes needed)
    kubectl create secret docker-registry ghcr-pull-secret \
      --docker-server=ghcr.io \
      --docker-username=YOUR_GITHUB_USER \
@@ -315,7 +318,7 @@ helm install mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
 **ArgoCD / GitOps path:**
 Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the appropriate values overlay. Releases are triggered by pushing a semver tag — CI builds and pushes both images + the chart, then ArgoCD syncs automatically.
 
-**DB migrations run automatically** via a Helm post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
+**DB migrations run automatically** via a Helm post-install,post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
 
 ---
 
@@ -349,7 +352,7 @@ kubectl rollout status deployment/mirror-web -n mirror
 kubectl rollout status deployment/mirror-worker -n mirror
 ```
 
-The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+The Helm post-install,post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm install` or `helm upgrade`. Watch it with:
 
 ```bash
 kubectl get jobs -n mirror -w
@@ -371,6 +374,8 @@ To **disable** the hook (e.g. you want to run migrations manually before the dep
 ```bash
 helm upgrade mirror-web ... --set migration.enabled=false
 ```
+
+> **Note:** When `migration.enabled: false`, the Job hook does not run. You must apply migrations manually before deploying (e.g. `DATABASE_URL="..." pnpm db:migrate`) to avoid the app starting against a schema that does not match the new code.
 
 ---
 
