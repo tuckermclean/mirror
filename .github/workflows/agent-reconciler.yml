@@ -118,9 +118,18 @@ jobs:
 
             HAS_ISSUE=0; [ -n "$ISSUE_NUM" ] && HAS_ISSUE=1
 
+            # Empty-PR guard: a branch with no changed files means the agent
+            # opened the PR but never produced work (it exited before integrating).
+            # The converge label is added at PR-creation, so it is NOT proof of a
+            # finished agent — without this an empty PR gets marked ready and
+            # converged on a zero-line diff. Count changed files vs. the base.
+            CHANGED_FILES=$(gh pr view "$PR_NUM" --repo "$REPO" \
+              --json files --jq '.files | length' 2>/dev/null || echo "1")
+            HAS_DIFF=1; [ "${CHANGED_FILES:-1}" = "0" ] && HAS_DIFF=0
+
             # ── Decision (scripts/reconciler/decide-stale-action.sh) ─────────
             ACTION=$(bash scripts/reconciler/decide-stale-action.sh \
-              "$REDISPATCH_COUNT" "$CI_RUNS" "$HAS_CONVERGE" "$FAILING" "$HAS_ISSUE")
+              "$REDISPATCH_COUNT" "$CI_RUNS" "$HAS_CONVERGE" "$FAILING" "$HAS_ISSUE" "$HAS_DIFF")
             echo "PR #$PR_NUM → $ACTION"
 
             case "$ACTION" in

@@ -28,10 +28,10 @@
                        │         IMPLEMENTATION                    │
                        │  Specialist agent (Sonnet/Opus)           │
                        │  • checks out or creates feat/issue-N-... │
-                       │  • opens DRAFT PR (Closes #N, converge)   │
+                       │  • opens DRAFT PR (Closes #N)             │
                        │  • commits after each step                │
                        │  • runs make typecheck && make lint       │
-                       │  • calls gh pr ready                      │
+                       │  • adds converge label, calls gh pr ready │
                        │  label: agent:implementing                │
                        └──────────────────┬───────────────────────┘
                                           │ gh pr ready
@@ -62,7 +62,7 @@
 |-------|---------|--------|
 | `agent-work` | Issue is queued for dispatch | Issue template / human |
 | `agent:implementing` | Draft PR open, agent building | `implementation-contract.md` |
-| `converge` | Triggers the convergence loop | `implementation-contract.md` |
+| `converge` | "Ready to converge" — triggers the loop. Added only at `gh pr ready` time, never at draft creation | `implementation-contract.md` / `orchestrator-contract.md` |
 | `agent:ready` | Converge approved, CI green | `pr-converge.yml` on approval |
 | `needs-human` | Human decision genuinely required | `pr-converge.yml` / `agent-reconciler.yml` |
 
@@ -233,7 +233,8 @@ Every new orchestration decision should be extracted to a script matching this p
 |---|---|---|---|
 | `scripts/converge/resolve-blockers.sh` | Resolve effective blocker count from verdict JSON or comment | `<verdict.json> <pr-number>` (env: `CONVERGE_COMMENT_BODY`) | Integer or `unknown` |
 | `scripts/converge/decide-round.sh` | Decide converge loop action for one round | Env: `ROUND`, `BLOCKERS`, `CI_GREEN`, `PREV_SIGS`, `CURR_SIGS` | `approve`, `fix`, `escalate:*` |
-| `scripts/reconciler/decide-stale-action.sh` | Stale draft recovery action | `<redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue>` | `escalate`, `trigger-ci`, `mark-ready`, `mark-ready-and-converge`, `redispatch`, `needs-human` |
+| `scripts/converge/decide-cap-action.sh` | Bound converge re-dispatch (cap-reached / empty-PR) so a truncated review or empty PR can't thrash | `<redispatch_count> <has_issue_num>` | `redispatch`, `escalate` |
+| `scripts/reconciler/decide-stale-action.sh` | Stale draft recovery action | `<redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue> <has_diff>` | `escalate`, `trigger-ci`, `mark-ready`, `mark-ready-and-converge`, `redispatch`, `needs-human` |
 | `scripts/reconciler/decide-conflict-action.sh` | Merge-conflict escalation decision | `<mergeable> <already_needs_human>` | `escalate`, `skip` |
 | `scripts/reconciler/decide-rearm-action.sh` | Converge re-arm decision | `<ci_runs> <converge_state> <has_terminal_label> <seconds_since_last_run>` | `trigger-ci`, `skip-in-progress`, `skip-done`, `skip-recent`, `rearm` |
 | `scripts/reconciler/decide-redispatch-action.sh` | Orphaned-issue re-dispatch decision | `<has_open_pr> <seconds_since_last_activity> <redispatch_count>` | `skip-has-pr`, `skip-recent`, `escalate`, `redispatch` |
