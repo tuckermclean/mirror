@@ -22,6 +22,8 @@ imagePullSecrets: []
 
 # DB migration Helm hook — runs "pnpm db:migrate" as a post-install/post-upgrade Job.
 # Set migration.enabled=false if you want to run migrations manually before the deploy.
+# WARNING: when set to false, you MUST run migrations manually before deploying a new
+# release — the app will fail to start (or silently corrupt data) if the schema is stale.
 migration:
   enabled: true
 
