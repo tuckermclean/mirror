@@ -20,6 +20,9 @@ metadata:
 spec:
   # Retry up to 3 times before marking the Job failed and blocking the release.
   backoffLimit: 3
+  # Hard deadline: abort the Job if it has not completed within 10 minutes.
+  # Without this, a hung migration blocks the Helm release indefinitely.
+  activeDeadlineSeconds: 600
   template:
     metadata:
       labels:
@@ -57,7 +60,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          command: ["pnpm", "db:migrate"]
+          command: ["node", "scripts/migrate.mjs"]
           envFrom:
             - secretRef:
                 name: {{ .Values.existingSecret }}
