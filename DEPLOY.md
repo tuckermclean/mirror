@@ -298,7 +298,7 @@ kubectl get crd scaledobjects.keda.sh
    kubectl create secret docker-registry ghcr-pull-secret \
      --docker-server=ghcr.io \
      --docker-username=YOUR_GITHUB_USER \
-     --docker-password=YOUR_GITHUB_PAT \  # PAT scope: read:packages only
+     --docker-password=YOUR_GITHUB_PAT \
      --namespace mirror
 
    # Then pass it at install/upgrade time
