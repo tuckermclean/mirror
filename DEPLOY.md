@@ -166,6 +166,17 @@ kubectl get clusterissuer letsencrypt-prod
 # READY should be True
 ```
 
+> **http01 vs dns01.** The `http01` solver above completes the ACME challenge over
+> **port 80** — that port must be reachable from the public internet (Let's Encrypt
+> connects to `http://<host>/.well-known/acme-challenge/...`). It also **cannot** issue
+> wildcard (`*.example.com`) certificates. Use the **`dns01`** solver instead when:
+> - you need a wildcard cert, or
+> - port 80 is firewalled / not publicly reachable (e.g. behind Cloudflare proxy-only,
+>   or a load balancer that only exposes 443).
+>
+> `dns01` proves control via a DNS TXT record and requires cert-manager credentials for
+> your DNS provider (Cloudflare, Route53, Google Cloud DNS, etc.) instead of an ingress class.
+
 **What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
 
 #### 3. Prometheus Operator + ServiceMonitor CRD
@@ -278,13 +289,16 @@ kubectl get crd scaledobjects.keda.sh
    ```
    Or edit `values-prod.yaml` directly (recommended for GitOps).
 
-2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it:
+2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it.
+   The PAT (`YOUR_GITHUB_PAT`) needs the **`read:packages` scope only** — that is the least
+   privilege required to pull from GHCR. Do not grant `write:packages`, `repo`, or any broader
+   scope to a cluster pull secret.
    ```bash
    # Create the pull secret once per namespace
    kubectl create secret docker-registry ghcr-pull-secret \
      --docker-server=ghcr.io \
      --docker-username=YOUR_GITHUB_USER \
-     --docker-password=YOUR_GITHUB_PAT \
+     --docker-password=YOUR_GITHUB_PAT \  # PAT scope: read:packages only
      --namespace mirror
 
    # Then pass it at install/upgrade time
@@ -315,7 +329,7 @@ helm install mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
 **ArgoCD / GitOps path:**
 Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the appropriate values overlay. Releases are triggered by pushing a semver tag — CI builds and pushes both images + the chart, then ArgoCD syncs automatically.
 
-**DB migrations run automatically** via a Helm post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
+**DB migrations run automatically** via a Helm `post-install,post-upgrade` Job hook — so they run on the very first `helm install` as well as on every subsequent `helm upgrade`. You do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
 
 ---
 
@@ -349,7 +363,7 @@ kubectl rollout status deployment/mirror-web -n mirror
 kubectl rollout status deployment/mirror-worker -n mirror
 ```
 
-The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+The Helm `post-install,post-upgrade` Job hook runs the migration automatically — on the initial install and after each `helm upgrade`. (Inside the distroless runtime image the Job invokes `node scripts/migrate.mjs` directly; there is no `pnpm` on the image.) Watch it with:
 
 ```bash
 kubectl get jobs -n mirror -w
@@ -360,11 +374,15 @@ kubectl logs job/mirror-web-db-migrate -n mirror
 
 ## DB migration hook
 
-Migrations run automatically via a Helm `post-install,post-upgrade` Job — no manual `kubectl run` step required. The Job:
+Migrations run automatically via a Helm Job annotated `helm.sh/hook: post-install,post-upgrade` — no manual `kubectl run` step required. Because the hook fires on **both** `post-install` and `post-upgrade`, the schema is created on the very first `helm install` (not only on later upgrades). The Job:
 - Uses the same image as the web deployment
+- Runs `node scripts/migrate.mjs` (the distroless runtime image has no `pnpm`; the script is a standalone migration entrypoint baked into the image)
 - Reads `DATABASE_URL` from the `existingSecret`
-- Has `backoffLimit: 3` and `restartPolicy: OnFailure`
+- Has `backoffLimit: 3`, `activeDeadlineSeconds: 600`, and `restartPolicy: OnFailure`
+- Runs with `hook-weight: -5` so it executes before any other post hooks
 - Cleans up on success (`hook-delete-policy: before-hook-creation,hook-succeeded`)
+
+> Note: `post-*` hooks run *after* Helm applies the Deployment, so Helm does not gate the app rollout on this Job. Migrations must stay backward-compatible with the previous app version for the brief rollout overlap.
 
 To **disable** the hook (e.g. you want to run migrations manually before the deploy):
 

@@ -27,7 +27,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/component: db-migrate
-        app.kubernetes.io/managed-by: Helm
+        # Use the idiomatic Helm value (matches "mirror-web.labels" in _helpers.tpl,
+        # which also renders managed-by via {{ .Release.Service }}).
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
     spec:
       # Must not restart the pod inline — use Job-level backoffLimit instead.
       restartPolicy: OnFailure
@@ -60,6 +62,11 @@ spec:
             capabilities:
               drop:
                 - ALL
+          # Invoke the migration runner directly with node — NOT "pnpm db:migrate".
+          # The runtime image (Dockerfile "runner" stage) is distroless
+          # (gcr.io/distroless/nodejs20-debian12); it ships node only, with no
+          # pnpm/corepack/npm on PATH. scripts/migrate.mjs is a standalone ESM
+          # entrypoint copied into the image expressly for this Job.
           command: ["node", "scripts/migrate.mjs"]
           envFrom:
             - secretRef:
@@ -83,5 +90,9 @@ spec:
               mountPath: /tmp
       volumes:
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            # Cap the writable scratch dir — readOnlyRootFilesystem forces all
+            # transient writes here, and an unbounded emptyDir can consume node
+            # ephemeral storage. 64Mi is ample for migration scratch files.
+            sizeLimit: 64Mi
 {{- end }}

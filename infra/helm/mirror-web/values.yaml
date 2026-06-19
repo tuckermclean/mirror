@@ -20,8 +20,14 @@ image:
 #     - name: ghcr-pull-secret
 imagePullSecrets: []
 
-# DB migration Helm hook — runs "pnpm db:migrate" as a post-install/post-upgrade Job.
-# Set migration.enabled=false if you want to run migrations manually before the deploy.
+# DB migration Helm hook — runs "node scripts/migrate.mjs" as a
+# post-install/post-upgrade Job (the distroless runtime image has no pnpm; the
+# Job invokes the standalone migration runner directly).
+# When enabled=false the hook is NOT rendered, so migrations are YOUR
+# responsibility and must be run manually before/around the deploy, e.g.:
+#   DATABASE_URL="..." node scripts/migrate.mjs
+# (or `pnpm db:migrate` from a checkout with the toolchain installed).
+# See DEPLOY.md → "DB migration hook" for the documented manual path.
 migration:
   enabled: true
 
