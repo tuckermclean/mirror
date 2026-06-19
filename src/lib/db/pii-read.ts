@@ -16,47 +16,10 @@ type PiiReadParams = {
  * Records a PII field access in the audit_log table.
  *
  * @deprecated Superseded by `readPii()` — scheduled for removal in the Week 6
- * milestone (see issue #158). New callers must not use this function.
- *
- * This helper logs an access *after the fact* and cannot guarantee the read was
- * actually audited (the read can succeed while a later `recordPiiRead` is
- * forgotten or throws). Use `readPii()` instead: it runs the query, writes a
- * richer audit row (including `userId`), and returns the data only if the audit
- * write succeeds (fail-closed).
- *
- * Migration — replace:
- *
- * ```ts
- * const rows = await db
- *   .select({ transcript: interviews.transcript })
- *   .from(interviews)
- *   .where(eq(interviews.id, id));
- * await recordPiiRead({
- *   tableName: "interviews",
- *   rowId: id,
- *   fieldName: "transcript",
- *   accessorId: userId,
- *   reason,
- * });
- * ```
- *
- * with:
- *
- * ```ts
- * const rows = await readPii(
- *   () =>
- *     db
- *       .select({ transcript: interviews.transcript })
- *       .from(interviews)
- *       .where(eq(interviews.id, id)),
- *   { userId, accessorId: userId, tableName: "interviews", rowId: id,
- *     fieldName: "transcript", reason },
- * );
- * ```
- *
- * For the four canonical PII columns, prefer the purpose-built readers in this
- * module (`readInterviewTranscript`, `readImportRawPath`, `readImportParsed`,
- * `readLinkedinSnapshot`) which call `readPii()` for you.
+ * milestone (tracked in issue #170, closed by this PR). New callers must not use this
+ * function; use `readPii()` or the purpose-built column readers instead. It
+ * logs access after the fact and cannot guarantee the audit write succeeds.
+ * See `docs/MIGRATION.md` for the full migration guide.
  */
 export async function recordPiiRead(params: PiiReadParams): Promise<void> {
   await db.insert(auditLog).values({

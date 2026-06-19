@@ -27,4 +27,13 @@ describe("voiceMatchTier", () => {
       expect(voiceMatchTier(v).className.length).toBeGreaterThan(0);
     }
   });
+
+  // Exact boundary values — verify the >= comparisons include the boundary score.
+  it("score === 80 is 'strong', not 'good' (boundary: >= 80 triggers strong tier)", () => {
+    expect(voiceMatchTier(80).label).toBe("Strong voice match");
+  });
+
+  it("score === 65 is 'good', not 'developing' (boundary: >= 65 triggers good tier)", () => {
+    expect(voiceMatchTier(65).label).toBe("Good voice match");
+  });
 });
