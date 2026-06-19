@@ -57,23 +57,44 @@ jobs:
             # Already escalated or approved by a prior run → skip.
             echo "$LABELS" | grep -qE '^(needs-human|agent:ready)$' && PROCEED=false
 
-            # Empty-PR guard: a PR with no changed files vs. master means the
-            # agent opened the PR but never produced work (it exited before
-            # integrating). Converging a zero-line diff burns review rounds and
-            # spins through the no-verdict retry loop on nothing. Escalate to a
-            # human instead of running the loop. Only check when still proceeding
-            # and the PR is OPEN — a read failure returns "" (fail open).
+            # Empty-PR guard: a PR with no changed files vs. master means the agent
+            # opened the PR but never produced work (it exited before integrating).
+            # Converging a zero-line diff is pointless, so skip the loop — but DON'T
+            # terminally escalate. Previously this stamped needs-human, which is a
+            # one-way trap: when the same branch later gained real work (a re-dispatch
+            # succeeded), the terminal label stranded the now-complete PR out of the
+            # loop forever. Instead re-dispatch the closing issue so the work gets
+            # done; converge re-runs once a diff exists. Bounded via the shared
+            # <!-- converge-redispatch --> marker (same policy as decide-cap-action.sh:
+            # up to 2 re-dispatches, then needs-human). Only check while proceeding and
+            # OPEN — a read failure returns "" (fail open).
             if [ "$PROCEED" = "true" ] && [ "$PR_STATE" = "OPEN" ]; then
               CHANGED_FILES=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
                 --json files --jq '.files | length' 2>/dev/null || echo "1")
               if [ "${CHANGED_FILES:-1}" = "0" ]; then
                 PROCEED=false
-                printf '⚠️ This PR has **no changes vs. `master`** — the implementing agent opened it but never produced any work (it likely exited before integrating).\n\nConverge will not review an empty diff. A human should re-dispatch the original issue or close this PR.\n' \
-                  > /tmp/empty-pr-comment.md
-                gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/empty-pr-comment.md || true
-                gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-                  --add-label "needs-human" --remove-label "converge" 2>/dev/null || true
-                echo "PR #$PR_NUMBER is empty (0 changed files) — escalating to human, skipping converge."
+                gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "converge" 2>/dev/null || true
+                ISSUE_NUM=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' 2>/dev/null \
+                  | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+                REDISPATCH_COUNT=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json comments \
+                  --jq '[.comments[] | select(.body | contains("<!-- converge-redispatch -->"))] | length' 2>/dev/null || echo "0")
+                if [ -n "$ISSUE_NUM" ] && [ "${REDISPATCH_COUNT:-0}" -lt 2 ]; then
+                  ATTEMPT=$(( REDISPATCH_COUNT + 1 ))
+                  printf '<!-- converge-redispatch -->⚠️ This PR has **no changes vs. `master`** — the agent opened it but never produced work. Re-dispatching issue #%s to complete it (attempt %d); converge re-runs once a diff exists.\n' \
+                    "$ISSUE_NUM" "$ATTEMPT" > /tmp/empty-pr-comment.md
+                  gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/empty-pr-comment.md || true
+                  printf '@claude PR #%s for this issue is empty — a prior run exited before producing work. Implement the work on the PR branch, commit and push, then call `gh pr ready %s`.\n' \
+                    "$PR_NUMBER" "$PR_NUMBER" > /tmp/empty-redispatch.md
+                  GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh issue comment "$ISSUE_NUM" --body-file /tmp/empty-redispatch.md || true
+                  gh issue edit "$ISSUE_NUM" --add-label "agent-work" 2>/dev/null || true
+                  echo "PR #$PR_NUMBER empty — re-dispatched issue #$ISSUE_NUM (attempt $ATTEMPT), skipping converge."
+                else
+                  printf '⚠️ This PR has **no changes vs. `master`** and could not be auto-recovered (no closing issue, or the re-dispatch limit was hit). A human should re-dispatch the work or close this PR.\n' \
+                    > /tmp/empty-pr-comment.md
+                  gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/empty-pr-comment.md || true
+                  gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "needs-human" 2>/dev/null || true
+                  echo "PR #$PR_NUMBER empty — escalating to human (no issue or re-dispatch limit hit), skipping converge."
+                fi
               fi
             fi
           fi
@@ -189,6 +210,11 @@ jobs:
             scripts/converge/decide-round.sh \
             "$RUNNER_TEMP/decide-round.sh" \
             $'#!/usr/bin/env bash\necho "fix"'
+
+          stage decide-cap \
+            scripts/converge/decide-cap-action.sh \
+            "$RUNNER_TEMP/decide-cap-action.sh" \
+            $'#!/usr/bin/env bash\n[ "$2" = "0" ] && echo escalate || { [ "${1:-0}" -ge 2 ] && echo escalate || echo redispatch; }'
 
           stage strip-attribution \
             scripts/git/strip-attribution.sh \
@@ -558,22 +584,39 @@ jobs:
                 fi
                 ;;
               cap-reached)
-                # 3-round cap with remaining blockers. Not needs-human yet — re-dispatch the
-                # implementing agent with a targeted fix prompt. The reconciler tracks retry count.
+                # 3-round cap with remaining blockers. Re-dispatch the implementing
+                # agent — but BOUNDED. A re-dispatched agent that exits without a
+                # status comment lets the reconciler re-arm converge, which hits
+                # cap-reached again; with no cap this looped indefinitely (a truncated
+                # final review re-flagging an already-fixed blocker could thrash
+                # forever). Count prior converge re-dispatches via a hidden marker and
+                # let decide-cap-action.sh choose redispatch vs. a single clean escalation.
                 ISSUE_NUM=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null \
                   | grep -oE '(Closes|Fixes|Resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-                if [ -n "$ISSUE_NUM" ]; then
+                HAS_ISSUE=0; [ -n "$ISSUE_NUM" ] && HAS_ISSUE=1
+                REDISPATCH_COUNT=$(gh pr view "$PR_NUMBER" --json comments \
+                  --jq '[.comments[] | select(.body | contains("<!-- converge-redispatch -->"))] | length' \
+                  2>/dev/null || echo "0")
+                CAP_ACTION=$(bash "$RUNNER_TEMP/decide-cap-action.sh" "$REDISPATCH_COUNT" "$HAS_ISSUE")
+                if [ "$CAP_ACTION" = "redispatch" ]; then
                   REMAINING=$(jq -r '.blockers // "unknown"' .converge-verdict-r3.json 2>/dev/null || echo "unknown")
+                  ATTEMPT=$((REDISPATCH_COUNT + 1))
                   printf '@claude The 3-round convergence cap was reached on PR #%s with %s blocker(s) still open.\n\nReview the latest review comment on that PR for the specific findings, fix them, run `pnpm typecheck && pnpm lint` to confirm they pass, then call `gh pr ready %s`.\n' \
                     "$PR_NUMBER" "$REMAINING" "$PR_NUMBER" > /tmp/redispatch-comment.md
                   # Use bot token so the @claude comment triggers dispatch.yml
                   # (the Actions token cannot fire issue_comment workflow events).
                   GH_TOKEN="${{ secrets.GH_BOT_TOKEN || github.token }}" gh issue comment "$ISSUE_NUM" --body-file /tmp/redispatch-comment.md || true
                   gh issue edit "$ISSUE_NUM" --add-label "agent-work" 2>/dev/null || true
-                  SUMMARY="Cap reached — re-dispatched implementing agent to fix $REMAINING remaining blocker(s). Reviewed $ROUNDS round(s)."
+                  # Hidden marker on the PR — the next cap-reached run counts these to
+                  # enforce the re-dispatch bound (kept in the final comment below).
+                  SUMMARY="<!-- converge-redispatch -->Cap reached — re-dispatched implementing agent (attempt ${ATTEMPT}) to fix $REMAINING remaining blocker(s). Reviewed $ROUNDS round(s)."
                 else
-                  gh pr edit "$PR_NUMBER" --add-label "needs-human" || true
-                  SUMMARY="Escalated to human — 3-round cap reached with blockers open; could not find original issue to re-dispatch. Reviewed $ROUNDS round(s)."
+                  gh pr edit "$PR_NUMBER" --add-label "needs-human" --remove-label "converge" 2>/dev/null || true
+                  if [ "$HAS_ISSUE" = "0" ]; then
+                    SUMMARY="Escalated to human — 3-round cap reached with blockers open; no closing issue to re-dispatch. Reviewed $ROUNDS round(s)."
+                  else
+                    SUMMARY="Escalated to human — 3-round cap reached and the re-dispatch limit was hit (the loop could not converge automatically). Reviewed $ROUNDS round(s)."
+                  fi
                 fi
                 ;;
               *)
