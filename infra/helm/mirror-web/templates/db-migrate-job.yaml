@@ -6,7 +6,12 @@ metadata:
   labels:
     {{- include "mirror-web.labels" . | nindent 4 }}
   annotations:
-    # Run after every install and upgrade, before any pods start serving traffic.
+    # Run on every install and upgrade. NOTE: post-* hooks run AFTER Helm applies
+    # the Deployment, so new app pods may begin rolling before this Job completes —
+    # Helm does not gate the rollout on a post-upgrade hook. Migrations here must be
+    # backward-compatible with the previous app version for the brief overlap. (A
+    # strict pre-traffic gate would require a pre-upgrade hook with the image already
+    # present.)
     "helm.sh/hook": post-install,post-upgrade
     # Lower weight runs first; -5 ensures this runs before any other post hooks.
     "helm.sh/hook-weight": "-5"

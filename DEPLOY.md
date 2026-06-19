@@ -10,7 +10,7 @@ Four first-class deployment paths. All four reach a working app from seed data.
 | [Vercel + Neon + Railway](#path-a-vercel--neon--railway-worker) | Solo founder, fastest to ship | `vercel deploy` + Railway from `Dockerfile.worker` |
 | [docker-compose on VPS](#path-b-docker-compose-on-a-vps) | Self-host, single-tenant | `docker compose up -d` |
 | [Helm on Kubernetes](#path-c-helm-on-kubernetes) | Multi-region, HA, enterprise | `helm install mirror oci://ghcr.io/.../mirror-web` |
-| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | Terraform + k3s + Helm |
+| [Free-tier: OCI + k3s](#path-d-free-tier-oracle-cloud--k3s) | Portfolio piece, $0/month pre-launch | OCI Console + k3s + Helm |
 
 ---
 
@@ -33,7 +33,7 @@ cp .env.example .env.local
 ```
 
 Recommended secret management:
-- **k8s**: ExternalSecrets + AWS/GCP Secrets Manager (documented in `infra/terraform/`). Or Sealed Secrets for a simpler path.
+- **k8s**: ExternalSecrets + AWS/GCP Secrets Manager (operator install + an `ExternalSecret` per managed secret). Or Sealed Secrets for a simpler path.
 - **VPS**: `.env.local` with restricted file permissions (`chmod 600`).
 - **Vercel**: Environment variables in project settings.
 
