@@ -14,8 +14,22 @@ base.describe("Auth flow (Clerk)", () => {
   });
 
   base.test("unauthenticated visit to /dashboard redirects to /sign-in", async ({ page }) => {
+    // Clerk's dev instance answers the first navigation to a protected route with a
+    // browser "handshake" (clerk.accounts.dev/v1/client/handshake?__clerk_hs_reason=
+    // dev-browser-missing) before the app's middleware redirect resolves. Register the
+    // FAPI testing-token interceptor — the same mechanism the authed fixture uses — so
+    // the handshake completes deterministically; otherwise the assertion races it and
+    // can catch the intermediate clerk.accounts.dev URL. No sign-in happens here, so
+    // /dashboard still correctly redirects to /sign-in.
+    const clerkKey = process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
+    if (clerkKey && clerkKey !== "pk_test_placeholder") {
+      const { setupClerkTestingToken } = await import("@clerk/testing/playwright");
+      await setupClerkTestingToken({ page });
+    }
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/sign-in/);
+    // Generous timeout: the handshake round-trip to Clerk's FAPI plus the middleware
+    // redirect can exceed the default 5s expect timeout under CI load.
+    await expect(page).toHaveURL(/sign-in/, { timeout: 15_000 });
   });
 
 });
