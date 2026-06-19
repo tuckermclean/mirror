@@ -34,7 +34,9 @@ export const getInlineAnchor: PlasmoGetInlineAnchor = () => document.body;
 
 /** Read the current page's profile text, or null if not a profile page. */
 function readCurrentProfileText(): string | null {
-  if (typeof document === "undefined") return null;
+  // No `typeof document` guard: Plasmo content scripts only execute in a live
+  // page DOM (and `getInlineAnchor` above already dereferences `document.body`),
+  // and the test runner uses happy-dom, so `document` is always defined here.
   const profile = readProfile(document);
   const text = profileToText(profile);
   return text || null;
@@ -85,7 +87,14 @@ export default function LinkedInProfileOverlay(): ReactElement | null {
     return () => {
       // Cancel any in-flight re-read so callbacks don't fire on an unmounted component.
       clearTimeout(timerId.current);
-      // Restore originals on unmount (guards against double-injection).
+      // Restore whatever pushState/replaceState we captured at mount. This undoes
+      // *this* instance's patch on unmount so listeners don't leak across the
+      // mount/unmount lifecycle. NOTE: it does NOT make concurrent double-injection
+      // safe — if a second instance mounts before this one unmounts, it captures
+      // *this* instance's already-patched functions as its "originals", so the
+      // restores can leave a stale patched reference in place. The manifest scopes
+      // the script to one frame on `/in/*`, so in practice only one instance is
+      // ever live; this restore simply keeps that single lifecycle clean.
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
       window.removeEventListener("popstate", handleUrlChange);

@@ -25,16 +25,28 @@ export type VoiceMatchServiceError = "missing_voice_embedding";
  * vector and inflate cosine similarity. A neutral card keeps the candidate
  * embedding a faithful representation of the profile text alone.
  *
- * NOTE: the embeddings module exposes no plain `embedText(text)` helper, which
- * would be the cleaner primitive here — see the summary's "missing exports".
+ * We embed via `embedVoiceProfile` (the only embedding entry point that accepts
+ * raw text) rather than a bare text embedder; the neutral card contributes no
+ * signal, so the result is effectively a plain text embedding.
+ *
+ * Deep-frozen so this shared module-level singleton can never be mutated by a
+ * caller (e.g. a future `embedVoiceProfile` that sorts/normalizes its inputs).
  */
-const NEUTRAL_VOICE_CARD: VoiceCard = {
-  vocabulary: [],
-  hedgesAvoided: [],
-  sentenceLengthDistribution: { short: 34, medium: 33, long: 33 },
-  emotionalRegister: "",
-  jargonHated: [],
-};
+const NEUTRAL_VOICE_CARD: VoiceCard = (() => {
+  const card: VoiceCard = {
+    vocabulary: [],
+    hedgesAvoided: [],
+    sentenceLengthDistribution: { short: 34, medium: 33, long: 33 },
+    emotionalRegister: "",
+    jargonHated: [],
+  };
+  // Deep-freeze: freeze nested arrays/objects too, not just the top level.
+  Object.freeze(card.vocabulary);
+  Object.freeze(card.hedgesAvoided);
+  Object.freeze(card.sentenceLengthDistribution);
+  Object.freeze(card.jargonHated);
+  return Object.freeze(card);
+})();
 
 /** The user's persisted voice fingerprint: embedding + derived voice card. */
 type VoiceProfile = { embedding: number[]; voiceCard: VoiceCard };

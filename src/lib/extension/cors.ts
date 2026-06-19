@@ -24,11 +24,29 @@
 
 import { logger } from "@/lib/logger";
 
+// A Chrome extension ID is 32 chars from the set `a`–`p`: the manifest key's
+// SHA-256 digest rendered in base-16, but with each nibble (0–f) mapped to the
+// letters a–p instead of 0–9a–f. So the origin is always
+// `chrome-extension://` + exactly 32 chars in `[a-p]`.
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 
-/** Parse the comma-separated allow-list from the environment. */
+/**
+ * Memoized parse of the comma-separated allow-list. Parsing (string splitting,
+ * regex validation, and any `logger.warn` for invalid entries) happens once per
+ * distinct `EXTENSION_ALLOWED_ORIGINS` value rather than on every request.
+ *
+ * Keyed on the raw env-var string so a config change (or a test mutating the
+ * env) transparently re-parses, preserving the previous request-time behavior
+ * and return value exactly.
+ */
+let originsCache: { raw: string; value: string[] } | null = null;
+
+/** Parse the comma-separated allow-list from the environment (memoized). */
 function configuredOrigins(): string[] {
-  return (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
+  const raw = process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "";
+  if (originsCache && originsCache.raw === raw) return originsCache.value;
+
+  const value = raw
     .split(",")
     .map((o) => o.trim())
     .filter((o) => o.length > 0)
@@ -39,7 +57,17 @@ function configuredOrigins(): string[] {
       });
       return false;
     });
+
+  originsCache = { raw, value };
+  return value;
 }
+
+/**
+ * Whether we've already warned about an empty allow-list in production. The
+ * fail-closed denial is silent by default; this one-shot warning surfaces it
+ * once for operability without spamming the hot request path.
+ */
+let warnedEmptyProdAllowList = false;
 
 /**
  * Decide whether a request `Origin` is an allowed extension origin.
@@ -54,7 +82,17 @@ export function resolveAllowedOrigin(origin: string | null): string | null {
 
   // No explicit allow-list configured. Accept any well-formed extension origin
   // only outside production; deny everything in production (fail-closed).
-  if (process.env["NODE_ENV"] === "production") return null;
+  if (process.env["NODE_ENV"] === "production") {
+    if (!warnedEmptyProdAllowList) {
+      warnedEmptyProdAllowList = true;
+      logger.warn(
+        "cors: EXTENSION_ALLOWED_ORIGINS is empty in production — denying all " +
+          "cross-origin extension callers (fail-closed). Set the allow-list to " +
+          "enable the Chrome extension."
+      );
+    }
+    return null;
+  }
   return CHROME_EXTENSION_ORIGIN.test(origin) ? origin : null;
 }
 

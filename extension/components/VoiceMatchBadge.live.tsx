@@ -23,6 +23,14 @@ export function VoiceMatchBadge({ profileText }: VoiceMatchBadgeProps): React.Re
   const [state, setState] = useState<VoiceMatchState>({ status: "loading" });
 
   useEffect(() => {
+    // We guard the state update with a `cancelled` flag rather than aborting the
+    // request with an AbortController. The in-flight fetch is intentionally NOT
+    // aborted: this is a single, idempotent, read-only GET-style scoring call
+    // for a non-critical decorative badge. Letting a stray request complete on
+    // unmount (e.g. a fast SPA navigation between profiles) is harmless — the
+    // response is simply discarded here — and the slightly warmed server-side
+    // cache can even benefit the next profile. The flag suppresses the only
+    // observable side effect (setState on an unmounted component).
     let cancelled = false;
     async function load(): Promise<void> {
       const result = await getVoiceMatch(profileText);

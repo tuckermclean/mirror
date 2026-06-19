@@ -132,6 +132,35 @@ describe("body validation", () => {
     await POST(postRequest({ profileText: "a".repeat(50_001) }));
     expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
   });
+
+  it("rejects 50k of whitespace as empty (trimmed validation), not too-large", async () => {
+    const res = await POST(postRequest({ profileText: " ".repeat(50_000) }));
+    // After trimming this is empty, so it must be a 400 (required), and the
+    // scorer must never receive pure whitespace.
+    expect(res.status).toBe(400);
+    expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
+  });
+
+  it("trims surrounding whitespace before forwarding to the scorer", async () => {
+    await POST(postRequest({ profileText: "   hello world   \n" }));
+    expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      "hello world"
+    );
+  });
+
+  it("measures the 50k limit against the trimmed text", async () => {
+    // 50k real chars wrapped in whitespace must still be accepted (trimmed
+    // length is exactly 50,000, not over).
+    const res = await POST(
+      postRequest({ profileText: `  ${"a".repeat(50_000)}  ` })
+    );
+    expect(res.status).toBe(200);
+    expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      "a".repeat(50_000)
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
