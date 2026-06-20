@@ -132,6 +132,25 @@ describe("body validation", () => {
     await POST(postRequest({ profileText: "a".repeat(50_001) }));
     expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
   });
+
+  it("returns 400 for 50k whitespace-only text (empty after trim)", async () => {
+    const res = await POST(postRequest({ profileText: " ".repeat(50_000) }));
+    expect(res.status).toBe(400);
+  });
+
+  it("does not call the scorer for whitespace-only padded text", async () => {
+    await POST(postRequest({ profileText: " ".repeat(50_000) }));
+    expect(mockComputeVoiceMatch).not.toHaveBeenCalled();
+  });
+
+  it("enforces the 50k length limit against the trimmed text", async () => {
+    // 49,999 real chars + leading/trailing space: trimmed length is within the
+    // limit, so this is accepted even though the raw length exceeds 50k.
+    const res = await POST(
+      postRequest({ profileText: " " + "a".repeat(49_999) + " " })
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -183,6 +202,14 @@ describe("happy path", () => {
 
   it("forwards the user id and profile text to the scorer", async () => {
     await POST(postRequest(validBody));
+    expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
+      "internal-user-uuid",
+      validBody.profileText
+    );
+  });
+
+  it("forwards the trimmed profile text to the scorer", async () => {
+    await POST(postRequest({ profileText: `  ${validBody.profileText}\n` }));
     expect(mockComputeVoiceMatch).toHaveBeenCalledWith(
       "internal-user-uuid",
       validBody.profileText

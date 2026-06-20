@@ -34,7 +34,6 @@ export const getInlineAnchor: PlasmoGetInlineAnchor = () => document.body;
 
 /** Read the current page's profile text, or null if not a profile page. */
 function readCurrentProfileText(): string | null {
-  if (typeof document === "undefined") return null;
   const profile = readProfile(document);
   const text = profileToText(profile);
   return text || null;
@@ -85,7 +84,11 @@ export default function LinkedInProfileOverlay(): ReactElement | null {
     return () => {
       // Cancel any in-flight re-read so callbacks don't fire on an unmounted component.
       clearTimeout(timerId.current);
-      // Restore originals on unmount (guards against double-injection).
+      // Restore the originals captured at mount so sequential mount/unmount
+      // cycles don't leave our patch (or stack patches) on history.pushState /
+      // replaceState. This does NOT defend against two instances patching
+      // concurrently — true simultaneous double-injection would have the second
+      // instance capture the first's patched function as its "original".
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
       window.removeEventListener("popstate", handleUrlChange);

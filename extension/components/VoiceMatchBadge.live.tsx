@@ -23,6 +23,13 @@ export function VoiceMatchBadge({ profileText }: VoiceMatchBadgeProps): React.Re
   const [state, setState] = useState<VoiceMatchState>({ status: "loading" });
 
   useEffect(() => {
+    // Cancellation uses a plain boolean flag rather than an AbortController:
+    // on unmount we suppress the setState (avoiding a "state update on an
+    // unmounted component" warning) but intentionally let the in-flight fetch
+    // run to completion. The Voice Match badge is a non-critical, read-only
+    // enrichment, so the extra plumbing of threading an AbortSignal through the
+    // typed API client isn't worth it — the resolved response is simply
+    // discarded when `cancelled` is true.
     let cancelled = false;
     async function load(): Promise<void> {
       const result = await getVoiceMatch(profileText);

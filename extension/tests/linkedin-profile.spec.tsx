@@ -55,8 +55,9 @@ describe("LinkedInProfileOverlay", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    // Restore history methods between tests in case a test left them patched.
-    // (The component cleanup should already do this, but be safe.)
+    // No explicit unmount needed: React Testing Library auto-cleanup runs after
+    // each test, unmounting any rendered component — which triggers the
+    // component's own effect cleanup that restores the patched history methods.
   });
 
   // ---------------------------------------------------------------------------
@@ -85,6 +86,35 @@ describe("LinkedInProfileOverlay", () => {
         value: { ...window.location, pathname: "/in/bob" },
       });
       history.pushState({}, "", "/in/bob");
+    });
+
+    // Timer has not fired yet — readProfile call count should be unchanged.
+    expect(mockReadProfile.mock.calls.length).toBe(callsBefore);
+
+    // Advance fake timers past the 500ms delay.
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+    });
+
+    // readProfile should have been called at least once more.
+    expect(mockReadProfile.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  // ---------------------------------------------------------------------------
+  it("re-reads the profile after replaceState navigates to a /in/ path", async () => {
+    mockProfileToText.mockReturnValue("Dave Profile Text");
+
+    render(<LinkedInProfileOverlay />);
+    const callsBefore = mockReadProfile.mock.calls.length;
+
+    // Simulate an in-place SPA navigation via replaceState (LinkedIn uses both
+    // pushState and replaceState; the component patches both).
+    await act(async () => {
+      Object.defineProperty(window, "location", {
+        writable: true,
+        value: { ...window.location, pathname: "/in/dave" },
+      });
+      history.replaceState({}, "", "/in/dave");
     });
 
     // Timer has not fired yet — readProfile call count should be unchanged.

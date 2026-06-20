@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** JSON response carrying the request-scoped CORS headers (locked to the ext). */
-function json(
+function jsonResponse(
   body: unknown,
   status: number,
   origin: string | null
@@ -17,12 +17,18 @@ function json(
   return NextResponse.json(body, { status, headers: corsHeaders(origin) });
 }
 
-/** Extract a non-empty `profileText` string, or null on any invalid body. */
+/**
+ * Extract a non-empty `profileText` string, or null on any invalid body. The
+ * returned string is trimmed, so the empty check and every downstream consumer
+ * (length check, scorer) operate on the same canonical value.
+ */
 function parseProfileText(raw: unknown): string | null {
   if (typeof raw !== "object" || raw === null) return null;
   const text = (raw as Record<string, unknown>)["profileText"];
-  if (typeof text !== "string" || text.trim().length === 0) return null;
-  return text;
+  if (typeof text !== "string") return null;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed;
 }
 
 /**
@@ -32,26 +38,30 @@ function parseProfileText(raw: unknown): string | null {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId: clerkUserId } = await auth();
   const origin = request.headers.get("origin");
-  if (!clerkUserId) return json({ error: "unauthorized" }, 401, origin);
+  if (!clerkUserId) return jsonResponse({ error: "unauthorized" }, 401, origin);
 
+  // `parseProfileText` returns the trimmed text, so the empty and length checks
+  // below both apply to the same canonical value passed to the scorer.
   let profileText: string | null;
   try {
     profileText = parseProfileText(await request.json());
   } catch {
-    return json({ error: "invalid_json" }, 400, origin);
+    return jsonResponse({ error: "invalid_json" }, 400, origin);
   }
-  if (!profileText) return json({ error: "profileText is required" }, 400, origin);
+  if (!profileText)
+    return jsonResponse({ error: "profileText is required" }, 400, origin);
   if (profileText.length > 50_000)
-    return json({ error: "profileText too large" }, 422, origin);
+    return jsonResponse({ error: "profileText too large" }, 422, origin);
 
   const internalUserId = await resolveActiveUserId(clerkUserId);
-  if (!internalUserId) return json({ error: "user_not_found" }, 404, origin);
+  if (!internalUserId)
+    return jsonResponse({ error: "user_not_found" }, 404, origin);
 
   const result = await computeVoiceMatch(internalUserId, profileText);
   if (!result.ok) {
-    return json({ error: "missing_voice_embedding" }, 409, origin);
+    return jsonResponse({ error: "missing_voice_embedding" }, 409, origin);
   }
-  return json(result.value, 200, origin);
+  return jsonResponse(result.value, 200, origin);
 }
 
 /** CORS preflight — answered only for allowed extension origins (no `*`). */
