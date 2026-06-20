@@ -51,12 +51,22 @@ gh pr comment $PR_NUMBER --body "🔧 Fixer plan: delegating to [specialist-A (b
 
 ---
 
-## Step 3 — Spawn fixer specialists in parallel
+## Step 3 — Spawn fixer specialists (synchronously)
+
+> ⚠️ **Single-shot runtime.** You run inside GitHub Actions
+> (`anthropics/claude-code-action`), not an interactive Claude Code session.
+> **There is no auto-resume.** If you spawn fixers in the background and end your
+> turn to "wait", the process exits before you integrate — the fixes may never
+> land. Spawn **synchronously** and stay alive through integration + the gates.
+
+Spawn each fixer as a **blocking** Agent call (`run_in_background: false`), **one
+at a time** — each returns when its work is committed and pushed, so you integrate
+as you go without yielding your turn:
 
 ```
 Agent(
   subagent_type: "general-purpose",
-  run_in_background: true,
+  run_in_background: false,
   prompt: """
     Act as the agent defined in .agents/<AGENT_FILE>.md. Read that file first.
 
@@ -102,9 +112,10 @@ Agent(
 
 ---
 
-## Step 4 — Wait and integrate
+## Step 4 — Integrate
 
-Wait for all specialists to complete. For each:
+Because the spawns are blocking, each specialist has already committed and pushed
+when its Agent call returns. For each:
 - **Mechanical conflicts** (import order, adjacent non-overlapping edits): resolve yourself
   and commit.
 - **Semantic conflicts** (type mismatch at a domain boundary): re-spawn the owning

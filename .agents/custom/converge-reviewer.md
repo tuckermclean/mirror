@@ -48,12 +48,21 @@ gh pr comment $PR_NUMBER --body "🔄 Round N of 3 — specialist review in prog
 - Frontend domain changed → `engineering-frontend-developer.md`
 - AI/prompts domain changed → `engineering-ai-engineer.md`
 
-Spawn all in parallel:
+> ⚠️ **Single-shot runtime.** You run inside GitHub Actions
+> (`anthropics/claude-code-action`), not an interactive Claude Code session.
+> **There is no auto-resume.** If you spawn specialists in the background and end
+> your turn to "wait" for them, the process exits — you never aggregate or write
+> the verdict, and the loop has to fall back to the fixer. Spawn **synchronously**
+> and stay alive through Step 5.
+
+Spawn each specialist as a **blocking** Agent call (`run_in_background: false`),
+**one at a time** — the call returns that specialist's JSON within your turn, so
+you accumulate all findings without yielding:
 
 ```
 Agent(
   subagent_type: "general-purpose",
-  run_in_background: true,
+  run_in_background: false,
   prompt: """
     Act as the agent defined in .agents/<AGENT_FILE>.md. Read that file first.
 
@@ -101,7 +110,8 @@ Agent(
 
 ## Step 3 — Aggregate findings
 
-Collect JSON from each specialist. Merge:
+Because the spawns are blocking, every specialist's JSON is already in hand when
+its Agent call returns. Merge:
 - `blockers` count = sum of all specialists' blocker counts
 - `suggestions` count = sum of all specialists' suggestion counts
 - `nits` = deduplicated union of all specialists' nit strings
