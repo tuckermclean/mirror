@@ -24,11 +24,34 @@
 
 import { logger } from "@/lib/logger";
 
+// A Chrome extension ID is 32 chars drawn from the alphabet `a`–`p`: the Web
+// Store derives it by mapping the extension's public-key hash from base-16
+// (0–f) onto the letters a–p, so `[a-p]{32}` matches exactly that ID character
+// set. (Firefox/Edge use different ID formats; this surface is Chrome-only.)
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 
-/** Parse the comma-separated allow-list from the environment. */
+/**
+ * Memoized parse of the allow-list. `configuredOrigins()` is consulted on every
+ * request, but the parse only depends on `EXTENSION_ALLOWED_ORIGINS` (and, for
+ * the fail-closed warning, `NODE_ENV`), which are fixed for the process lifetime
+ * in any real deployment. We cache the parsed result and the env values it was
+ * derived from; if either env value changes (e.g. between tests) the cache is
+ * recomputed so behavior stays identical to re-parsing on every call. This keeps
+ * the string splitting and the `logger.warn` calls off the per-request hot path.
+ */
+let cache:
+  | { rawOrigins: string | undefined; nodeEnv: string | undefined; origins: string[] }
+  | undefined;
+
+/** Parse the comma-separated allow-list from the environment (memoized). */
 function configuredOrigins(): string[] {
-  return (process.env["EXTENSION_ALLOWED_ORIGINS"] ?? "")
+  const rawOrigins = process.env["EXTENSION_ALLOWED_ORIGINS"];
+  const nodeEnv = process.env["NODE_ENV"];
+  if (cache && cache.rawOrigins === rawOrigins && cache.nodeEnv === nodeEnv) {
+    return cache.origins;
+  }
+
+  const origins = (rawOrigins ?? "")
     .split(",")
     .map((o) => o.trim())
     .filter((o) => o.length > 0)
@@ -39,6 +62,36 @@ function configuredOrigins(): string[] {
       });
       return false;
     });
+
+  // Operability: in production an empty allow-list silently denies *all*
+  // cross-origin extension callers (fail-closed). Surface that once so a
+  // misconfigured deploy is diagnosable from the logs rather than only via a
+  // mysterious CORS failure in the browser.
+  if (origins.length === 0 && nodeEnv === "production") {
+    logger.warn(
+      "cors: EXTENSION_ALLOWED_ORIGINS is empty in production — all " +
+        "cross-origin extension requests will be denied (fail-closed)"
+    );
+  }
+
+  // Note: this warning fires once per cache miss. In test environments where env
+  // values oscillate between test cases the log can appear more than once per
+  // process; that is expected behavior, not a bug. Use clearConfiguredOriginsCache()
+  // in afterEach to avoid spurious log output in test suites.
+
+  cache = { rawOrigins, nodeEnv, origins };
+  return origins;
+}
+
+/**
+ * Reset the memoized allow-list cache.
+ *
+ * Intended for test isolation only — call in afterEach (or beforeEach) to
+ * ensure that env changes made by one test do not bleed into the next test
+ * through a stale cached result.
+ */
+export function clearConfiguredOriginsCache(): void {
+  cache = undefined;
 }
 
 /**

@@ -27,7 +27,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/component: db-migrate
-        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
     spec:
       # Must not restart the pod inline — use Job-level backoffLimit instead.
       restartPolicy: OnFailure
@@ -60,6 +60,13 @@ spec:
             capabilities:
               drop:
                 - ALL
+          # Override the image's "server.js" CMD to run the standalone migration
+          # runner instead. The runtime image is distroless (gcr.io/distroless/
+          # nodejs20) which ships `node` as PATH-resolvable but has NO pnpm/npm —
+          # verified against Dockerfile. So we invoke `node` directly (not `pnpm
+          # db:migrate`). WORKDIR is /app, so scripts/migrate.mjs resolves
+          # relative to it; the script itself resolves its migrations folder from
+          # its own location to stay robust against WORKDIR changes.
           command: ["node", "scripts/migrate.mjs"]
           envFrom:
             - secretRef:
@@ -83,5 +90,9 @@ spec:
               mountPath: /tmp
       volumes:
         - name: tmp
-          emptyDir: {}
+          # Bounded scratch space: the root FS is read-only, so /tmp is the only
+          # writable path. Cap it so a runaway migration cannot exhaust node
+          # ephemeral storage.
+          emptyDir:
+            sizeLimit: 64Mi
 {{- end }}
