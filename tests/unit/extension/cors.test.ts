@@ -38,11 +38,9 @@ afterEach(() => {
 
 // A well-formed extension origin (32 lowercase a-p chars after the scheme).
 const EXT_A = "chrome-extension://aaaabbbbccccddddeeeeffffgggghhhh";
-const EXT_B = "chrome-extension://ppppooooaaaabbbbccccddddeeeefffff".slice(
-  0,
-  // Just ensuring it is the correct length (32 chars after the scheme segment).
-  "chrome-extension://".length + 32
-);
+// A second, distinct well-formed extension origin. Written as a plain 32-char
+// a-p literal (no slice arithmetic) so the value is obvious at a glance.
+const EXT_B = "chrome-extension://ppppooooaaaabbbbccccddddeeeeffff";
 
 describe("resolveAllowedOrigin — EXTENSION_ALLOWED_ORIGINS allow-list branch", () => {
   beforeEach(() => {
@@ -143,6 +141,42 @@ describe("resolveAllowedOrigin — allowlist validation rejects non-extension co
     const shortExtOrigin = "chrome-extension://tooshort";
     setEnv({ EXTENSION_ALLOWED_ORIGINS: shortExtOrigin });
     expect(resolveAllowedOrigin(shortExtOrigin)).toBeNull();
+  });
+});
+
+describe("configuredOrigins memoization — stale-cache invalidation", () => {
+  // Regression test for the module-level allow-list cache in cors.ts. This makes
+  // the invalidation contract explicit rather than relying only on the implicit
+  // clearConfiguredOriginsCache() call in afterEach.
+
+  it("re-reads the allow-list after the env changes AND the cache is cleared", () => {
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_A });
+    // Prime the cache with the first allow-list.
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+    expect(resolveAllowedOrigin(EXT_B)).toBeNull();
+
+    // Swap the allow-list to a different origin and explicitly clear the cache.
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_B });
+    clearConfiguredOriginsCache();
+
+    // The new value must take effect after clearing.
+    expect(resolveAllowedOrigin(EXT_B)).toBe(EXT_B);
+    expect(resolveAllowedOrigin(EXT_A)).toBeNull();
+  });
+
+  it("auto-invalidates when the env value itself changes (cache keyed on env)", () => {
+    // The cache is keyed on EXTENSION_ALLOWED_ORIGINS (and NODE_ENV), so a change
+    // to the env value is a cache miss and re-parses even without an explicit
+    // clear. This documents that behavior so the cache cannot silently serve a
+    // stale allow-list across an env change within a single process.
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_A });
+    expect(resolveAllowedOrigin(EXT_A)).toBe(EXT_A);
+
+    setEnv({ EXTENSION_ALLOWED_ORIGINS: EXT_B });
+    // No clearConfiguredOriginsCache() call here — the env-keyed cache miss alone
+    // must surface the new allow-list.
+    expect(resolveAllowedOrigin(EXT_B)).toBe(EXT_B);
+    expect(resolveAllowedOrigin(EXT_A)).toBeNull();
   });
 });
 
