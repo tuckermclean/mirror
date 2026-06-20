@@ -111,6 +111,7 @@ describe("LinkedInProfileOverlay", () => {
     // pushState and replaceState; the component patches both).
     await act(async () => {
       Object.defineProperty(window, "location", {
+        configurable: true,
         writable: true,
         value: { ...window.location, pathname: "/in/dave" },
       });
