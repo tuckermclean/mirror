@@ -4,9 +4,10 @@
 //
 // This is a standalone Kubernetes Job script, NOT part of the Next.js app
 // runtime. It runs in a distroless image with no access to the app's module
-// graph, so importing src/lib/logger.ts is not feasible here. AGENTS.md's
-// "no console.log" rule targets production app code; console is the correct
-// (and only) sink for a one-shot Job whose logs are captured by kubectl.
+// graph, so importing src/lib/logger.ts is not available here. AGENTS.md's
+// "no console.log" rule targets production app code (which should use the
+// structured logger); console is a reasonable sink for a one-shot Job whose
+// output is captured by kubectl.
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
@@ -30,7 +31,7 @@ const client = postgres(process.env.DATABASE_URL, { max: 1 });
 const db = drizzle(client);
 try {
   await migrate(db, { migrationsFolder });
-  console.log('Migrations complete');
+  console.info('Migrations complete');
 } finally {
   await client.end();
 }

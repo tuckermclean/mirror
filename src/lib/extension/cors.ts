@@ -38,6 +38,10 @@ const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
  * derived from; if either env value changes (e.g. between tests) the cache is
  * recomputed so behavior stays identical to re-parsing on every call. This keeps
  * the string splitting and the `logger.warn` calls off the per-request hot path.
+ *
+ * Scope: this cache is process-local — it lives in module state and is therefore
+ * held independently per Node.js worker process, recomputed only on a cache miss
+ * within that process. It is not shared across processes and never persisted.
  */
 let cache:
   | { rawOrigins: string | undefined; nodeEnv: string | undefined; origins: string[] }
@@ -85,6 +89,14 @@ function configuredOrigins(): string[] {
 
 /**
  * Reset the memoized allow-list cache.
+ *
+ * TEST-ONLY SEAM. This is exported solely so test files can reset module state
+ * between cases; it is imported by `tests/unit/extension/cors.test.ts` and is
+ * not part of the request path (no production code calls it). Calling it is a
+ * harmless, idempotent reset — it only clears the memo, so the next call to
+ * `configuredOrigins()` simply re-parses the env. There is deliberately no
+ * NODE_ENV guard: it must stay a no-op-safe reset that can never throw if reached
+ * in any environment.
  *
  * Intended for test isolation only — call in afterEach (or beforeEach) to
  * ensure that env changes made by one test do not bleed into the next test

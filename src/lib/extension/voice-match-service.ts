@@ -25,16 +25,21 @@ export type VoiceMatchServiceError = "missing_voice_embedding";
  * vector and inflate cosine similarity. A neutral card keeps the candidate
  * embedding a faithful representation of the profile text alone.
  *
- * Frozen because it is shared module-level state read by every request; freezing
- * prevents a downstream consumer from accidentally mutating the shared default.
+ * Declared `as const` because it is shared module-level state read by every
+ * request: the const assertion makes the whole structure (including the nested
+ * arrays) deeply `readonly` at compile time, so a downstream consumer cannot
+ * accidentally mutate the shared default. This is compile-time-only and costs
+ * nothing at runtime, unlike `Object.freeze`, whose protection is shallow (it
+ * would leave the nested arrays mutable). `satisfies VoiceCard` keeps the shape
+ * checked against the schema type without widening it away from the literal.
  */
-const NEUTRAL_VOICE_CARD: VoiceCard = Object.freeze({
+const NEUTRAL_VOICE_CARD = {
   vocabulary: [],
   hedgesAvoided: [],
   sentenceLengthDistribution: { short: 34, medium: 33, long: 33 },
   emotionalRegister: "",
   jargonHated: [],
-});
+} as const satisfies VoiceCard;
 
 /** The user's persisted voice fingerprint: embedding + derived voice card. */
 type VoiceProfile = { embedding: number[]; voiceCard: VoiceCard };
