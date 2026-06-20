@@ -30,6 +30,7 @@ export const config: PlasmoCSConfig = {
 
 // Render the badge as an overlay anchored to the document body. Plasmo injects
 // it into a Shadow DOM so LinkedIn's styles don't leak into the badge.
+// Content scripts always run in a browser context — document is always defined.
 export const getInlineAnchor: PlasmoGetInlineAnchor = () => document.body;
 
 /** Read the current page's profile text, or null if not a profile page. */
