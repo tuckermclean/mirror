@@ -74,8 +74,24 @@ function configuredOrigins(): string[] {
     );
   }
 
+  // Note: this warning fires once per cache miss. In test environments where env
+  // values oscillate between test cases the log can appear more than once per
+  // process; that is expected behavior, not a bug. Use clearConfiguredOriginsCache()
+  // in afterEach to avoid spurious log output in test suites.
+
   cache = { rawOrigins, nodeEnv, origins };
   return origins;
+}
+
+/**
+ * Reset the memoized allow-list cache.
+ *
+ * Intended for test isolation only — call in afterEach (or beforeEach) to
+ * ensure that env changes made by one test do not bleed into the next test
+ * through a stale cached result.
+ */
+export function clearConfiguredOriginsCache(): void {
+  cache = undefined;
 }
 
 /**

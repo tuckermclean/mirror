@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  clearConfiguredOriginsCache,
   corsHeaders,
   resolveAllowedOrigin,
 } from "@/lib/extension/cors";
@@ -30,6 +31,9 @@ afterEach(() => {
   for (const key of Object.keys(process.env)) {
     if (!(key in originalEnv)) delete process.env[key];
   }
+  // Clear the cors module-level cache so env mutations in one test cannot
+  // affect the next test through a stale memoized result.
+  clearConfiguredOriginsCache();
 });
 
 // A well-formed extension origin (32 lowercase a-p chars after the scheme).
