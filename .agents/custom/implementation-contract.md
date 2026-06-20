@@ -21,6 +21,10 @@ Do this in order:
    gh pr create --draft --base master --head <branch> --title "<title>" \
      --body "Closes #<ISSUE NUMBER>\n\n🚧 In progress."
    ```
+   `<ISSUE NUMBER>` is the **issue you were dispatched on**. The PR body MUST keep
+   `Closes #<ISSUE NUMBER>` — if that issue references *other* issues, also `Closes`
+   them, but never drop the dispatched one. It is the only link the reconciler uses
+   to know this work has a PR; omitting it gets the issue re-dispatched forever.
 
 3. **Commit and `git push` after EACH meaningful step** — never batch all work into one final
    commit. Incremental pushes mean a turn/timeout cutoff still leaves your progress visible.

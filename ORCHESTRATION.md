@@ -231,7 +231,7 @@ Every new orchestration decision should be extracted to a script matching this p
 
 | Script | Purpose | Inputs | Output tokens |
 |---|---|---|---|
-| `scripts/converge/resolve-blockers.sh` | Resolve effective blocker count from verdict JSON or comment | `<verdict.json> <pr-number>` (env: `CONVERGE_COMMENT_BODY`) | Integer or `unknown` |
+| `scripts/converge/resolve-blockers.sh` | Resolve effective blocker count from verdict JSON or current-round comment | `<verdict.json> <pr-number>` (env: `CONVERGE_ROUND_STARTED` to scope the comment fallback; `CONVERGE_COMMENT_BODY`/`CONVERGE_COMMENTS_JSON` for tests) | Integer or `unknown` |
 | `scripts/converge/decide-round.sh` | Decide converge loop action for one round | Env: `ROUND`, `BLOCKERS`, `CI_GREEN`, `PREV_SIGS`, `CURR_SIGS` | `approve`, `fix`, `escalate:*` |
 | `scripts/converge/decide-cap-action.sh` | Bound converge re-dispatch (cap-reached / empty-PR) so a truncated review or empty PR can't thrash | `<redispatch_count> <has_issue_num>` | `redispatch`, `escalate` |
 | `scripts/reconciler/decide-stale-action.sh` | Stale draft recovery action | `<redispatch_count> <ci_runs> <has_converge> <failing_count> <has_issue> <has_diff>` | `escalate`, `trigger-ci`, `mark-ready`, `mark-ready-and-converge`, `redispatch`, `needs-human` |

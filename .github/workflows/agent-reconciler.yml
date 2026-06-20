@@ -90,10 +90,14 @@ jobs:
               | grep -oE '[0-9]+' || echo "")
             REDISPATCH_COUNT=0
             if [ -n "$ISSUE_NUM" ]; then
+              # Count by marker text only — NOT by author. The re-dispatch comment is
+              # posted with GH_BOT_TOKEN (authored by the bot *user*, not
+              # github-actions[bot]), so an author filter here always counted 0 and the
+              # cap never fired → unbounded re-dispatch / duplicate PRs.
               REDISPATCH_COUNT=$(gh issue view "$ISSUE_NUM" \
                 --repo "$REPO" \
                 --json comments \
-                --jq '[.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("reconciler re-dispatch"))] | length' \
+                --jq '[.comments[] | select(.body | contains("reconciler re-dispatch"))] | length' \
                 2>/dev/null || echo "0")
             fi
 
@@ -319,9 +323,12 @@ jobs:
                 SECS_SINCE_ACTIVITY=$((NOW - LA_EPOCH))
               fi
 
+              # Count by marker text only — NOT by author (see step 1): the comment is
+              # posted as the bot user via GH_BOT_TOKEN, so an author filter on
+              # github-actions[bot] always returned 0 and the cap never fired.
               REDISPATCH_COUNT=$(gh issue view "$ISSUE_NUM" --repo "$REPO" \
                 --json comments \
-                --jq '[.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("reconciler re-dispatch"))] | length' \
+                --jq '[.comments[] | select(.body | contains("reconciler re-dispatch"))] | length' \
                 2>/dev/null || echo "0")
 
               # ── Decision (scripts/reconciler/decide-redispatch-action.sh) ──
