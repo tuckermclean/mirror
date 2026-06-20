@@ -166,6 +166,12 @@ kubectl get clusterissuer letsencrypt-prod
 # READY should be True
 ```
 
+> **`http01` vs `dns01`:** The `http01` solver above requires Let's Encrypt to
+> reach the Ingress on **port 80** for the ACME challenge. If port 80 is
+> firewalled/closed, or you need a **wildcard cert** (`*.yourdomain.com`), the
+> `http01` solver will not work — use a `dns01` solver (with your DNS provider's
+> API credentials) instead. Wildcard certificates are only issuable via `dns01`.
+
 **What breaks if missing:** TLS certificate provisioning fails silently. The Ingress is created but HTTPS returns a self-signed or missing cert. cert-manager annotation on the Ingress is ignored.
 
 #### 3. Prometheus Operator + ServiceMonitor CRD
@@ -278,9 +284,10 @@ kubectl get crd scaledobjects.keda.sh
    ```
    Or edit `values-prod.yaml` directly (recommended for GitOps).
 
-2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it:
+2. **Private GHCR images** — if the packages are private, create an imagePullSecret and reference it. The PAT (`YOUR_GITHUB_PAT`) only needs the **`read:packages`** scope — do not grant `write:packages`, `repo`, or any broader scope to a pull-only secret:
    ```bash
    # Create the pull secret once per namespace
+   # YOUR_GITHUB_PAT requires only the read:packages scope
    kubectl create secret docker-registry ghcr-pull-secret \
      --docker-server=ghcr.io \
      --docker-username=YOUR_GITHUB_USER \
@@ -315,7 +322,7 @@ helm install mirror-worker oci://ghcr.io/YOUR_ORG/mirror-worker \
 **ArgoCD / GitOps path:**
 Point ArgoCD at `infra/helm/mirror-web` and `infra/helm/mirror-worker` with the appropriate values overlay. Releases are triggered by pushing a semver tag — CI builds and pushes both images + the chart, then ArgoCD syncs automatically.
 
-**DB migrations run automatically** via a Helm post-upgrade Job hook — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
+**DB migrations run automatically** via a Helm `post-install,post-upgrade` Job hook (it fires on the first `helm install` as well as every subsequent `helm upgrade`) — you do not need to run the `kubectl run db-migrate` command manually. See [DB migration hook](#db-migration-hook) below.
 
 ---
 
@@ -349,7 +356,7 @@ kubectl rollout status deployment/mirror-web -n mirror
 kubectl rollout status deployment/mirror-worker -n mirror
 ```
 
-The Helm post-upgrade Job hook runs `pnpm db:migrate` automatically after each `helm upgrade`. Watch it with:
+The Helm `post-install,post-upgrade` Job hook runs `pnpm db:migrate` automatically after each `helm install` and `helm upgrade`. Watch it with:
 
 ```bash
 kubectl get jobs -n mirror -w
