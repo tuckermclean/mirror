@@ -20,8 +20,16 @@ image:
 #     - name: ghcr-pull-secret
 imagePullSecrets: []
 
-# DB migration Helm hook — runs "pnpm db:migrate" as a post-install/post-upgrade Job.
-# Set migration.enabled=false if you want to run migrations manually before the deploy.
+# DB migration Helm hook — runs "node scripts/migrate.mjs" as a
+# post-install/post-upgrade Job. (The runtime image is distroless and has no
+# pnpm, so the Job invokes node directly rather than "pnpm db:migrate".)
+# Defaults to enabled so a fresh install applies the schema automatically.
+# When set to false, NO migration runs as part of the release — you MUST run
+# migrations manually before (or alongside) the deploy, e.g.:
+#   kubectl run mirror-migrate --rm -it --restart=Never \
+#     --image=<image> --env-from=secret/mirror-secrets \
+#     --command -- node scripts/migrate.mjs
+# Otherwise the new app version may start against an outdated schema.
 migration:
   enabled: true
 
