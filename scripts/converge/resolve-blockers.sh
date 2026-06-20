@@ -19,7 +19,13 @@
 # "no verdict" — escalate honestly, never claim blockers exist.
 #
 # Usage:   resolve-blockers.sh <verdict.json> <pr-number>
-# Testing: set CONVERGE_COMMENT_BODY to bypass the `gh` network call.
+# Env:
+#   CONVERGE_ROUND_STARTED  ISO-8601 timestamp; when set, the sentinel comment
+#                           fallback only considers PR comments at/after it (so a
+#                           stale prior-round footer is ignored). Empty = unscoped.
+# Testing: CONVERGE_COMMENT_BODY bypasses the `gh` call with a single comment body;
+#          CONVERGE_COMMENTS_JSON supplies the full comments array (objects with
+#          .createdAt + .body) to exercise round scoping without network.
 set -uo pipefail
 
 verdict_file="${1:-}"
@@ -60,13 +66,28 @@ if [ "$is_sentinel" = "false" ]; then
   exit 0
 fi
 
-# Sentinel present: the JSON was never overwritten. Fall back to the comment.
+# Sentinel present: the JSON was never overwritten this round. Fall back to the
+# reviewer's footer comment — but ONLY from the CURRENT round. A PR that ran
+# several converge loops accumulates stale "🔴 N blockers" footers; without round
+# scoping, a round whose reviewer wrote no verdict would resolve to a stale
+# prior-round count → a phantom blocker that escalates a clean PR (cap-reached).
+# CONVERGE_ROUND_STARTED (ISO-8601) bounds the fallback to this round's comments;
+# empty preserves the old unscoped behavior. Comments come from env JSON (tests)
+# or the live PR (prod).
+since="${CONVERGE_ROUND_STARTED:-}"
 if [ -n "${CONVERGE_COMMENT_BODY:-}" ]; then
   body="$CONVERGE_COMMENT_BODY"
 else
-  body="$(gh pr view "$pr_number" --json comments \
-    --jq '[.comments[] | select(.body | test("🔴[[:space:]]*[0-9]+[[:space:]]*blockers?"))] | last | .body' \
-    2>/dev/null || echo "")"
+  if [ -n "${CONVERGE_COMMENTS_JSON:-}" ]; then
+    comments="$CONVERGE_COMMENTS_JSON"
+  else
+    comments="$(gh pr view "$pr_number" --json comments --jq '.comments' 2>/dev/null || echo '[]')"
+  fi
+  body="$(printf '%s' "$comments" | jq -r --arg since "$since" '
+    [ .[]
+      | select(($since == "") or (.createdAt >= $since))
+      | select(.body | test("🔴[[:space:]]*[0-9]+[[:space:]]*blockers?")) ]
+    | last | .body // ""' 2>/dev/null || echo "")"
 fi
 
 if [ -n "$body" ] && [ "$body" != "null" ]; then

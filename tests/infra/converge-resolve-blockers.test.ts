@@ -46,6 +46,27 @@ function resolveBlockers(verdict: string, commentBody?: string): string {
   }).trim();
 }
 
+/**
+ * Run the resolver against a full comments array + a round-start cutoff, so the
+ * round-scoping of the sentinel fallback can be exercised without the network.
+ */
+function resolveWithComments(
+  verdict: string,
+  comments: { createdAt: string; body: string }[],
+  roundStarted: string,
+): string {
+  const file = join(dir, `verdict-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, verdict);
+  return execFileSync("bash", [script, file, "123"], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      CONVERGE_COMMENTS_JSON: JSON.stringify(comments),
+      CONVERGE_ROUND_STARTED: roundStarted,
+    },
+  }).trim();
+}
+
 describe("converge resolve-blockers", () => {
   it("trusts a real JSON verdict of 0 blockers", () => {
     expect(resolveBlockers(JSON.stringify({ blockers: 0 }))).toBe("0");
@@ -73,6 +94,44 @@ describe("converge resolve-blockers", () => {
     expect(resolveBlockers(SENTINEL, "review still in progress…")).toBe(
       "unknown",
     );
+  });
+
+  // ── Round scoping of the sentinel fallback (the #182 phantom-blocker bug) ──
+
+  const ROUND_START = "2026-06-19T21:00:00Z";
+  const stale = {
+    createdAt: "2026-06-19T20:39:00Z",
+    body: "🔴 1 blocker | 🟡 0 suggestions",
+  };
+
+  it("ignores a STALE prior-round footer and returns 'unknown' (no current verdict)", () => {
+    // Sentinel survived AND the only 🔴 footer predates this round → must NOT be
+    // read as this round's count (that manufactured the #182 phantom blocker).
+    expect(resolveWithComments(SENTINEL, [stale], ROUND_START)).toBe("unknown");
+  });
+
+  it("uses the CURRENT-round footer when one exists", () => {
+    const current = {
+      createdAt: "2026-06-19T21:05:00Z",
+      body: "🔴 0 blockers | 🟡 0 suggestions | 💭 2 nits",
+    };
+    expect(resolveWithComments(SENTINEL, [stale, current], ROUND_START)).toBe(
+      "0",
+    );
+  });
+
+  it("prefers the current-round footer over a stale one when both are present", () => {
+    const current = {
+      createdAt: "2026-06-19T21:05:00Z",
+      body: "🔴 2 blockers",
+    };
+    expect(resolveWithComments(SENTINEL, [stale, current], ROUND_START)).toBe(
+      "2",
+    );
+  });
+
+  it("stays unscoped (uses any footer) when no round start is given", () => {
+    expect(resolveWithComments(SENTINEL, [stale], "")).toBe("1");
   });
 
   it("returns 'unknown' for a verdict JSON missing the blockers field", () => {

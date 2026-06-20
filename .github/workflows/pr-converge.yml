@@ -176,11 +176,15 @@ jobs:
           find /tmp/agency-agents -mindepth 2 -name "*.md" -exec cp {} .agents/ \;
 
       - name: Setup — init state files
+        id: r1_seed
         run: |
           echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
             > .converge-verdict.json
           rm -f .converge-verdict-r1.json .converge-verdict-r2.json .converge-verdict-r3.json
           rm -f .converge-final-action .converge-nits-raw
+          # Record the round-start time so the verdict resolver only reads THIS round's
+          # reviewer footer comments (ignoring stale footers from prior converge loops).
+          echo "round_started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       # Stage all converge scripts from the trusted default branch so PR code
       # cannot tamper with them, and so they're present even on old branches.
@@ -291,7 +295,8 @@ jobs:
       - name: "R1 — Decide"
         id: r1_decide
         run: |
-          BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r1.json "$PR_NUMBER")
+          BLOCKERS=$(CONVERGE_ROUND_STARTED="${{ steps.r1_seed.outputs.round_started }}" \
+            bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r1.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r1.json 2>/dev/null || echo "[]")
           CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
           echo "$NITS" >> .converge-nits-raw
@@ -332,10 +337,12 @@ jobs:
       # ── Round 2 ─────────────────────────────────────────────────────────────
 
       - name: "R2 — Reset verdict sentinel"
+        id: r2_seed
         if: steps.r1_decide.outputs.done != 'true'
         run: |
           echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
             > .converge-verdict.json
+          echo "round_started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: "R2 — Review"
         id: r2_review
@@ -400,7 +407,8 @@ jobs:
         id: r2_decide
         if: steps.r1_decide.outputs.done != 'true'
         run: |
-          BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r2.json "$PR_NUMBER")
+          BLOCKERS=$(CONVERGE_ROUND_STARTED="${{ steps.r2_seed.outputs.round_started }}" \
+            bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r2.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r2.json 2>/dev/null || echo "[]")
           PREV_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r1.json 2>/dev/null || echo "[]")
           CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
@@ -446,10 +454,12 @@ jobs:
       # ── Round 3 ─────────────────────────────────────────────────────────────
 
       - name: "R3 — Reset verdict sentinel"
+        id: r3_seed
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         run: |
           echo '{"blockers":1,"suggestions":0,"nits":[],"blocker_signatures":["verdict-file-not-written"]}' \
             > .converge-verdict.json
+          echo "round_started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: "R3 — Review"
         id: r3_review
@@ -514,7 +524,8 @@ jobs:
         id: r3_decide
         if: steps.r1_decide.outputs.done != 'true' && steps.r2_decide.outputs.done != 'true'
         run: |
-          BLOCKERS=$(bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r3.json "$PR_NUMBER")
+          BLOCKERS=$(CONVERGE_ROUND_STARTED="${{ steps.r3_seed.outputs.round_started }}" \
+            bash "$RUNNER_TEMP/resolve-blockers.sh" .converge-verdict-r3.json "$PR_NUMBER")
           NITS=$(jq -c '.nits // []' .converge-verdict-r3.json 2>/dev/null || echo "[]")
           PREV_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r2.json 2>/dev/null || echo "[]")
           CURR_SIGS=$(jq -c '(.blocker_signatures // []) | sort' .converge-verdict-r3.json 2>/dev/null || echo "[]")

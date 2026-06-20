@@ -29,6 +29,11 @@ If you catch yourself about to write a function, a type, a test, a schema — st
      --title "<title>" --label "agent:orchestrated" \
      --body "Closes #<ISSUE NUMBER>\n\n🚧 Orchestrator spinning up specialists."
    ```
+   `<ISSUE NUMBER>` is the **issue you were dispatched on** — the PR body MUST keep
+   `Closes #<ISSUE NUMBER>`. If that issue asks you to address *other* issues, also
+   `Closes` those, but never drop the dispatched one: it is the only link the
+   reconciler uses to know this work has a PR. Omit it and the issue is re-dispatched
+   forever, spawning duplicate PRs.
 3. **Commit and push after each meaningful step** — never batch everything into one final commit.
 4. **Post a brief status comment early:**
    ```

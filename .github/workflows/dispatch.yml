@@ -189,6 +189,23 @@ jobs:
             PR_NUM=$(echo "$PR" | jq -r '.number // empty' 2>/dev/null || echo "")
             if [ -n "$PR_NUM" ]; then
               gh pr edit "$PR_NUM" --add-label "agent:implementing" || true
+
+              # Ensure the PR closes its DISPATCHING issue so the reconciler/dispatch can
+              # link issue↔PR. Agents sometimes write "Closes #<sub-issue>" instead — e.g.
+              # when the dispatched issue asks to scoop OTHER issues — leaving the
+              # dispatched issue with no PR reference. The reconciler then sees that issue
+              # as "no open PR" and re-dispatches it forever, spawning duplicate PRs.
+              # github.event.issue.number is the dispatched issue (empty for PR-review
+              # comment events); skip when it equals the PR (comment-on-PR dispatch).
+              DISPATCH_ISSUE="${{ github.event.issue.number }}"
+              if [ -n "$DISPATCH_ISSUE" ] && [ "$DISPATCH_ISSUE" != "$PR_NUM" ]; then
+                BODY=$(gh pr view "$PR_NUM" --json body --jq '.body' 2>/dev/null || echo "")
+                if ! printf '%s' "$BODY" | grep -qE "(Closes|closes|Fixes|fixes|Resolves|resolves) #${DISPATCH_ISSUE}([^0-9]|\$)"; then
+                  printf '%s\n\nCloses #%s\n' "$BODY" "$DISPATCH_ISSUE" > "$RUNNER_TEMP/pr-body.md"
+                  gh pr edit "$PR_NUM" --body-file "$RUNNER_TEMP/pr-body.md" || true
+                  echo "Linked PR #$PR_NUM to dispatching issue #$DISPATCH_ISSUE (added Closes)."
+                fi
+              fi
               # Re-add the converge label if it was stripped (e.g. by conflict
               # detection) from a PR that was already past the draft stage.
               # The label means "ready to converge" and is added by the agent only
